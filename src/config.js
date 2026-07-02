@@ -88,3 +88,10 @@ export const EVENT_VERBS = {
   done: "vazifani yakunladi",
   collab: "bilan hamkorlik boshladi",
 };
+
+// ── Ma'lumot manbasi (transport) ─────────────────────────────
+// SOURCE: "sim" — lokal fake simulyatsiya (default), "ws" — real backend (WebSocket).
+// WS_URL: SOURCE="ws" bo'lganda ulanadigan WebSocket manzili.
+// Qiymatlar .env orqali beriladi (.env.example ga qarang).
+export const SOURCE = import.meta.env.VITE_SOURCE || "sim";
+export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8787";

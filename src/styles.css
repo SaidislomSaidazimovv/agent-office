@@ -1,8 +1,81 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+
 body {
-  background: #0d1015;
-  color: #f5f7fa;
+  background: #0b0e13;
+  color: #edf1f7;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv01", "ss01";
 }
+
 canvas { display: block; }
+
+/* ── Overlay: close button ─────────────────────────────────── */
+.ao-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #aeb6c4;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.ao-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #edf1f7;
+}
+.ao-close:focus-visible {
+  outline: 2px solid #0a84ff;
+  outline-offset: 2px;
+}
+
+/* ── Live pulse indicator ──────────────────────────────────── */
+.ao-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #30d158;
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.9);
+  flex-shrink: 0;
+  animation: ao-pulse 2s ease-in-out infinite;
+}
+@keyframes ao-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+/* ── Thin custom scrollbars ────────────────────────────────── */
+.ao-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.ao-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.ao-scroll::-webkit-scrollbar-track { background: transparent; }
+.ao-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.ao-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ao-live-dot { animation: none; }
+  * { transition: none !important; }
+}

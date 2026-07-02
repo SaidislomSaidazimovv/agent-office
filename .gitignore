@@ -14,3 +14,10 @@ dist-ssr/
 # Multi-agent live state (kanban + locks) — config.json stays committed
 active_tasks.md
 active_files.md
+
+# Texture source files (not used by the web app — only the PNG maps are)
+*.blend
+*.blend1
+*.usdc
+*.mtlx
+*.tres

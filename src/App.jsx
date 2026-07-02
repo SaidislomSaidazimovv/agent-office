@@ -6,14 +6,16 @@ import { OfficeEnvironment, Hub, Beams } from "./components/Office.jsx";
 import Workstation from "./components/Workstation.jsx";
 import Overlay from "./ui/Overlay.jsx";
 import { AGENTS, SPOTS } from "./config.js";
-import { useSim, startSimulation } from "./state/simulation.js";
+import { useSim } from "./state/simulation.js";
+import { startTransport } from "./state/transport.js";
 
 const MUG_COLORS = ["#b03a2e", "#2471a3", "#d68910", "#1e8449", "#7d3c98", "#117a65"];
 
 export default function App() {
   const select = useSim((s) => s.select);
 
-  useEffect(() => startSimulation(), []);
+  // Manba tanlash transport tikuvi ichida (config.SOURCE: sim | ws).
+  useEffect(() => startTransport(), []);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
