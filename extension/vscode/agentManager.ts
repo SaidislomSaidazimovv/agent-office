@@ -31,11 +31,12 @@ export class AgentManager {
   ) {}
 
   start(): void {
+    // Terminal yopilса — unga bog'liq agent ham o'chadi (dispose emas — allaqachon yopilyapti)
     this.disposables.push(
       vscode.window.onDidCloseTerminal((term) => {
         for (const [id, t] of this.terminals) {
           if (t === term) {
-            this.closeAgent(id);
+            this.detach(id);
             break;
           }
         }
@@ -64,7 +65,9 @@ export class AgentManager {
   private scanForNew(): void {
     for (const { dir, folderName } of this.sessionDirs()) {
       for (const f of this.listJsonl(dir)) {
-        if (this.store.findByFile(f.filePath)) continue;
+        const sid = path.basename(f.filePath, ".jsonl");
+        // Dublikatдан himoya — fayl YOKI sessiya allaqachon kuzatilsa o'tkazamiz
+        if (this.store.findByFile(f.filePath) || this.store.findBySession(sid)) continue;
         if (f.mtime < this.startupTime) continue; // ochilishдан oldingi — kutamiz
         this.adopt(f.filePath, folderName, true);
       }
@@ -99,13 +102,21 @@ export class AgentManager {
   }
 
   private adopt(filePath: string, folderName: string, isExternal: boolean, role?: string): AgentState | null {
-    if (this.store.findByFile(filePath)) return null;
+    const sessionId = path.basename(filePath, ".jsonl");
+    if (this.store.findByFile(filePath) || this.store.findBySession(sessionId)) return null;
     const id = this.store.allocateId();
     const task = this.readFirstTask(filePath);
-    const sessionId = path.basename(filePath, ".jsonl");
     const agent = createAgentState(id, filePath, folderName, { role, task, isExternal, sessionId });
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
+    // Avto-agentни aktiv Claude terminaliга bog'laymiz — terminal yopilса
+    // agent ham o'chadi, "Terminal" tugmasi ham shu terminalни ochadi.
+    if (isExternal) {
+      const active = vscode.window.activeTerminal;
+      if (active && active.name.startsWith(CLAUDE_TERMINAL_NAME_PREFIX)) {
+        this.terminals.set(id, active);
+      }
+    }
     return agent;
   }
 
@@ -161,14 +172,28 @@ export class AgentManager {
     this.terminals.set(id, terminal);
   }
 
-  closeAgent(id: number): void {
+  /** Agentни store'дан olib tashlaydi (terminalни YOPMAYDI). */
+  private detach(id: number): void {
     this.terminals.delete(id);
     this.store.remove(id);
   }
 
+  /** Webview "Yopish" tugmasi — agentни VA uning terminalини yopadi. */
+  closeAgent(id: number): void {
+    const term = this.terminals.get(id);
+    this.detach(id);
+    if (term) {
+      try {
+        term.dispose();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   removeBySession(sessionId: string): void {
     const a = this.store.findBySession(sessionId);
-    if (a) this.closeAgent(a.id);
+    if (a) this.detach(a.id);
   }
 
   focusAgent(id: number): void {
