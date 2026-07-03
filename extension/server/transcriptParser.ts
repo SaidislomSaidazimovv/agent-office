@@ -41,9 +41,14 @@ function startPermissionTimer(store: AgentStateStore, agent: AgentState): void {
 
 /** assistant xabaridan token usage'ни o'qib broadcast qiladi. */
 function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<string, unknown>): void {
-  const usage = message.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+  const usage = message.usage as
+    | { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
+    | undefined;
   if (!usage) return;
-  if (usage.input_tokens) agent.inputTokens = usage.input_tokens;
+  // Kontekst hajmi = kesh-lanmagan + kesh-o'qilган + kesh-yaratilган (aks holda
+  // faqat delta ~0 chiqadi va health-bar noto'g'ri bo'ladi).
+  const ctx = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
+  if (ctx > 0) agent.inputTokens = ctx;
   agent.outputTokens += usage.output_tokens || 0;
   store.broadcast({
     type: "agentTokenUsage",

@@ -20,6 +20,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agent-office.showPanel", () => {
       vscode.commands.executeCommand("agent-office.panelView.focus");
     }),
+    vscode.commands.registerCommand("agent-office.showDiagnostics", () => {
+      provider.log.show(true);
+    }),
     vscode.commands.registerCommand("agent-office.installHooks", () => {
       const ok = installHooks(hookScript);
       vscode.window.showInformationMessage(

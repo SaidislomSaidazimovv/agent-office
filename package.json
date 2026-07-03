@@ -36,6 +36,10 @@
       {
         "command": "agent-office.uninstallHooks",
         "title": "Agent Office: Claude Hook'larini olib tashlash"
+      },
+      {
+        "command": "agent-office.showDiagnostics",
+        "title": "Agent Office: Diagnostikани ko'rsatish"
       }
     ],
     "viewsContainers": {

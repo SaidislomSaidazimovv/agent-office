@@ -28,10 +28,17 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
+  readonly log = vscode.window.createOutputChannel("Agent Office");
+
+  private logMsg(m: string): void {
+    const t = new Date().toISOString().slice(11, 19);
+    this.log.appendLine(`[${t}] ${m}`);
+  }
 
   constructor(private readonly extensionUri: vscode.Uri, private readonly version: string) {
     // Yangi agent → personaj yaratish
     this.store.on("agentAdded", (agent: AgentState) => {
+      this.logMsg(`+ agent #${agent.id}  folder=${agent.folderName}  role=${agent.role ?? "-"}  session=${agent.sessionId?.slice(0, 8) ?? "-"}  external=${agent.isExternal}`);
       this.sendOrBuffer({
         type: "agentCreated",
         id: agent.id,
@@ -42,26 +49,55 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       });
     });
     this.store.on("agentRemoved", (id: number) => {
+      this.logMsg(`- agent #${id} yopildi`);
       this.sendOrBuffer({ type: "agentClosed", id });
     });
     // Faoliyat xabarlari
-    this.store.on("broadcast", (msg: ServerMessage) => this.sendOrBuffer(msg));
+    this.store.on("broadcast", (msg: ServerMessage) => {
+      this.logBroadcast(msg);
+      this.sendOrBuffer(msg);
+    });
+  }
+
+  /** Muhim holat o'zgarishlarini logга yozadi (token spam'siz). */
+  private logBroadcast(msg: ServerMessage): void {
+    switch (msg.type) {
+      case "agentStatus":
+        this.logMsg(`  #${msg.id} → ${msg.status}${msg.awaitingInput ? " (kirish kutmoqda)" : ""}`);
+        break;
+      case "agentToolStart":
+        this.logMsg(`  #${msg.id} tool: ${msg.status}`);
+        break;
+      case "agentToolPermission":
+        this.logMsg(`  #${msg.id} 🔔 ruxsat so'raldi`);
+        break;
+      case "subagentToolStart":
+        this.logMsg(`  #${msg.id} + sub-agent`);
+        break;
+    }
   }
 
   activate(): void {
     this.watcher.start();
     this.manager.start();
+    this.logMsg(`Agent Office ${this.version} yoqildi. Ish papkalari: ${(vscode.workspace.workspaceFolders ?? []).map((f) => f.name).join(", ") || "(yo'q)"}`);
 
-    // Hook rejimi (ishonchli aniqlash) — sozlamада yoqilган bo'lsa.
+    // Hook rejimi (ishonchli aniqlash) — sozlamада yoqilған bo'lsa.
     const hooksEnabled = vscode.workspace
       .getConfiguration("agent-office")
       .get<boolean>("hooksEnabled", true);
     if (hooksEnabled) {
       void this.hookServer.start().then((handle) => {
-        if (!handle) return;
+        if (!handle) {
+          this.logMsg("⚠ Hook server ishga tushmadi — faqat JSONL kuzatuvи ishlaydi.");
+          return;
+        }
         const hookScript = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
-        installHooks(hookScript);
+        const ok = installHooks(hookScript);
+        this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
       });
+    } else {
+      this.logMsg("Hook rejimi o'chirilган (agent-office.hooksEnabled=false) — faqat JSONL.");
     }
   }
 
@@ -69,6 +105,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
    *  agentни avto-yaratadi (+Agent shart emas). */
   private onHookEvent(sessionId: string, raw: Record<string, unknown>): void {
     const event = raw.hook_event_name as string;
+    this.logMsg(`[hook] ${event}  session=${sessionId.slice(0, 8)}${raw.tool_name ? "  tool=" + raw.tool_name : ""}`);
     if (event === "SessionEnd") {
       this.manager.removeBySession(sessionId);
       return;
@@ -76,7 +113,10 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     let agent = this.store.findBySession(sessionId);
     if (!agent) {
       const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
-      if (!cwd || !this.isInWorkspace(cwd)) return;
+      if (!cwd || !this.isInWorkspace(cwd)) {
+        this.logMsg(`[hook] o'tkazildi — sessiya bu loyihада emas (cwd=${cwd ?? "?"})`);
+        return;
+      }
       agent = this.manager.ensureSessionAgent(sessionId, cwd);
     }
     handleHookEvent(this.store, agent, raw);
@@ -221,5 +261,6 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.manager.dispose();
     this.hookServer.stop();
     this.store.disposeAll();
+    this.log.dispose();
   }
 }
