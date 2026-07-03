@@ -42,6 +42,9 @@ export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingI
   agent.hadToolsInTurn = false;
   agent.activeToolIds.clear();
   agent.subagentToolIds.clear();
+  agent.currentToolLabel = undefined;
+  agent.currentToolName = undefined;
+  agent.permissionActive = false;
   agent.isWaiting = true;
   store.broadcast({ type: "agentToolsClear", id: agent.id });
   store.broadcast({ type: "agentStatus", id: agent.id, status: "waiting", awaitingInput });

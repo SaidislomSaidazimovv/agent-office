@@ -65,17 +65,31 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /** Hook eventини MAVJUD (terminalга bog'liq) agentга yo'naltiradi.
-   *  Yangi agent YARATMAYDI — agent faqat +Agent orqali paydo bo'ladi. */
+  /** Hook eventини agentга yo'naltiradi. Shu loyiha sessiyasi bo'lsa
+   *  agentни avto-yaratadi (+Agent shart emas). */
   private onHookEvent(sessionId: string, raw: Record<string, unknown>): void {
     const event = raw.hook_event_name as string;
     if (event === "SessionEnd") {
       this.manager.removeBySession(sessionId);
       return;
     }
-    const agent = this.store.findBySession(sessionId);
-    if (!agent) return; // bu sessiya biror +Agent terminaliga bog'lanmagan
+    let agent = this.store.findBySession(sessionId);
+    if (!agent) {
+      const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
+      if (!cwd || !this.isInWorkspace(cwd)) return;
+      agent = this.manager.ensureSessionAgent(sessionId, cwd);
+    }
     handleHookEvent(this.store, agent, raw);
+  }
+
+  private isInWorkspace(cwd: string): boolean {
+    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+    const norm = (p: string) => p.replace(/[\\/]+$/, "").toLowerCase();
+    const c = norm(cwd);
+    return folders.some((f) => {
+      const nf = norm(f);
+      return c === nf || c.startsWith(nf + "/") || c.startsWith(nf + "\\");
+    });
   }
 
   private sendOrBuffer(msg: ServerMessage): void {
@@ -159,10 +173,23 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       folderNames: Object.fromEntries(agents.map((a) => [a.id, a.folderName])),
       roles: Object.fromEntries(agents.filter((a) => a.role).map((a) => [a.id, a.role!])),
     });
-    // 5) Buferdagi faoliyat xabarlarини oqizamiz
-    const buffered = this.pending;
+    // 5) Har agentning JORIY holatини qayta yuboramiz (SNAPSHOT) — webview
+    //    qayta yuklanганда ish 0dan boshlanmasin, aynan turган joyида davom etsin.
+    for (const a of agents) {
+      this.post({ type: "agentStatus", id: a.id, status: a.isWaiting ? "waiting" : "active" });
+      if (a.inputTokens > 0 || a.outputTokens > 0) {
+        this.post({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens });
+      }
+      if (!a.isWaiting && a.currentToolLabel) {
+        this.post({ type: "agentToolStart", id: a.id, toolId: "restore", status: a.currentToolLabel, toolName: a.currentToolName });
+      }
+      for (const tid of a.subagentToolIds) {
+        this.post({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Sub-agent" });
+      }
+      if (a.permissionActive) this.post({ type: "agentToolPermission", id: a.id });
+    }
+    // Snapshot joriy holatни to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];
-    for (const m of buffered) this.post(m);
   }
 
   private getWebviewContent(webview: vscode.Webview): string {

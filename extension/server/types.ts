@@ -30,6 +30,11 @@ export interface AgentState {
   activeToolIds: Set<string>;
   /** Foydali toollar (sub-agent Task ID'lari). */
   subagentToolIds: Set<string>;
+  /** Joriy tool yorlig'i/nomi + ruxsat holati — webview qayta yuklanганда
+   *  holatни tiklash uchun saqlanadi. */
+  currentToolLabel?: string;
+  currentToolName?: string;
+  permissionActive: boolean;
 
   // ── Hook rejimi ──
   /** Bu agentga hook eventи kelgan — JSONL heuristikasi o'chiriladi. */
@@ -68,6 +73,7 @@ export function createAgentState(
     isWaiting: true,
     activeToolIds: new Set(),
     subagentToolIds: new Set(),
+    permissionActive: false,
     hookDelivered: false,
     hookToolCounter: 0,
     inputTokens: 0,

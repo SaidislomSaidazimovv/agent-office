@@ -34,6 +34,7 @@ function startPermissionTimer(store: AgentStateStore, agent: AgentState): void {
   if (agent.permissionTimer) clearTimeout(agent.permissionTimer);
   agent.permissionTimer = setTimeout(() => {
     agent.permissionTimer = undefined;
+    agent.permissionActive = true;
     store.broadcast({ type: "agentToolPermission", id: agent.id });
   }, PERMISSION_TIMER_DELAY_MS);
 }
@@ -109,6 +110,8 @@ export function processTranscriptLine(
           });
         } else {
           agent.activeToolIds.add(toolId);
+          agent.currentToolLabel = status;
+          agent.currentToolName = name;
           store.broadcast({
             type: "agentToolStart",
             id: agent.id,
@@ -141,9 +144,10 @@ export function processTranscriptLine(
       ) as Array<ToolUseBlock & { tool_use_id?: string; is_error?: boolean }>;
       if (toolResults.length > 0) {
         // Ruxsat berildi — permission taymerini bekor qilamiz
-        if (agent.permissionTimer) {
+        if (agent.permissionTimer || agent.permissionActive) {
           clearTimeout(agent.permissionTimer);
           agent.permissionTimer = undefined;
+          agent.permissionActive = false;
           store.broadcast({ type: "agentToolPermissionClear", id: agent.id });
         }
         for (const tr of toolResults) {

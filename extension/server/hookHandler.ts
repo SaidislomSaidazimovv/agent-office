@@ -32,6 +32,8 @@ export function handleHookEvent(
         const toolId = `hook-${agent.hookToolCounter++}`;
         agent.activeToolIds.add(toolId);
         agent.currentHookToolId = toolId;
+        agent.currentToolLabel = status;
+        agent.currentToolName = name;
         store.broadcast({ type: "agentToolStart", id: agent.id, toolId, status, toolName: name, runInBackground });
       }
       break;
@@ -59,11 +61,10 @@ export function handleHookEvent(
 
     case "Notification": {
       const msg = ((raw.message as string) || "").toLowerCase();
-      if (msg.includes("permission") || msg.includes("approve") || msg.includes("allow")) {
-        store.broadcast({ type: "agentToolPermission", id: agent.id });
-      } else if (msg.includes("waiting") || msg.includes("input") || msg.includes("idle")) {
+      if (msg.includes("waiting") || msg.includes("input") || msg.includes("idle")) {
         markWaiting(store, agent, true); // "Kirish kutmoqda"
       } else {
+        agent.permissionActive = true;
         store.broadcast({ type: "agentToolPermission", id: agent.id });
       }
       break;
