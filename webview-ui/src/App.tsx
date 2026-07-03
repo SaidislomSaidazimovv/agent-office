@@ -1,6 +1,7 @@
 import { Html, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import OfficeDecor from "./scene/OfficeDecor";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
 import { ROLE_PRESETS } from "./scene/roles";
@@ -60,21 +61,22 @@ export default function App() {
         shadows
         dpr={[1, 1.25]}
         orthographic
-        camera={{ position: [16, 14, 16], zoom: 46, near: -100, far: 400 }}
+        camera={{ position: [24, 20, 24], zoom: 30, near: -200, far: 600 }}
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => select(null)}
       >
         <color attach="background" args={["#11151c"]} />
         <Room />
+        <OfficeDecor />
         {order.map((id) => {
           const a = agents[id];
           return a ? <Workstation key={id} agent={a} /> : null;
         })}
         <OrbitControls
           target={[0, 0.8, 0]}
-          enablePan={false}
-          minZoom={28}
-          maxZoom={90}
+          enablePan
+          minZoom={18}
+          maxZoom={80}
           maxPolarAngle={Math.PI * 0.44}
           minPolarAngle={Math.PI * 0.18}
         />
