@@ -5,7 +5,7 @@ import { send } from "../transport";
 
 // ── DOM overlay: sarlavha, +Agent (rol tanlash), bo'sh holat ──
 
-const ROLES = Object.values(ROLE_PRESETS);
+const ROLES = Object.entries(ROLE_PRESETS).map(([key, p]) => ({ key, ...p }));
 
 export default function Hud() {
   const order = useOffice((s) => s.order);
@@ -59,7 +59,7 @@ export default function Hud() {
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: r.colors.top, marginRight: 8 }} />
+                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: r.top, marginRight: 8 }} />
                 {r.label}
               </button>
             ))}

@@ -2,26 +2,11 @@ import { Html } from "@react-three/drei";
 import { Suspense } from "react";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
-import { Suspense as ReactSuspense } from "react";
 import Prop, { ModelBoundary } from "../three/Prop";
-import Character from "./Character";
-import RiggedCharacter from "./RiggedCharacter";
-import { presetFor, RIGGED_GLB, SEATS, STATUS_COLOR, STATUS_LABEL } from "./roles";
+import PixelPerson from "./PixelPerson";
+import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL } from "./roles";
 
-// Rigged GLB bo'lsa — o'tirgan skeletli personaj; bo'lmasa geometrik placeholder.
-function SeatedAgent({ role, colors, status }: { role?: string; colors: { top: string; pants: string; skin: string }; status: AgentView["status"] }) {
-  const url = role ? RIGGED_GLB[role] : undefined;
-  if (!url) return <Character colors={colors} status={status} />;
-  return (
-    <ModelBoundary fallback={<Character colors={colors} status={status} />}>
-      <ReactSuspense fallback={null}>
-        <RiggedCharacter url={url} status={status} />
-      </ReactSuspense>
-    </ModelBoundary>
-  );
-}
-
-// ── Bitta ish joyi: real GLB mebel + o'tirgan agent + yorliq ──
+// ── Bitta ish joyi: real GLB mebel + o'tirgan voxel personaj + yorliq ──
 
 const DESK_TOP = 0.74;
 const M = {
@@ -71,17 +56,17 @@ export default function Workstation({ agent }: { agent: AgentView }) {
       <group position={[-0.66, DESK_TOP + 0.005, 0.08]}>
         <mesh position={[0, 0.042, 0]} castShadow>
           <cylinderGeometry args={[0.033, 0.028, 0.085, 14]} />
-          <meshStandardMaterial color={preset.colors.top} roughness={0.35} />
+          <meshStandardMaterial color={preset.top} roughness={0.35} />
         </mesh>
         <mesh position={[0.038, 0.045, 0]}>
           <torusGeometry args={[0.022, 0.006, 8, 16]} />
-          <meshStandardMaterial color={preset.colors.top} roughness={0.35} />
+          <meshStandardMaterial color={preset.top} roughness={0.35} />
         </mesh>
       </group>
 
-      {/* O'tirgan agent — kreslода, monitorга (−z) qaragan */}
-      <group position={[0, 0, 0.52]}>
-        <SeatedAgent role={agent.role} colors={preset.colors} status={agent.status} />
+      {/* O'tirgan voxel personaj — kreslода, monitorга (−z) qaragan */}
+      <group position={[0, 0, 0.56]}>
+        <PixelPerson skin={preset} status={agent.status} />
       </group>
 
       {/* Yorliq */}

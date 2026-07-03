@@ -1,31 +1,43 @@
-// ── Rol presetlari ───────────────────────────────────────────
-// Har rol: yorliq + personaj ranglari. Rol tanlanmaган agentlar seat
-// indeksi bo'yicha paletadan rang oladi.
+// ── Rol presetlari + Pixel Agents personaj palitralarи ───────
+// Pixel Agents 6 personajини (JIK-A-4 Metro City) chuqur o'rganib,
+// har birини voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
-export interface RolePreset {
-  key: string;
+export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
+
+export interface CharSkin {
   label: string;
-  colors: { top: string; pants: string; skin: string };
+  skin: string;
+  hair: string;
+  hairStyle: HairStyle;
+  top: string;
+  bottom: string;
+  shoes: string;
 }
 
-export const ROLE_PRESETS: Record<string, RolePreset> = {
-  research: { key: "research", label: "Tadqiqot", colors: { top: "#5f6f83", pants: "#2e3440", skin: "#eab894" } },
-  frontend: { key: "frontend", label: "Frontend", colors: { top: "#584a86", pants: "#23262e", skin: "#f3c9a8" } },
-  backend: { key: "backend", label: "Backend", colors: { top: "#2a2e35", pants: "#383e47", skin: "#c98d55" } },
-  qa: { key: "qa", label: "QA / Review", colors: { top: "#a9c4dc", pants: "#39404d", skin: "#f6d7b5" } },
-  docs: { key: "docs", label: "Hujjatlar", colors: { top: "#c0913a", pants: "#4b4237", skin: "#e3b078" } },
-  data: { key: "data", label: "Ma'lumot", colors: { top: "#e4e7ec", pants: "#30393a", skin: "#a06f42" } },
+// 6 pixel personaj → 6 rol. Ranglar sprite'lardан olingan.
+export const ROLE_PRESETS: Record<string, CharSkin> = {
+  // char_1 — sarg'ish uzun soch, qora libos
+  research: { label: "Tadqiqot", skin: "#efc4a2", hair: "#d7a24c", hairStyle: "long", top: "#20222a", bottom: "#26282f", shoes: "#3a2c1e" },
+  // char_0 — qisqa jigarrang soch, ko'k/oq ko'ylak, navy shim
+  frontend: { label: "Frontend", skin: "#e8b58f", hair: "#6b4a2f", hairStyle: "short", top: "#c3d0e0", bottom: "#2f3a52", shoes: "#20242c" },
+  // char_2 — qora afro, to'q teri, to'q-sariq libos
+  backend: { label: "Backend", skin: "#6e4a34", hair: "#141414", hairStyle: "afro", top: "#cf5a28", bottom: "#d5722a", shoes: "#eaeaea" },
+  // char_5 — qora tikanli soch, qizil ko'ylak
+  qa: { label: "QA / Review", skin: "#e8b58f", hair: "#1a1a1a", hairStyle: "spiky", top: "#c0392b", bottom: "#26282f", shoes: "#eaeaea" },
+  // char_3 — oq/kumush jingalak soch, oq/krem libos (olim)
+  docs: { label: "Hujjatlar", skin: "#d9a884", hair: "#e3e4e6", hairStyle: "curly", top: "#eceae4", bottom: "#c9c4b6", shoes: "#7a5a3a" },
+  // char_4 — jigarrang o'rta soch, oq ko'ylak, teal shim
+  data: { label: "Ma'lumot", skin: "#e8b58f", hair: "#5a3f28", hairStyle: "medium", top: "#eceae4", bottom: "#2b6b6e", shoes: "#20242c" },
 };
 
 const PALETTE = Object.values(ROLE_PRESETS);
 
-export function presetFor(role: string | undefined, seatIndex: number): RolePreset {
+export function presetFor(role: string | undefined, seatIndex: number): CharSkin {
   if (role && ROLE_PRESETS[role]) return ROLE_PRESETS[role];
   return PALETTE[seatIndex % PALETTE.length];
 }
 
 // Ish joylari: chap va o'ng ustunlar (3+3), hamma markazga qaraydi.
-// (Eski tuned SPOTS qiymatlari — mebel/personaj burchagi shunga mos.)
 export const SEATS: { x: number; z: number; ry: number }[] = [
   { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
   { x: -5.5, z: 0, ry: -Math.PI / 2 },
@@ -34,14 +46,6 @@ export const SEATS: { x: number; z: number; ry: number }[] = [
   { x: 5.5, z: 0, ry: Math.PI / 2 },
   { x: 5.5, z: 3.2, ry: Math.PI / 2 },
 ];
-
-// Rigged (skeletli) GLB'lar — bularда RiggedCharacter (o'tirgan poza) ishlatiladi.
-// HOZIRCHA O'CHIRILGAN: faqat pixel-frontend Mixamo skeletli, poza qiymatlari
-// tasdiqlanmagan (headless renderда tekshirib bo'lmadi — og'ir skinned mesh).
-// Modellar to'plami + poza tasdiqlangач yoqiladi. Ayni damда hammasi placeholder.
-export const RIGGED_GLB: Record<string, string> = {
-  // frontend: "/models/pixel-frontend-developer.glb",
-};
 
 export const STATUS_COLOR: Record<string, string> = {
   idle: "#8e8e93",
