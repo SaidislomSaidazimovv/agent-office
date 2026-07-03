@@ -1,12 +1,9 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import {
-  CLAUDE_TERMINAL_NAME_PREFIX,
-  JSONL_POLL_INTERVAL_MS,
-  PROJECT_SCAN_INTERVAL_MS,
-} from "../core/constants.js";
+import { CLAUDE_TERMINAL_NAME_PREFIX, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
 import { getSessionDir } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
@@ -91,9 +88,11 @@ export class AgentManager {
         }
       }
     }
-    // O'chirilgan fayllar uchun agentларни tozalaymiz
+    // O'chirilgan fayllar uchun TASHQI agentларni tozalaymiz.
+    // (+Agent bilan ochilgan agentlar fayli hali paydo bo'lmagan bo'lishi
+    //  mumkin — ular terminal yopilганда tozalanadi, bu yerда emas.)
     for (const agent of this.store.values()) {
-      if (!fs.existsSync(agent.filePath)) {
+      if (agent.isExternal && !fs.existsSync(agent.filePath)) {
         this.store.remove(agent.id);
         this.knownFiles.delete(agent.filePath);
       }
@@ -152,11 +151,7 @@ export class AgentManager {
 
   /** `+Agent` — yangi Claude Code terminalини ochadi. */
   launchAgent(opts: { folderPath?: string; role?: string; bypassPermissions?: boolean } = {}): void {
-    const cwd = opts.folderPath || this.workspaceFolders()[0];
-    if (!cwd) {
-      vscode.window.showWarningMessage("Agent Office: avval loyiha papkasini oching.");
-      return;
-    }
+    const cwd = opts.folderPath || this.workspaceFolders()[0] || os.homedir();
     const sessionId = crypto.randomUUID();
     const idx = ++this.terminalCounter;
     const terminal = vscode.window.createTerminal({
@@ -168,22 +163,25 @@ export class AgentManager {
     if (opts.bypassPermissions) args.push("--dangerously-skip-permissions");
     terminal.sendText(`claude ${args.join(" ")}`);
 
-    // Kutilgan JSONL fayl yo'li — paydo bo'lishини kutamiz
+    // Kutilgan JSONL fayl yo'li.
     const dir = getSessionDir(cwd);
     const expectedFile = path.join(dir, `${sessionId}.jsonl`);
     const folderName = this.folderNameOf(cwd);
 
-    let polls = 0;
-    const poll = setInterval(() => {
-      polls++;
-      if (fs.existsSync(expectedFile)) {
-        clearInterval(poll);
-        const id = this.adopt(expectedFile, folderName, false, opts.role);
-        if (id !== null) this.terminals.set(id, terminal);
-      } else if (polls > 30) {
-        clearInterval(poll); // ~30s — taslim
-      }
-    }, JSONL_POLL_INTERVAL_MS);
+    // Personajни DARHOL yaratamiz (idle) — Pixel Agents kabi. FileWatcher
+    // barcha agent fayllarини har 500ms tekshiradi, shuning uchun Claude faylни
+    // yozganда faoliyat avtomat oqib keladi (alohida polling shart emas).
+    if (this.store.findByFile(expectedFile)) return;
+    this.knownFiles.add(expectedFile);
+    const id = this.store.allocateId();
+    const agent = createAgentState(id, expectedFile, folderName, {
+      role: opts.role,
+      task: "Yangi sessiya",
+      isExternal: false,
+    });
+    this.watcher.primeFromStart(agent);
+    this.store.add(agent);
+    this.terminals.set(id, terminal);
   }
 
   closeAgent(id: number): void {
