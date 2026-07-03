@@ -21,3 +21,6 @@ active_files.md
 *.usdc
 *.mtlx
 *.tres
+
+# Local self-verify helper (puppeteer, not a saved dep)
+_shot.cjs
