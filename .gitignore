@@ -25,7 +25,7 @@ active_files.md
 
 # Local self-verify helper (puppeteer, not a saved dep)
 _shot.cjs
-_shot_agents.cjs
+_shot*.cjs
 scratchpad/
 
 # TS build info
