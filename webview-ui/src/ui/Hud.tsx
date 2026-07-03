@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { ROLE_PRESETS } from "../scene/roles";
+import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
 import { useOffice } from "../store";
 import { send } from "../transport";
 
-// ── DOM overlay: sarlavha, +Agent (rol tanlash), bo'sh holat ──
+// ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
 
 const ROLES = Object.entries(ROLE_PRESETS).map(([key, p]) => ({ key, ...p }));
 
 export default function Hud() {
   const order = useOffice((s) => s.order);
+  const selectedId = useOffice((s) => s.selectedId);
+  const agents = useOffice((s) => s.agents);
+  const select = useOffice((s) => s.select);
   const [menu, setMenu] = useState(false);
+  const sel = selectedId != null ? agents[selectedId] : undefined;
 
   const launch = (role?: string) => {
     send({ type: "launchAgent", role });
@@ -89,6 +93,69 @@ export default function Hud() {
           <div style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.5 }}>
             <b>+ Agent</b> tugmасини bosing — yangi Claude Code terminali ochiladi va
             uning faoliyati shu ofisда jonli ko'rinadi.
+          </div>
+        </div>
+      )}
+
+      {/* Agent inspektor paneli (personaj tanlanганда) */}
+      {sel && (
+        <div
+          style={{
+            position: "absolute", bottom: 16, left: 16, width: 250, pointerEvents: "auto",
+            background: "rgba(16,20,27,0.95)", border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 12, padding: 14, boxShadow: "0 8px 28px rgba(0,0,0,0.5)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{sel.folderName}</div>
+            <button
+              onClick={() => select(null)}
+              style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 1 }}>
+            {presetFor(sel.role, sel.seatIndex).label}
+          </div>
+          <div style={{ fontSize: 12, marginTop: 8 }}>
+            <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {STATUS_LABEL[sel.status]}
+            {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}
+          </div>
+          {sel.task && (
+            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4, lineHeight: 1.4 }}>📋 {sel.task}</div>
+          )}
+          {/* Token kontekst */}
+          {sel.inputTokens > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 3 }}>
+                <span>Kontekst</span>
+                <span>{Math.round((sel.inputTokens / MAX_CONTEXT_TOKENS) * 100)}% · {(sel.outputTokens / 1000).toFixed(1)}k chiqish</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(3, tokenBar(sel.inputTokens).pct * 100)}%`, height: "100%", background: tokenBar(sel.inputTokens).color }} />
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button
+              onClick={() => send({ type: "focusAgent", id: sel.id })}
+              style={{
+                flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                border: "1px solid rgba(94,155,255,0.5)", background: "rgba(94,155,255,0.18)", color: "#fff",
+              }}
+            >
+              💻 Terminal
+            </button>
+            <button
+              onClick={() => { send({ type: "closeAgent", id: sel.id }); select(null); }}
+              style={{
+                flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                border: "1px solid rgba(255,69,58,0.5)", background: "rgba(255,69,58,0.15)", color: "#fff",
+              }}
+            >
+              ✕ Yopish
+            </button>
           </div>
         </div>
       )}

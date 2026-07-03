@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { playDone, playPermission, unlockAudio } from "./notificationSound";
 import type { ServerMessage } from "./protocol";
 import { useOffice } from "./store";
 import { onMessage, send } from "./transport";
@@ -32,6 +33,7 @@ export function useExtensionMessages(): void {
           store.select(msg.id);
           break;
         case "agentStatus":
+          if (msg.status === "waiting" && useOffice.getState().soundEnabled) playDone();
           store.setActive(msg.id, msg.status === "active", msg.awaitingInput);
           break;
         case "agentToolStart":
@@ -44,6 +46,7 @@ export function useExtensionMessages(): void {
           store.clearTools(msg.id);
           break;
         case "agentToolPermission":
+          if (useOffice.getState().soundEnabled) playPermission();
           store.setPermission(msg.id, true);
           break;
         case "agentToolPermissionClear":
@@ -68,7 +71,17 @@ export function useExtensionMessages(): void {
       }
     });
 
+    // Ovozни birinchi bosishда ochamiz (autoplay siyosati)
+    const unlock = () => {
+      unlockAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+
     send({ type: "webviewReady" });
-    return off;
+    return () => {
+      off();
+      window.removeEventListener("pointerdown", unlock);
+    };
   }, []);
 }

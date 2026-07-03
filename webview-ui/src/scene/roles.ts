@@ -56,6 +56,15 @@ export const STATUS_COLOR: Record<string, string> = {
   collab: "#ffd60a",
 };
 
+// Kontekst oynasi (token health-bar uchun).
+export const MAX_CONTEXT_TOKENS = 200000;
+
+export function tokenBar(input: number): { pct: number; color: string } {
+  const pct = Math.min(1, input / MAX_CONTEXT_TOKENS);
+  const color = pct < 0.6 ? "#30d158" : pct < 0.8 ? "#ffd60a" : pct < 0.95 ? "#ff9f0a" : "#ff453a";
+  return { pct, color };
+}
+
 export const STATUS_LABEL: Record<string, string> = {
   idle: "Kutmoqda",
   thinking: "O'ylanmoqda",

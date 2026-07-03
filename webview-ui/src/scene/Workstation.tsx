@@ -4,7 +4,7 @@ import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import Prop, { ModelBoundary } from "../three/Prop";
 import PixelPerson from "./PixelPerson";
-import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL } from "./roles";
+import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
 // ── Bitta ish joyi: real GLB mebel + o'tirgan voxel personaj + yorliq ──
 
@@ -24,6 +24,7 @@ export default function Workstation({ agent }: { agent: AgentView }) {
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const screenColor = STATUS_COLOR[agent.status];
+  const tok = tokenBar(agent.inputTokens);
 
   return (
     <group
@@ -69,19 +70,30 @@ export default function Workstation({ agent }: { agent: AgentView }) {
         <PixelPerson skin={preset} status={agent.status} />
       </group>
 
-      {/* Yorliq */}
+      {/* Ruxsat pufagi (boshда, amber) */}
+      {agent.permission && (
+        <Html position={[0, 2.42, 0.3]} center distanceFactor={9} style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300",
+              fontFamily: "system-ui, sans-serif", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+            }}
+          >
+            🔔 Ruxsat so'ralди
+          </div>
+        </Html>
+      )}
+
+      {/* Yorliq — nom + holat + token-bar */}
       <Html position={[0, 2.0, 0.3]} center distanceFactor={9} occlude={false} style={{ pointerEvents: "none" }}>
         <div
           style={{
-            padding: "3px 9px",
-            borderRadius: 8,
+            padding: "3px 9px 5px", borderRadius: 8, minWidth: 96,
             background: selected ? "rgba(94,155,255,0.92)" : "rgba(16,20,27,0.86)",
             border: `1px solid ${screenColor}`,
-            color: "#fff",
-            fontFamily: "system-ui, sans-serif",
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            textAlign: "center",
+            color: "#fff", fontFamily: "system-ui, sans-serif", fontSize: 12,
+            whiteSpace: "nowrap", textAlign: "center",
           }}
         >
           <div style={{ fontWeight: 600 }}>{agent.folderName}</div>
@@ -89,6 +101,12 @@ export default function Workstation({ agent }: { agent: AgentView }) {
             <span style={{ color: screenColor }}>●</span> {STATUS_LABEL[agent.status]}
             {agent.toolLabel ? ` · ${agent.toolLabel}` : ""}
           </div>
+          {/* Token health-bar */}
+          {agent.inputTokens > 0 && (
+            <div style={{ marginTop: 3, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.16)", overflow: "hidden" }}>
+              <div style={{ width: `${Math.max(4, tok.pct * 100)}%`, height: "100%", background: tok.color }} />
+            </div>
+          )}
         </div>
       </Html>
     </group>

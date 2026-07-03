@@ -108,7 +108,9 @@ export function processTranscriptLine(
     // Tokenlar
     const usage = message.usage as { input_tokens?: number; output_tokens?: number } | undefined;
     if (usage) {
-      agent.inputTokens += usage.input_tokens || 0;
+      // inputTokens = joriy kontekst hajmi (oxirgi xabar) — health-bar uchun.
+      // outputTokens = jami ishlab chiqarilgan (faollik ko'rsatkichi).
+      if (usage.input_tokens) agent.inputTokens = usage.input_tokens;
       agent.outputTokens += usage.output_tokens || 0;
       store.broadcast({
         type: "agentTokenUsage",
