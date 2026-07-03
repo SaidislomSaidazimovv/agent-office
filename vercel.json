@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install && npm --prefix webview-ui install",
+  "buildCommand": "npm --prefix webview-ui run build && rm -rf dist/webview/models",
+  "outputDirectory": "dist/webview"
+}

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
+import { startDemo } from "./demo";
 import type { ServerMessage } from "./protocol";
 import { useOffice } from "./store";
-import { onMessage, send } from "./transport";
+import { isVsCode, onMessage, send } from "./transport";
 
 // ── Xabar → holat ko'prigi ───────────────────────────────────
 // Server xabarlarини store amallariga tarjima qiladi. Mount bo'lганда
@@ -68,7 +69,12 @@ export function useExtensionMessages(): void {
       }
     });
 
-    send({ type: "webviewReady" });
+    if (isVsCode) {
+      send({ type: "webviewReady" });
+    } else {
+      // Standalone (brauzer/Vercel) — jonli demo
+      startDemo();
+    }
     return off;
   }, []);
 }
