@@ -33,7 +33,10 @@ function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: 
   );
 }
 
-// Devor X o'qi bo'ylab (o'rtada eshik teshigi)
+const DOORW = "#8a6f52";
+const FRAME = "#6d5741";
+
+// Devor X o'qi bo'ylab (o'rtada eshik — ramka + ochiq tavaqa)
 function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
   const len = x1 - x0;
   const cx = (x0 + x1) / 2;
@@ -42,8 +45,17 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
     <group>
       <Box p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
       <Box p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
-      {/* eshik tepasidagi bo'sag'a */}
       <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={WALL_C} />
+      {/* ramka */}
+      <Box p={[cx - door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
+      <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
+      {/* ochiq tavaqa (menta ilinган) */}
+      <group position={[cx - door / 2, (WALL_H - 0.3) / 2, z]} rotation={[0, -1.25, 0]}>
+        <mesh position={[door * 0.42, 0, 0]} castShadow>
+          <boxGeometry args={[door * 0.82, WALL_H - 0.36, 0.06]} />
+          <meshStandardMaterial color={DOORW} roughness={0.7} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -58,6 +70,14 @@ function WallZ({ z0, z1, x, door = 2 }: { z0: number; z1: number; x: number; doo
       <Box p={[x, WALL_H / 2, cz - (door / 2 + seg / 2)]} s={[WALL_T, WALL_H, seg]} c={WALL_C} />
       <Box p={[x, WALL_H / 2, cz + (door / 2 + seg / 2)]} s={[WALL_T, WALL_H, seg]} c={WALL_C} />
       <Box p={[x, WALL_H - 0.15, cz]} s={[WALL_T, 0.3, door]} c={WALL_C} />
+      <Box p={[x, (WALL_H - 0.3) / 2, cz - door / 2]} s={[WALL_T + 0.06, WALL_H - 0.3, 0.1]} c={FRAME} />
+      <Box p={[x, (WALL_H - 0.3) / 2, cz + door / 2]} s={[WALL_T + 0.06, WALL_H - 0.3, 0.1]} c={FRAME} />
+      <group position={[x, (WALL_H - 0.3) / 2, cz - door / 2]} rotation={[0, 1.25, 0]}>
+        <mesh position={[0, 0, door * 0.42]} castShadow>
+          <boxGeometry args={[0.06, WALL_H - 0.36, door * 0.82]} />
+          <meshStandardMaterial color={DOORW} roughness={0.7} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -217,6 +237,48 @@ function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
+// Devor rasmi
+function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} />
+      <mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh>
+    </group>
+  );
+}
+
+// Devorга osilган TV
+function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} />
+      <mesh position={[0, 0, 0.05]}><planeGeometry args={[1.85, 1.0]} /><meshBasicMaterial color="#1b3a5c" /></mesh>
+    </group>
+  );
+}
+
+// Printer
+function Printer({ p }: { p: V3 }) {
+  return (
+    <group position={p}>
+      <Box p={[0, 0.55, 0]} s={[0.7, 0.5, 0.6]} c="#3a3f48" />
+      <Box p={[0, 0.82, 0]} s={[0.72, 0.08, 0.5]} c="#2a2e35" />
+      <Box p={[0, 0.5, 0.31]} s={[0.5, 0.1, 0.04]} c="#5a6270" />
+    </group>
+  );
+}
+
+// Yerдаги lampa
+function StandingLamp({ p }: { p: V3 }) {
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh>
+      <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh>
+      <mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={0.5} side={2} /></mesh>
+    </group>
+  );
+}
+
 export default function OfficeDecor() {
   return (
     <group>
@@ -269,12 +331,25 @@ export default function OfficeDecor() {
       <EmptyDesk p={[1.5, 0, -10]} ry={0} />
       <EmptyDesk p={[0, 0, 6.5]} ry={Math.PI} />
 
-      {/* O'simliklar + tumbalar */}
+      {/* Tumbalar + printer + lampalar */}
       <Bookshelf p={[-15.4, 0, 0]} ry={Math.PI / 2} />
       <Bookshelf p={[15.4, 0, 0]} ry={-Math.PI / 2} />
-      <Plant p={[-7.5, 0, -3]} scale={1.0} />
-      <Plant p={[7.5, 0, 3]} scale={1.0} />
-      <Plant p={[0, 0, 0]} scale={0.9} />
+      <Printer p={[-3.5, 0, -6]} />
+      <StandingLamp p={[4, 0, -6]} />
+      <StandingLamp p={[-6, 0, 6.5]} />
+      <Plant p={[-7.5, 0, -2]} scale={1.0} />
+      <Plant p={[7.5, 0, 2]} scale={1.0} />
+      <Plant p={[6, 0, -6]} scale={0.9} />
+
+      {/* Devor rasmlari (perimetr devorlarда) */}
+      <Painting p={[-4, 1.7, -12.85]} c="#c85a3c" />
+      <Painting p={[4, 1.7, -12.85]} c="#3a7bc8" />
+      <Painting p={[-15.85, 1.7, 2]} ry={Math.PI / 2} c="#4a9a5a" />
+      <Painting p={[15.85, 1.7, -2]} ry={-Math.PI / 2} c="#c8a03c" />
+
+      {/* Majlis xonasida TV, dam olishда TV */}
+      <TV p={[15.7, 1.6, -10]} ry={-Math.PI / 2} />
+      <TV p={[9.5, 1.6, 12.7]} />
     </group>
   );
 }

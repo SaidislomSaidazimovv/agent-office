@@ -1,6 +1,7 @@
 import { Html, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import AgentAvatar from "./scene/AgentAvatar";
 import OfficeDecor from "./scene/OfficeDecor";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
@@ -34,7 +35,7 @@ function Gallery() {
               <meshStandardMaterial color="#22262d" roughness={0.8} />
             </mesh>
             <group rotation={[0, Math.PI, 0]}>
-              <PixelPerson skin={preset} status="idle" />
+              <PixelPerson skin={preset} status="idle" pose="stand" />
             </group>
             <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }}>
               <div style={{ fontFamily: "system-ui", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{preset.label}</div>
@@ -71,6 +72,10 @@ export default function App() {
         {order.map((id) => {
           const a = agents[id];
           return a ? <Workstation key={id} agent={a} /> : null;
+        })}
+        {order.map((id) => {
+          const a = agents[id];
+          return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;
         })}
         <OrbitControls
           target={[0, 0.8, 0]}

@@ -1,11 +1,8 @@
-import { Html } from "@react-three/drei";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
-import PixelPerson from "./PixelPerson";
-import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
+import { SEATS, STATUS_COLOR } from "./roles";
 
-// ── Bitta ish joyi: yengil low-poly stol + voxel personaj + yorliq ──
-// Og'ir GLB yo'q — sof geometriya (tez). Namunадеk flat uslub.
+// ── Agent ish joyi — MEBEL (personaj AgentAvatar'да, alohida) ──
 
 const DESK_TOP = 0.72;
 const WOOD = "#8a6f52";
@@ -13,27 +10,16 @@ const WOOD_DARK = "#6d5741";
 
 export default function Workstation({ agent }: { agent: AgentView }) {
   const seat = SEATS[agent.seatIndex] ?? SEATS[0];
-  const preset = presetFor(agent.role, agent.seatIndex);
   const select = useOffice((s) => s.select);
-  const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];
-  const tok = tokenBar(agent.inputTokens);
 
   return (
-    <group
-      position={[seat.x, 0, seat.z]}
-      rotation={[0, seat.ry, 0]}
-      onClick={(e) => {
-        e.stopPropagation();
-        select(agent.id);
-      }}
-    >
+    <group position={[seat.x, 0, seat.z]} rotation={[0, seat.ry, 0]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
       {/* Stol usti */}
       <mesh position={[0, DESK_TOP, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.5, 0.08, 0.8]} />
         <meshStandardMaterial color={WOOD} roughness={0.85} />
       </mesh>
-      {/* Yon panellar */}
       {[-0.68, 0.68].map((x) => (
         <mesh key={x} position={[x, DESK_TOP / 2, 0]} castShadow>
           <boxGeometry args={[0.08, DESK_TOP, 0.72]} />
@@ -41,7 +27,7 @@ export default function Workstation({ agent }: { agent: AgentView }) {
         </mesh>
       ))}
 
-      {/* Monitor — ekran holat rangida (−z, personajга qaragan) */}
+      {/* Monitor — ekran holat rangida */}
       <group position={[0, DESK_TOP + 0.04, -0.22]}>
         <mesh position={[0, 0.24, 0]} castShadow>
           <boxGeometry args={[0.66, 0.42, 0.05]} />
@@ -57,13 +43,17 @@ export default function Workstation({ agent }: { agent: AgentView }) {
         </mesh>
       </group>
 
-      {/* Klaviatura */}
+      {/* Klaviatura + krujka */}
       <mesh position={[0, DESK_TOP + 0.05, 0.14]} castShadow>
         <boxGeometry args={[0.5, 0.03, 0.18]} />
         <meshStandardMaterial color="#2a2e35" roughness={0.7} />
       </mesh>
+      <mesh position={[0.55, DESK_TOP + 0.09, 0.05]} castShadow>
+        <cylinderGeometry args={[0.05, 0.045, 0.1, 10]} />
+        <meshStandardMaterial color="#c0653c" roughness={0.5} />
+      </mesh>
 
-      {/* Kursi (sodda) */}
+      {/* Kursi */}
       <group position={[0, 0, 0.62]}>
         <mesh position={[0, 0.46, 0]} castShadow>
           <boxGeometry args={[0.5, 0.08, 0.5]} />
@@ -73,51 +63,11 @@ export default function Workstation({ agent }: { agent: AgentView }) {
           <boxGeometry args={[0.5, 0.5, 0.08]} />
           <meshStandardMaterial color="#3a3f48" roughness={0.9} />
         </mesh>
+        <mesh position={[0, 0.22, 0]}>
+          <cylinderGeometry args={[0.05, 0.06, 0.44, 8]} />
+          <meshStandardMaterial color="#555b66" metalness={0.5} />
+        </mesh>
       </group>
-
-      {/* Voxel personaj — kreslода, monitorга (−z) qaragan */}
-      <group position={[0, 0, 0.56]}>
-        <PixelPerson skin={preset} status={agent.status} />
-      </group>
-
-      {/* Sub-agentlar — har biri ALOHIDA kichik personaj (stol yonида) */}
-      {agent.subagents.map((key, i) => (
-        <group key={key} position={[1.5 + (i % 2) * 0.95, 0, -0.1 - Math.floor(i / 2) * 0.95]} scale={0.6}>
-          <group rotation={[0, -Math.PI / 2, 0]}>
-            <PixelPerson skin={preset} status="working" />
-          </group>
-          <Html position={[0, 1.72, 0]} center style={{ pointerEvents: "none" }}>
-            <div style={{ padding: "2px 7px", borderRadius: 8, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
-              🔧 Sub-agent
-            </div>
-          </Html>
-        </group>
-      ))}
-
-      {/* Ruxsat pufagi */}
-      {agent.permission && (
-        <Html position={[0, 2.4, 0.3]} center style={{ pointerEvents: "none" }}>
-          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
-            🔔 Ruxsat so'ralди
-          </div>
-        </Html>
-      )}
-
-      {/* Yorliq + token-bar */}
-      <Html position={[0, 2.0, 0.3]} center occlude={false} style={{ pointerEvents: "none" }}>
-        <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 96, background: selected ? "rgba(94,155,255,0.92)" : "rgba(16,20,27,0.86)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
-          <div style={{ fontWeight: 600 }}>{agent.folderName}</div>
-          <div style={{ fontSize: 10, opacity: 0.85 }}>
-            <span style={{ color }}>●</span> {STATUS_LABEL[agent.status]}
-            {agent.toolLabel ? ` · ${agent.toolLabel}` : ""}
-          </div>
-          {agent.inputTokens > 0 && (
-            <div style={{ marginTop: 3, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.16)", overflow: "hidden" }}>
-              <div style={{ width: `${Math.max(4, tok.pct * 100)}%`, height: "100%", background: tok.color }} />
-            </div>
-          )}
-        </div>
-      </Html>
     </group>
   );
 }
