@@ -25,13 +25,14 @@ export function presetFor(role: string | undefined, seatIndex: number): RolePres
 }
 
 // Ish joylari: chap va o'ng ustunlar (3+3), hamma markazga qaraydi.
+// (Eski tuned SPOTS qiymatlari — mebel/personaj burchagi shunga mos.)
 export const SEATS: { x: number; z: number; ry: number }[] = [
-  { x: -5.5, z: -3.2, ry: Math.PI / 2 },
-  { x: -5.5, z: 0, ry: Math.PI / 2 },
-  { x: -5.5, z: 3.2, ry: Math.PI / 2 },
-  { x: 5.5, z: -3.2, ry: -Math.PI / 2 },
-  { x: 5.5, z: 0, ry: -Math.PI / 2 },
-  { x: 5.5, z: 3.2, ry: -Math.PI / 2 },
+  { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
+  { x: -5.5, z: 0, ry: -Math.PI / 2 },
+  { x: -5.5, z: 3.2, ry: -Math.PI / 2 },
+  { x: 5.5, z: -3.2, ry: Math.PI / 2 },
+  { x: 5.5, z: 0, ry: Math.PI / 2 },
+  { x: 5.5, z: 3.2, ry: Math.PI / 2 },
 ];
 
 export const STATUS_COLOR: Record<string, string> = {

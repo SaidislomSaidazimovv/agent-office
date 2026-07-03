@@ -1,11 +1,22 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { Suspense } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
-import Hud from "./ui/Hud";
-import Room from "./scene/Room";
+import Decor from "./scene/Decor";
+import Effects from "./scene/Effects";
+import OfficeEnvironment, { Hub } from "./scene/OfficeEnvironment";
 import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
+import Hud from "./ui/Hud";
 import { useExtensionMessages } from "./useExtensionMessages";
+
+// Debug SHOT rejimi (o'zim skrinshot bilan tekshirish uchun):
+// ?shot&cx=..&cy=..&cz=..&tx=..&ty=..&tz=.. — kamerани belgilangan joyга qaratadi.
+const Q = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+const SHOT = Q.has("shot");
+const qn = (k: string, d: number) => (Q.has(k) ? parseFloat(Q.get(k)!) : d);
+const SHOT_CAM: [number, number, number] = [qn("cx", 7), qn("cy", 6.5), qn("cz", 8)];
+const SHOT_TARGET: [number, number, number] = [qn("tx", 0), qn("ty", 1), qn("tz", 0)];
 
 export default function App() {
   useExtensionMessages();
@@ -18,7 +29,8 @@ export default function App() {
       <Canvas
         shadows
         dpr={[1, 1.5]}
-        camera={{ position: [8, 7, 9], fov: 46 }}
+        performance={{ min: 0.5 }}
+        camera={{ position: SHOT_CAM, fov: 46 }}
         gl={{
           antialias: true,
           powerPreference: "high-performance",
@@ -29,19 +41,24 @@ export default function App() {
         onPointerMissed={() => select(null)}
       >
         <color attach="background" args={["#0d1015"]} />
-        <Room />
-        {order.map((id) => {
-          const a = agents[id];
-          return a ? <Workstation key={id} agent={a} /> : null;
-        })}
+        <Suspense fallback={null}>
+          <OfficeEnvironment />
+          <Decor />
+          <Hub />
+          {order.map((id) => {
+            const a = agents[id];
+            return a ? <Workstation key={id} agent={a} /> : null;
+          })}
+          <Effects />
+        </Suspense>
         <OrbitControls
-          target={[0, 1, 0]}
-          minDistance={5}
-          maxDistance={16}
-          maxPolarAngle={Math.PI * 0.46}
+          target={SHOT_TARGET}
+          minDistance={4.5}
+          maxDistance={15}
+          maxPolarAngle={Math.PI * 0.42}
           minPolarAngle={Math.PI * 0.12}
           enablePan={false}
-          autoRotate={order.length === 0}
+          autoRotate={!SHOT && order.length === 0}
           autoRotateSpeed={0.3}
         />
       </Canvas>

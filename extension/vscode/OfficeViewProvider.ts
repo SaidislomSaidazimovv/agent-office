@@ -146,11 +146,17 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       return `<html><body style="font-family:sans-serif;padding:20px;color:#ddd;background:#111">
         <h3>Agent Office</h3><p>Webview qurilmagan. <code>npm run build</code> ni ishga tushiring.</p></body></html>`;
     }
-    // Nisbiy asset URL'larını webview URI'larига aylantiramiz
+    // Nisbiy asset URL'larини webview URI'larига aylantiramiz
     html = html.replace(/(href|src)="\.?\/([^"]+)"/g, (_m, attr, file) => {
       const uri = webview.asWebviewUri(vscode.Uri.joinPath(distPath, file));
       return `${attr}="${uri}"`;
     });
+    // Runtime asset bazasi (GLB/tekstura three.js yuklashи uchun) — webview URI
+    const baseUri = webview.asWebviewUri(distPath).toString().replace(/\/$/, "");
+    html = html.replace(
+      /<head>/i,
+      `<head><script>window.__ASSET_BASE__ = ${JSON.stringify(baseUri + "/")};</script>`,
+    );
     return html;
   }
 
