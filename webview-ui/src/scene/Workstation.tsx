@@ -2,9 +2,24 @@ import { Html } from "@react-three/drei";
 import { Suspense } from "react";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
+import { Suspense as ReactSuspense } from "react";
 import Prop, { ModelBoundary } from "../three/Prop";
 import Character from "./Character";
-import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL } from "./roles";
+import RiggedCharacter from "./RiggedCharacter";
+import { presetFor, RIGGED_GLB, SEATS, STATUS_COLOR, STATUS_LABEL } from "./roles";
+
+// Rigged GLB bo'lsa — o'tirgan skeletli personaj; bo'lmasa geometrik placeholder.
+function SeatedAgent({ role, colors, status }: { role?: string; colors: { top: string; pants: string; skin: string }; status: AgentView["status"] }) {
+  const url = role ? RIGGED_GLB[role] : undefined;
+  if (!url) return <Character colors={colors} status={status} />;
+  return (
+    <ModelBoundary fallback={<Character colors={colors} status={status} />}>
+      <ReactSuspense fallback={null}>
+        <RiggedCharacter url={url} status={status} />
+      </ReactSuspense>
+    </ModelBoundary>
+  );
+}
 
 // ── Bitta ish joyi: real GLB mebel + o'tirgan agent + yorliq ──
 
@@ -66,7 +81,7 @@ export default function Workstation({ agent }: { agent: AgentView }) {
 
       {/* O'tirgan agent — kreslода, monitorга (−z) qaragan */}
       <group position={[0, 0, 0.52]}>
-        <Character colors={preset.colors} status={agent.status} />
+        <SeatedAgent role={agent.role} colors={preset.colors} status={agent.status} />
       </group>
 
       {/* Yorliq */}

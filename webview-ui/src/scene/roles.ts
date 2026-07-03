@@ -35,6 +35,14 @@ export const SEATS: { x: number; z: number; ry: number }[] = [
   { x: 5.5, z: 3.2, ry: Math.PI / 2 },
 ];
 
+// Rigged (skeletli) GLB'lar — bularда RiggedCharacter (o'tirgan poza) ishlatiladi.
+// HOZIRCHA O'CHIRILGAN: faqat pixel-frontend Mixamo skeletli, poza qiymatlari
+// tasdiqlanmagan (headless renderда tekshirib bo'lmadi — og'ir skinned mesh).
+// Modellar to'plami + poza tasdiqlangач yoqiladi. Ayni damда hammasi placeholder.
+export const RIGGED_GLB: Record<string, string> = {
+  // frontend: "/models/pixel-frontend-developer.glb",
+};
+
 export const STATUS_COLOR: Record<string, string> = {
   idle: "#8e8e93",
   thinking: "#5e9bff",
