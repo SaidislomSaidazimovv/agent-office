@@ -1,10 +1,24 @@
-import React, { useMemo, useRef } from "react";
+import React, { Suspense, useMemo, useRef } from "react";
 import { Text, Billboard } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { STATUS } from "../config.js";
 import { useSim } from "../state/simulation.js";
 import AgentCharacter from "./AgentCharacter.jsx";
+import Prop, { ModelBoundary } from "../three/Prop.jsx";
 import * as THREE from "three";
+
+// Real jihoz modellari (public/models/). Prop auto-fit + rotation bilan joylaydi.
+const M = {
+  table: "/models/cyberpunk_table.glb",
+  chair: "/models/chair-opt.glb",      // yengillashtirilgan (poligon -60%)
+  monitor: "/models/monitor-opt.glb",  // yengillashtirilgan
+  keyboard: "/models/hyperx_gaming_keyboard_low_poly.glb",
+  mouse: "/models/pc_mouse_type-r.glb",
+  pc: "/models/pc-opt.glb",            // yengillashtirilgan (poligon -60%)
+};
+const DESK_TOP = 0.74; // stol balandligi — jihozlar shu ustiga qo'yiladi
+const SEAT_SINK = -0.38; // tik modelni "o'tirgan" balandlikka cho'ktirish (oyoqlar stol/kreslo ostida)
+const SEAT_Z = 0.58;     // kreslo o'rindig'i ustida (stol oldida)
 
 function screenTexture(kind) {
   const c = document.createElement("canvas");
@@ -129,48 +143,35 @@ export default function Workstation({ def, spot, mugColor }) {
 
   return (
     <group position={[spot.x, 0, spot.z]} rotation={[0, spot.ry, 0]}>
-      {/* Stol */}
-      <mesh position={[0, 0.755, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.9, 0.05, 0.9]} />
-        <meshStandardMaterial color="#a57d52" roughness={0.5} />
-      </mesh>
-      {[[-0.86, -0.36], [0.86, -0.36], [-0.86, 0.36], [0.86, 0.36]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.36, z]}>
-          <cylinderGeometry args={[0.025, 0.022, 0.72, 10]} />
-          <meshStandardMaterial color="#2f2c29" metalness={0.6} roughness={0.35} />
-        </mesh>
-      ))}
+      {/* ── Real jihozlar — auto-fit (o'lcham/yer avtomatik).
+             Burchak (rotation) skrinshotга qarab sozlanadi. ── */}
+      <ModelBoundary>
+        <Suspense fallback={null}>
+          {/* Stol */}
+          <Prop url={M.table} fit={0.74} fitAxis="height" position={[0, 0, 0]} />
+          {/* Kreslo (o'rindiq stolga qaragan) */}
+          <Prop url={M.chair} fit={1.05} fitAxis="height" position={[0, 0, 0.72]} rotation={[0, Math.PI, 0]} />
+          {/* Monitor — ekran ±X ekan; endi +Z (odamga) qaratildi */}
+          <Prop url={M.monitor} fit={0.42} fitAxis="height" position={[0, DESK_TOP, -0.2]} rotation={[0, -Math.PI / 2, 0]} />
+          {/* Klaviatura */}
+          <Prop url={M.keyboard} fit={0.44} fitAxis="width" position={[-0.02, DESK_TOP + 0.01, 0.16]} rotation={[0, 0, 0]} />
+          {/* Sichqoncha (o'ngda, klaviatura yonida) */}
+          <Prop url={M.mouse} fit={0.11} fitAxis="width" position={[0.3, DESK_TOP + 0.01, 0.18]} rotation={[0, 0, 0]} />
+          {/* PC — o'ng orqada; shishali (oynali) tomoni CHAPGA qaragan */}
+          <Prop url={M.pc} fit={0.38} fitAxis="height" position={[0.62, DESK_TOP, -0.12]} rotation={[0, Math.PI / 2, 0]} />
+        </Suspense>
+      </ModelBoundary>
 
-      <Chair />
-
-      {/* Klaviatura + sichqoncha */}
-      <mesh position={[-0.06, 0.79, 0.22]} castShadow>
-        <boxGeometry args={[0.4, 0.022, 0.14]} />
-        <meshStandardMaterial color="#2b2f36" roughness={0.55} />
-      </mesh>
-      <mesh position={[0.26, 0.79, 0.24]} scale={[0.85, 0.55, 1.3]}>
-        <sphereGeometry args={[0.042, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#2b2f36" roughness={0.4} />
-      </mesh>
-
-      {/* Krujka */}
-      <group position={[-0.66, 0.785, 0.08]}>
+      {/* Krujka (mayda detal) */}
+      <group position={[-0.66, DESK_TOP + 0.005, 0.08]}>
         <mesh position={[0, 0.042, 0]}><cylinderGeometry args={[0.033, 0.028, 0.085, 14]} /><meshStandardMaterial color={mugColor} roughness={0.35} /></mesh>
         <mesh position={[0.038, 0.045, 0]}><torusGeometry args={[0.022, 0.006, 8, 16]} /><meshStandardMaterial color={mugColor} roughness={0.35} /></mesh>
       </group>
 
-      {/* Monitorlar */}
-      {def.gear === "dualmon" ? (
-        <>
-          <Monitor w={0.6} h={0.38} kind="design" position={[-0.33, 1.08, -0.22]} rotationY={0.16} active={active} />
-          <Monitor w={0.6} h={0.38} kind="code" position={[0.33, 1.08, -0.22]} rotationY={-0.16} active={active} />
-        </>
-      ) : (
-        <Monitor w={0.76} h={0.45} kind={def.screen} position={[0, 1.12, -0.24]} active={active} />
-      )}
-
-      {/* GLB personaj (yoki placeholder) — ekranga qaragan holda */}
-      <group position={[0, 0, 0.66]}>
+      {/* GLB personaj — "o'tirgan" ko'rinish: tik modelni kreslo balandligiga
+          cho'ktiramiz (oyoqlar stol/kreslo ostida yashirin), monitorga qaratamiz.
+          Bazaviy burchak Math.PI; har agentda def.rotY bilan aniqlanadi. */}
+      <group position={[0, SEAT_SINK, SEAT_Z]} rotation={[0, Math.PI, 0]}>
         <AgentCharacter def={def} state={st} />
       </group>
 

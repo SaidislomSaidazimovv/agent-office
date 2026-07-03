@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useMemo, useRef } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { DEFAULT_CLIPS } from "../config.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
 
 // ── GLB personaj: holat o'zgarganda animatsiyalar orasida
@@ -13,7 +14,10 @@ function GlbCharacter({ def, state }) {
 
   // Klonlash — bitta GLB ni bir nechta joyda ishlatish mumkin bo'lsin
   const cloned = useMemo(() => {
-    const c = scene.clone(true);
+    // SkeletonUtils.clone — skinned (skeletli) modellarni to'g'ri klonlaydi.
+    // scene.clone(true) skinned meshni buzadi: model guruh pozitsiyasini
+    // e'tiborsiz qoldirib dunyo markaziga chiziladi. Statik modellar uchun ham xavfsiz.
+    const c = cloneSkinned(scene);
     c.traverse((m) => {
       if (m.isMesh || m.isSkinnedMesh) {
         m.castShadow = true;
@@ -61,9 +65,31 @@ function GlbCharacter({ def, state }) {
     if (mixer) mixer.timeScale = state === "blocked" ? 1.15 : 1.0;
   }, [state, mixer]);
 
+  // Auto-fit: har xil o'lchamdagi modelni odam bo'yiga keltirib, yerga qo'yamiz.
+  const fit = useMemo(() => {
+    // Skeletli (skinned) modellarda bounding-box xato bo'lmasin — matritsa+bbox yangilaymiz.
+    cloned.updateWorldMatrix(true, true);
+    cloned.traverse((o) => {
+      if (o.geometry && !o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    });
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const TARGET_H = 1.65; // odam bo'yi (m)
+    const s = size.y > 0 ? TARGET_H / size.y : 1;
+    return { s, offset: [-center.x, -box.min.y, -center.z] };
+  }, [cloned]);
+
   return (
-    <group ref={group} scale={def.scale} position={[0, def.yOffset, 0]} rotation={[0, def.rotY, 0]}>
-      <primitive object={cloned} />
+    <group
+      ref={group}
+      scale={fit.s * (def.scale || 1)}
+      position={[0, def.yOffset || 0, 0]}
+      rotation={[0, def.rotY || 0, 0]}
+    >
+      <primitive object={cloned} position={fit.offset} />
     </group>
   );
 }

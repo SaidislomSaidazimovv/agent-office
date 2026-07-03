@@ -1,8 +1,9 @@
-import React, { useMemo, useRef } from "react";
+import React, { Suspense, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Text, Billboard } from "@react-three/drei";
 import { useSim } from "../state/simulation.js";
 import { SPOTS, AGENTS } from "../config.js";
+import { useACGTextures } from "../three/acgMaterial.js";
 import * as THREE from "three";
 
 const RW = 17, RD = 12, WH = 3.7;
@@ -55,6 +56,85 @@ function skylineTexture() {
   return t;
 }
 
+// ── Xona yuzalari: PBR teksturali versiya (real ko'rinish) ───
+function RoomSurfaces() {
+  const floor = useACGTextures("Tiles081_1K-PNG", [10, 7]);
+  const ceiling = useACGTextures("Tiles045_1K-PNG", [10, 7]);
+  const wallEnd = useACGTextures("Bricks053_1K-PNG", [10, 3]);   // old/orqa devor (RW keng)
+  const wallSide = useACGTextures("Bricks053_1K-PNG", [7, 3]);   // yon devorlar (RD keng)
+  const rug = useACGTextures("Carpet005_1K-PNG", [4, 4]);
+  return (
+    <group>
+      {/* Pol */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[RW, RD]} />
+        <meshStandardMaterial {...floor} roughness={1} metalness={0} />
+      </mesh>
+      {/* Gilam */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]} receiveShadow>
+        <circleGeometry args={[2.7, 48]} />
+        <meshStandardMaterial {...rug} roughness={1} />
+      </mesh>
+      {/* Devorlar */}
+      <mesh position={[0, WH / 2, -RD / 2]} receiveShadow>
+        <planeGeometry args={[RW, WH]} /><meshStandardMaterial {...wallEnd} roughness={1} />
+      </mesh>
+      <mesh position={[0, WH / 2, RD / 2]} rotation={[0, Math.PI, 0]} receiveShadow>
+        <planeGeometry args={[RW, WH]} /><meshStandardMaterial {...wallEnd} roughness={1} />
+      </mesh>
+      <mesh position={[-RW / 2, WH / 2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[RD, WH]} /><meshStandardMaterial {...wallSide} roughness={1} />
+      </mesh>
+      <mesh position={[RW / 2, WH / 2, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[RD, WH]} /><meshStandardMaterial {...wallSide} roughness={1} />
+      </mesh>
+      {/* Shift */}
+      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[RW, RD]} /><meshStandardMaterial {...ceiling} roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+// ── Fallback: teksturasiz sodda rangli xona (yuklanmasa/xatoda) ──
+function PlainRoomSurfaces({ floorTex }) {
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[RW, RD]} />
+        <meshStandardMaterial map={floorTex} roughness={0.55} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]} receiveShadow>
+        <circleGeometry args={[2.7, 48]} />
+        <meshStandardMaterial color="#5c6a76" roughness={0.98} />
+      </mesh>
+      <mesh position={[0, WH / 2, -RD / 2]} receiveShadow>
+        <planeGeometry args={[RW, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
+      </mesh>
+      <mesh position={[0, WH / 2, RD / 2]} rotation={[0, Math.PI, 0]} receiveShadow>
+        <planeGeometry args={[RW, WH]} /><meshStandardMaterial color="#5a6a58" roughness={0.96} />
+      </mesh>
+      <mesh position={[-RW / 2, WH / 2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[RD, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
+      </mesh>
+      <mesh position={[RW / 2, WH / 2, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[RD, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
+      </mesh>
+      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[RW, RD]} /><meshStandardMaterial color="#e4dfd4" roughness={0.98} />
+      </mesh>
+    </group>
+  );
+}
+
+// Tekstura yuklashda xato bo'lsa rangli fallback'ni ko'rsatadi (xona yiqilmaydi).
+class SurfaceErrorBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err) { console.warn("Xona teksturasi yuklanmadi:", err?.message); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
+
 export function OfficeEnvironment() {
   const floorTex = useMemo(floorTexture, []);
   const skyTex = useMemo(skylineTexture, []);
@@ -68,7 +148,7 @@ export function OfficeEnvironment() {
       <hemisphereLight args={["#bdd4ec", "#6b5334", 0.5]} />
       <directionalLight
         position={[3, 7, -10]} intensity={2.2} color="#ffe7c0"
-        castShadow shadow-mapSize={[2048, 2048]}
+        castShadow shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-11} shadow-camera-right={11}
         shadow-camera-top={10} shadow-camera-bottom={-10}
         shadow-bias={-0.0004}
@@ -78,44 +158,16 @@ export function OfficeEnvironment() {
         <pointLight key={x} position={[x, 3.4, 1]} intensity={0.5} distance={9} decay={2} color="#ffe3bb" />
       ))}
 
-      {/* Pol */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[RW, RD]} />
-        <meshStandardMaterial map={floorTex} roughness={0.55} />
-      </mesh>
+      {/* Pol / gilam / devor / shift — PBR teksturalar.
+          Yuklanmasa/xato bo'lsa rangli fallback (qora ekran bo'lmaydi). */}
+      <SurfaceErrorBoundary fallback={<PlainRoomSurfaces floorTex={floorTex} />}>
+        <Suspense fallback={<PlainRoomSurfaces floorTex={floorTex} />}>
+          <RoomSurfaces />
+        </Suspense>
+      </SurfaceErrorBoundary>
       <ContactShadows position={[0, 0.005, 0]} opacity={0.45} scale={20} blur={2.2} far={4} />
-
-      {/* Gilam */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]} receiveShadow>
-        <circleGeometry args={[2.7, 48]} />
-        <meshStandardMaterial color="#5c6a76" roughness={0.98} />
-      </mesh>
-
-      {/* Devorlar */}
-      <mesh position={[0, WH / 2, -RD / 2]} receiveShadow>
-        <planeGeometry args={[RW, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
-      </mesh>
-      <mesh position={[0, WH / 2, RD / 2]} rotation={[0, Math.PI, 0]} receiveShadow>
-        <planeGeometry args={[RW, WH]} /><meshStandardMaterial color="#5a6a58" roughness={0.96} />
-      </mesh>
-      <mesh position={[-RW / 2, WH / 2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[RD, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
-      </mesh>
-      <mesh position={[RW / 2, WH / 2, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[RD, WH]} /><meshStandardMaterial color="#cfc8ba" roughness={0.96} />
-      </mesh>
-      {/* Shift */}
-      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[RW, RD]} /><meshStandardMaterial color="#e4dfd4" roughness={0.98} />
-      </mesh>
-      {[-4.2, 0, 4.2].map((x) =>
-        [-2, 2].map((z) => (
-          <mesh key={`${x}${z}`} position={[x, WH - 0.03, z]}>
-            <boxGeometry args={[1.3, 0.05, 0.35]} />
-            <meshStandardMaterial color="#ffffff" emissive="#fff2da" emissiveIntensity={1.4} />
-          </mesh>
-        ))
-      )}
+      {/* Eski emissive shift chiroqlari olib tashlandi — o'rniga Decor.jsx dagi
+          bir nechta GLB osma chiroq (hanging_led_lamp) ishlatiladi. */}
 
       {/* Shahar manzarasi + derazalar */}
       <mesh position={[0, 2.6, -RD / 2 - 1.6]}>
@@ -216,8 +268,8 @@ function posOf(id) {
   if (id === "hub") return HUB_POS;
   const idx = AGENTS.findIndex((a) => a.id === id);
   const s = SPOTS[idx];
-  const off = s.ry === 0 ? 0.66 : -0.66;
-  return new THREE.Vector3(s.x, 1.4, s.z + off);
+  const off = s.x < 0 ? 0.6 : -0.6; // stoldan markazga qarab
+  return new THREE.Vector3(s.x + off, 1.4, s.z);
 }
 
 export function Beams() {
