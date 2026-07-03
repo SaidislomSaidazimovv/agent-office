@@ -10,6 +10,8 @@ export interface AgentState {
   fileOffset: number;
   /** Qism-qator buferi (bitta o'qishда yarim qator qolsa). */
   lineBuffer: string;
+  /** Claude sessiya ID (hook eventларини yo'naltirish uchun). */
+  sessionId?: string;
   /** Loyiha papka nomi (ko'rsatish uchun). */
   folderName: string;
   /** Foydalanuvchi tanlagan rol (research/frontend/...) yoki avto. */
@@ -29,6 +31,14 @@ export interface AgentState {
   /** Foydali toollar (sub-agent Task ID'lari). */
   subagentToolIds: Set<string>;
 
+  // ── Hook rejimi ──
+  /** Bu agentga hook eventи kelgan — JSONL heuristikasi o'chiriladi. */
+  hookDelivered: boolean;
+  /** Joriy hook tooli ID (PreToolUse → PostToolUse mosligi uchun). */
+  currentHookToolId?: string;
+  /** Hook tool ID hisoblagichи. */
+  hookToolCounter: number;
+
   // ── Tokenlar ──
   inputTokens: number;
   outputTokens: number;
@@ -42,11 +52,12 @@ export function createAgentState(
   id: number,
   filePath: string,
   folderName: string,
-  opts: { role?: string; task?: string; isExternal?: boolean } = {},
+  opts: { role?: string; task?: string; isExternal?: boolean; sessionId?: string } = {},
 ): AgentState {
   return {
     id,
     filePath,
+    sessionId: opts.sessionId,
     fileOffset: 0,
     lineBuffer: "",
     folderName,
@@ -57,6 +68,8 @@ export function createAgentState(
     isWaiting: true,
     activeToolIds: new Set(),
     subagentToolIds: new Set(),
+    hookDelivered: false,
+    hookToolCounter: 0,
     inputTokens: 0,
     outputTokens: 0,
   };

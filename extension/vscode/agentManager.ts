@@ -8,7 +8,7 @@ import { getSessionDir } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
-import { createAgentState } from "../server/types.js";
+import { type AgentState, createAgentState } from "../server/types.js";
 
 // ── Agent boshqaruvchisi ─────────────────────────────────────
 // JSONL sessiyalarини kashf qiladi (mavjud + yangi) va `+Agent`
@@ -131,10 +131,39 @@ export class AgentManager {
     this.knownFiles.add(filePath);
     const id = this.store.allocateId();
     const task = this.readFirstTask(filePath);
-    const agent = createAgentState(id, filePath, folderName, { role, task, isExternal });
+    const sessionId = path.basename(filePath, ".jsonl");
+    const agent = createAgentState(id, filePath, folderName, { role, task, isExternal, sessionId });
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
     return id;
+  }
+
+  /** Hook sessiyasi uchun agent topadi yoki yaratadi (hook-asosli kashfiyot). */
+  ensureSessionAgent(sessionId: string, cwd?: string): AgentState {
+    const existing = this.store.findBySession(sessionId);
+    if (existing) return existing;
+    const base = cwd || this.workspaceFolders()[0] || os.homedir();
+    const filePath = path.join(getSessionDir(base), `${sessionId}.jsonl`);
+    const existingByFile = this.store.findByFile(filePath);
+    if (existingByFile) {
+      existingByFile.sessionId = sessionId;
+      return existingByFile;
+    }
+    this.knownFiles.add(filePath);
+    const id = this.store.allocateId();
+    const agent = createAgentState(id, filePath, this.folderNameOf(base), {
+      isExternal: true,
+      sessionId,
+      task: "Claude Code sessiya",
+    });
+    this.watcher.primeFromStart(agent);
+    this.store.add(agent);
+    return agent;
+  }
+
+  removeBySession(sessionId: string): void {
+    const a = this.store.findBySession(sessionId);
+    if (a) this.closeAgent(a.id);
   }
 
   private readFirstTask(filePath: string): string {
@@ -178,6 +207,7 @@ export class AgentManager {
       role: opts.role,
       task: "Yangi sessiya",
       isExternal: false,
+      sessionId,
     });
     this.watcher.primeFromStart(agent);
     this.store.add(agent);

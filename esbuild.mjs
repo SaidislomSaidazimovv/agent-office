@@ -4,23 +4,39 @@ import esbuild from "esbuild";
 const watch = process.argv.includes("--watch");
 const production = process.argv.includes("--production");
 
-const ctx = await esbuild.context({
-  entryPoints: ["extension/vscode/extension.ts"],
+const common = {
   bundle: true,
-  outfile: "dist/extension.js",
   platform: "node",
   format: "cjs",
   target: "node18",
-  external: ["vscode"],
   sourcemap: !production,
   minify: production,
   logLevel: "info",
+};
+
+// 1) Extension host → dist/extension.js
+const extCtx = await esbuild.context({
+  ...common,
+  entryPoints: ["extension/vscode/extension.ts"],
+  outfile: "dist/extension.js",
+  external: ["vscode"],
+});
+
+// 2) Claude hook-skripti → dist/hooks/claude-hook.js (Claude Code ishga tushiradi)
+const hookCtx = await esbuild.context({
+  ...common,
+  entryPoints: ["extension/server/hooks/claudeHook.ts"],
+  outfile: "dist/hooks/claude-hook.js",
+  banner: { js: "#!/usr/bin/env node" },
 });
 
 if (watch) {
-  await ctx.watch();
-  console.log("esbuild: watching extension host...");
+  await extCtx.watch();
+  await hookCtx.watch();
+  console.log("esbuild: watching extension host + hook script...");
 } else {
-  await ctx.rebuild();
-  await ctx.dispose();
+  await extCtx.rebuild();
+  await hookCtx.rebuild();
+  await extCtx.dispose();
+  await hookCtx.dispose();
 }

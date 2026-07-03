@@ -56,6 +56,14 @@ export class AgentStateStore extends EventEmitter {
     return undefined;
   }
 
+  /** Sessiya ID bo'yicha agent topadi (hook yo'naltirish). */
+  findBySession(sessionId: string): AgentState | undefined {
+    for (const a of this.agents.values()) {
+      if (a.sessionId === sessionId) return a;
+    }
+    return undefined;
+  }
+
   /** Webview'ga faoliyat xabarини uzatadi. */
   broadcast(msg: ServerMessage): void {
     this.emit("broadcast", msg);

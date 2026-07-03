@@ -21,6 +21,14 @@
       {
         "command": "agent-office.showPanel",
         "title": "Agent Office: Show Panel"
+      },
+      {
+        "command": "agent-office.installHooks",
+        "title": "Agent Office: Claude Hook'larini o'rnatish"
+      },
+      {
+        "command": "agent-office.uninstallHooks",
+        "title": "Agent Office: Claude Hook'larini olib tashlash"
       }
     ],
     "viewsContainers": {
@@ -53,6 +61,11 @@
           "type": "boolean",
           "default": false,
           "description": "VS Code ochilganда, agar hech qanday agent ishlamayotgan bo'lsa, avtomatik bittasini ishga tushirish."
+        },
+        "agent-office.hooksEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Claude Code Hooks orqali ishonchli aniqlash (~/.claude/settings.json'ga hook qo'shadi). O'chirilsa faqat JSONL kuzatuvи ishlaydi."
         }
       }
     }

@@ -5,8 +5,11 @@ import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
+import { handleHookEvent } from "../server/hookHandler.js";
+import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
+import { installHooks } from "./hookInstaller.js";
 
 export const VIEW_ID = "agent-office.panelView";
 const MAX_PENDING = 1000;
@@ -21,6 +24,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private store = new AgentStateStore();
   private watcher = new FileWatcher(this.store);
   private manager = new AgentManager(this.store, this.watcher);
+  private hookServer = new HookServer((sessionId, raw) => this.onHookEvent(sessionId, raw));
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
@@ -47,6 +51,30 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   activate(): void {
     this.watcher.start();
     this.manager.start();
+
+    // Hook rejimi (ishonchli aniqlash) — sozlamада yoqilган bo'lsa.
+    const hooksEnabled = vscode.workspace
+      .getConfiguration("agent-office")
+      .get<boolean>("hooksEnabled", true);
+    if (hooksEnabled) {
+      void this.hookServer.start().then((handle) => {
+        if (!handle) return;
+        const hookScript = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
+        installHooks(hookScript);
+      });
+    }
+  }
+
+  /** Hook eventини agentга yo'naltiradi (sessiya bo'yicha topib/yaratib). */
+  private onHookEvent(sessionId: string, raw: Record<string, unknown>): void {
+    const event = raw.hook_event_name as string;
+    if (event === "SessionEnd") {
+      this.manager.removeBySession(sessionId);
+      return;
+    }
+    const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
+    const agent = this.manager.ensureSessionAgent(sessionId, cwd);
+    handleHookEvent(this.store, agent, raw);
   }
 
   private sendOrBuffer(msg: ServerMessage): void {
@@ -163,6 +191,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   dispose(): void {
     this.watcher.stop();
     this.manager.dispose();
+    this.hookServer.stop();
     this.store.disposeAll();
   }
 }
