@@ -7,6 +7,7 @@ import Workstation from "./components/Workstation.jsx";
 import Decor from "./components/Decor.jsx";
 import Effects from "./components/Effects.jsx";
 import Overlay from "./ui/Overlay.jsx";
+import ProjectBar from "./ui/ProjectBar.jsx";
 import { AGENTS, SPOTS } from "./config.js";
 import { useSim } from "./state/simulation.js";
 import { startTransport } from "./state/transport.js";
@@ -64,6 +65,7 @@ export default function App() {
         <Effects />
       </Canvas>
       {!SHOT && <Overlay />}
+      {!SHOT && <ProjectBar />}
     </div>
   );
 }
