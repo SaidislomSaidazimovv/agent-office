@@ -30,3 +30,6 @@ scratchpad/
 
 # TS build info
 *.tsbuildinfo
+
+# Packaged extension (regenerable, large)
+*.vsix

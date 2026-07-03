@@ -1,0 +1,24 @@
+# Manba (dist'ga bundle qilinadi)
+extension/**
+webview-ui/**
+node_modules/**
+
+# Dev / vaqtinchalik
+scratchpad/**
+.vscode/**
+.multi-agent/**
+_shot*.cjs
+active_files.md
+active_tasks.md
+CLAUDE.md
+tsconfig.json
+esbuild.mjs
+.gitignore
+.gitattributes
+.editorconfig
+
+# Sourcemaplar (vsix hajmini kichraytirish)
+**/*.map
+**/*.ts
+
+# Faqat quyidagilar kiradi: dist/, package.json, README.md, icon.png, LICENSE
