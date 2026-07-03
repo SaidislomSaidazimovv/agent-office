@@ -7,8 +7,8 @@ import * as THREE from "three";
 // Sичqoncha bilan qarash (bosib lock), WASD/strelkalar bilan yurish.
 // Ofis chegарasida qoladi, ko'z balandligi ~1.65m.
 
-const BOUND_X = 15.2;
-const BOUND_Z = 12.2;
+const BOUND_X = 22.2;
+const BOUND_Z = 15.2;
 const EYE = 1.65;
 const SPEED = 4.5;
 

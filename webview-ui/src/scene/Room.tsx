@@ -1,7 +1,7 @@
 import type { CameraMode } from "../store";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'да near-devorlar yashirin) ──
-export const ROOM = { W: 32, D: 26, WH: 3.4 };
+export const ROOM = { W: 46, D: 32, WH: 3.4 };
 
 export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
@@ -32,7 +32,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <meshStandardMaterial color="#e9e2d2" roughness={1} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <planeGeometry args={[16, 10]} />
+        <planeGeometry args={[30, 14]} />
         <meshStandardMaterial color="#d8c7a8" roughness={1} />
       </mesh>
 

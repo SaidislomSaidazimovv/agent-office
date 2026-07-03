@@ -70,8 +70,8 @@ export default function App() {
 
         {cameraMode === "iso" ? (
           <>
-            <OrthographicCamera makeDefault position={[24, 20, 24]} zoom={30} near={-200} far={600} />
-            <OrbitControls target={[0, 0.8, 0]} enablePan minZoom={18} maxZoom={80} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
+            <OrthographicCamera makeDefault position={[34, 27, 34]} zoom={20} near={-300} far={800} />
+            <OrbitControls target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
           </>
         ) : (
           <FirstPersonView />

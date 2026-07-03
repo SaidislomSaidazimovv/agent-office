@@ -1,48 +1,58 @@
-// ── Ofis navigatsiyasi (waypoint grafi) ──────────────────────
-// Agentlar bo'sh turганда shu nuqtalar orasида yuradi (eshiklar orqali
-// xonaларга kiradi). Sodda BFS — devorларга tegmaydi, chunki yo'llar
-// ochiq joylardан va eshiklardан o'tadi.
+// ── Ofis navigatsiyasi (waypoint grafi, katta ofis) ─────────
+// Markaziy grid + har xonaning eshik/ich nuqtasi. Agentlar bo'sh turганда
+// shular orasида yuradi (eshiklardан xonаларга kiradi).
 
 export interface WP {
   x: number;
   z: number;
 }
 
-// Nuqtalar (dunyo koordinatalari, ofis x[-16,16] z[-13,13])
-export const NODES: Record<string, WP> = {
-  c0: { x: 0, z: 0 },
-  c1: { x: -6, z: -4 },
-  c2: { x: 0, z: -5 },
-  c3: { x: 6, z: -4 },
-  c4: { x: 7, z: 0 },
-  c5: { x: 6, z: 4 },
-  c6: { x: 0, z: 5.5 },
-  c7: { x: -6, z: 4 },
-  c8: { x: -7, z: 0 },
-  // Oshxona
-  kd: { x: -12, z: -6.2 },
-  ki: { x: -12, z: -10 },
-  // Majlis
-  md: { x: 12, z: -6.2 },
-  mi: { x: 12, z: -10.5 },
-  // Fokus-xona
-  fd: { x: -12.5, z: 6.2 },
-  fi: { x: -12.5, z: 10.5 },
-  // Dam olish
-  ld: { x: 12, z: 6.2 },
-  li: { x: 12, z: 10.5 },
-};
+export const NODES: Record<string, WP> = {};
+const EDGES: [string, string][] = [];
 
-const EDGES: [string, string][] = [
-  // Markaziy halqa (ochiq — bir-biriga bog'liq)
-  ["c0", "c1"], ["c0", "c2"], ["c0", "c3"], ["c0", "c4"], ["c0", "c5"], ["c0", "c6"], ["c0", "c7"], ["c0", "c8"],
-  ["c1", "c2"], ["c2", "c3"], ["c3", "c4"], ["c4", "c5"], ["c5", "c6"], ["c6", "c7"], ["c7", "c8"], ["c8", "c1"],
-  // Xonalar (eshik orqali)
-  ["c1", "kd"], ["kd", "ki"],
-  ["c3", "md"], ["md", "mi"],
-  ["c7", "fd"], ["fd", "fi"],
-  ["c5", "ld"], ["ld", "li"],
+// Markaziy grid (ochiq ish maydoni, z[-9,9])
+const CX = [-19, -12, -5, 2, 9, 16];
+const CZ = [-6, 0, 6];
+const grid: string[][] = [];
+CX.forEach((x, i) => {
+  grid[i] = [];
+  CZ.forEach((z, j) => {
+    const k = `g${i}_${j}`;
+    NODES[k] = { x, z };
+    grid[i][j] = k;
+  });
+});
+for (let i = 0; i < CX.length; i++) {
+  for (let j = 0; j < CZ.length; j++) {
+    if (i + 1 < CX.length) EDGES.push([grid[i][j], grid[i + 1][j]]);
+    if (j + 1 < CZ.length) EDGES.push([grid[i][j], grid[i][j + 1]]);
+  }
+}
+
+// Xonalar: [kalit, markaz-x, tomon]
+const ROOMS: [string, number, "top" | "bottom"][] = [
+  ["server", -16, "top"], ["kitchen", -5, "top"], ["meeting", 3.5, "top"], ["bathroom", 11.5, "top"], ["glassA", 19, "top"],
+  ["library", -17, "bottom"], ["focus", -7, "bottom"], ["lounge", 2, "bottom"], ["glassB", 11, "bottom"], ["glassC", 19, "bottom"],
 ];
+for (const [key, cx, side] of ROOMS) {
+  const doorZ = side === "top" ? -9.0 : 9.0;
+  const intZ = side === "top" ? -12.5 : 12.5;
+  NODES[`${key}_d`] = { x: cx, z: doorZ };
+  NODES[`${key}_i`] = { x: cx, z: intZ };
+  EDGES.push([`${key}_d`, `${key}_i`]);
+  let best = "";
+  let bd = Infinity;
+  for (const gk of Object.keys(NODES)) {
+    if (!gk.startsWith("g")) continue;
+    const n = NODES[gk];
+    const d = (n.x - cx) ** 2 + (n.z - doorZ) ** 2;
+    if (d < bd) {
+      bd = d;
+      best = gk;
+    }
+  }
+  EDGES.push([`${key}_d`, best]);
+}
 
 const ADJ: Record<string, string[]> = {};
 for (const k of Object.keys(NODES)) ADJ[k] = [];
@@ -50,7 +60,6 @@ for (const [a, b] of EDGES) {
   ADJ[a].push(b);
   ADJ[b].push(a);
 }
-
 const KEYS = Object.keys(NODES);
 
 export function nearestNode(x: number, z: number): string {
@@ -67,7 +76,6 @@ export function nearestNode(x: number, z: number): string {
   return best;
 }
 
-/** BFS — from → to node kalitlari orasidа nuqtalar ro'yxati. */
 export function pathBetween(from: string, to: string): WP[] {
   if (from === to) return [NODES[to]];
   const prev: Record<string, string | null> = { [from]: null };
@@ -92,7 +100,6 @@ export function pathBetween(from: string, to: string): WP[] {
   return out;
 }
 
-/** Tasodifiy sayr nuqtasi (ba'zан xonaга kiradi). */
 export function randomNodeKey(): string {
   return KEYS[Math.floor(Math.random() * KEYS.length)];
 }
