@@ -12,6 +12,8 @@ export default function Hud() {
   const selectedId = useOffice((s) => s.selectedId);
   const agents = useOffice((s) => s.agents);
   const select = useOffice((s) => s.select);
+  const cameraMode = useOffice((s) => s.cameraMode);
+  const setCameraMode = useOffice((s) => s.setCameraMode);
   const [menu, setMenu] = useState(false);
   const sel = selectedId != null ? agents[selectedId] : undefined;
 
@@ -60,6 +62,28 @@ export default function Hud() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Kamera rejimi toggle */}
+      <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
+        <button
+          onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
+          title={cameraMode === "iso" ? "Ichkidan yurib kuzatish" : "Yuqoridan (izometrik)"}
+          style={{
+            padding: "7px 12px", borderRadius: 9, cursor: "pointer",
+            border: "1px solid rgba(255,255,255,0.2)", background: "rgba(20,24,32,0.85)",
+            color: "#fff", fontSize: 13, fontWeight: 600,
+          }}
+        >
+          {cameraMode === "iso" ? "🚶 Ichki" : "🔭 Yuqori"}
+        </button>
+      </div>
+
+      {/* FPV maslahatи */}
+      {cameraMode === "fpv" && (
+        <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.9)", color: "#e8ecf2", fontSize: 12, whiteSpace: "nowrap" }}>
+          🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish
         </div>
       )}
 

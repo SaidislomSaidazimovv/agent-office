@@ -1,7 +1,8 @@
-import { Html, OrbitControls } from "@react-three/drei";
+import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import AgentAvatar from "./scene/AgentAvatar";
+import FirstPersonView from "./scene/FirstPersonView";
 import OfficeDecor from "./scene/OfficeDecor";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
@@ -53,6 +54,7 @@ export default function App() {
   const order = useOffice((s) => s.order);
   const agents = useOffice((s) => s.agents);
   const select = useOffice((s) => s.select);
+  const cameraMode = useOffice((s) => s.cameraMode);
 
   if (GALLERY) return <Gallery />;
 
@@ -61,13 +63,21 @@ export default function App() {
       <Canvas
         shadows
         dpr={[1, 1.25]}
-        orthographic
-        camera={{ position: [24, 20, 24], zoom: 30, near: -200, far: 600 }}
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => select(null)}
       >
         <color attach="background" args={["#11151c"]} />
-        <Room />
+
+        {cameraMode === "iso" ? (
+          <>
+            <OrthographicCamera makeDefault position={[24, 20, 24]} zoom={30} near={-200} far={600} />
+            <OrbitControls target={[0, 0.8, 0]} enablePan minZoom={18} maxZoom={80} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
+          </>
+        ) : (
+          <FirstPersonView />
+        )}
+
+        <Room mode={cameraMode} />
         <OfficeDecor />
         {order.map((id) => {
           const a = agents[id];
@@ -77,14 +87,6 @@ export default function App() {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;
         })}
-        <OrbitControls
-          target={[0, 0.8, 0]}
-          enablePan
-          minZoom={18}
-          maxZoom={80}
-          maxPolarAngle={Math.PI * 0.44}
-          minPolarAngle={Math.PI * 0.18}
-        />
       </Canvas>
       <Hud />
     </div>

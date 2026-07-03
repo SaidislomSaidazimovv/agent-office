@@ -45,12 +45,16 @@ function computeStatus(a: AgentView): AgentStatus {
   return "thinking";
 }
 
+export type CameraMode = "iso" | "fpv";
+
 interface OfficeState {
   agents: Record<number, AgentView>;
   order: number[];
   selectedId: number | null;
   seatCount: number;
   soundEnabled: boolean;
+  cameraMode: CameraMode;
+  setCameraMode(m: CameraMode): void;
 
   addAgent(meta: { id: number; folderName?: string; role?: string; task?: string; isExternal?: boolean }): void;
   removeAgent(id: number): void;
@@ -76,6 +80,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
   selectedId: null,
   seatCount: 6,
   soundEnabled: true,
+  cameraMode: "iso",
+  setCameraMode(m) {
+    set({ cameraMode: m });
+  },
 
   addAgent(meta) {
     set((s) => {
