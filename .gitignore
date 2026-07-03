@@ -27,3 +27,6 @@ active_files.md
 _shot.cjs
 _shot_agents.cjs
 scratchpad/
+
+# TS build info
+*.tsbuildinfo
