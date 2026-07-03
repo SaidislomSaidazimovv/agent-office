@@ -14,8 +14,6 @@ import { type AgentState, createAgentState } from "../server/types.js";
 // JSONL sessiyalarини kashf qiladi (mavjud + yangi) va `+Agent`
 // tugmаси uchun Claude Code terminalини ochadi.
 
-// Faqat oxirgi 2 daqiqада o'zgargan tashqi sessiyaларни qabul qilamiz.
-const EXTERNAL_ACTIVE_THRESHOLD_MS = 120_000;
 const HEAD_BYTES = 8192; // birinchi vazifани o'qish uchun
 
 export class AgentManager {
@@ -24,6 +22,7 @@ export class AgentManager {
   private scanTimer?: ReturnType<typeof setInterval>;
   private disposables: vscode.Disposable[] = [];
   private terminalCounter = 0;
+  private startupTime = 0;
 
   constructor(
     private store: AgentStateStore,
@@ -43,7 +42,10 @@ export class AgentManager {
       }),
     );
 
-    this.scanExisting();
+    // Ofis BO'SH boshlanadi: ochilishдан oldingi sessiyalar avtomat qabul
+    // qilinmaydi. Faqat ochilgandан keyingi YANGI faoliyat (yoki +Agent) agent
+    // yaratadi. Shu tufayli "default holatда agent paydo bo'lish" muammosi yo'q.
+    this.startupTime = Date.now();
     this.scanTimer = setInterval(() => this.scanForNew(), PROJECT_SCAN_INTERVAL_MS);
   }
 
@@ -64,28 +66,15 @@ export class AgentManager {
     }));
   }
 
-  /** Ishga tushishда: mavjud faol sessiyaларни qabul qilamiz. */
-  private scanExisting(): void {
-    for (const { dir, folderName } of this.sessionDirs()) {
-      const files = this.listJsonl(dir);
-      const now = Date.now();
-      for (const f of files) {
-        if (now - f.mtime <= EXTERNAL_ACTIVE_THRESHOLD_MS) {
-          this.adopt(f.filePath, folderName, true);
-        }
-      }
-    }
-  }
-
-  /** Har soniyada: kuzatilmayotgan yangi .jsonl fayllarни qabul qilamiz. */
+  /** Har soniyada: shu loyihада YANGI faoliyatли sessiyani qabul qiladi.
+   *  Faqat ochilishдан keyin o'zgargan (mtime >= startupTime) fayllar — eski
+   *  sessiyalar tinch qoladi. */
   private scanForNew(): void {
     for (const { dir, folderName } of this.sessionDirs()) {
       for (const f of this.listJsonl(dir)) {
-        if (this.knownFiles.has(f.filePath)) continue;
-        const now = Date.now();
-        if (now - f.mtime <= EXTERNAL_ACTIVE_THRESHOLD_MS) {
-          this.adopt(f.filePath, folderName, true);
-        }
+        if (this.store.findByFile(f.filePath)) continue;
+        if (f.mtime < this.startupTime) continue; // ochilishдан oldingi — kutamiz
+        this.adopt(f.filePath, folderName, true);
       }
     }
     // O'chirilgan fayllar uchun TASHQI agentларni tozalaymiz.

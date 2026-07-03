@@ -30,6 +30,39 @@ export default function Hud() {
         </div>
       </div>
 
+      {/* Yuqori agent-bar (namunадеk — ismlar + status nuqta) */}
+      {order.length > 0 && (
+        <div
+          style={{
+            position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
+            display: "flex", gap: 6, maxWidth: "60vw", overflowX: "auto", padding: 4, pointerEvents: "auto",
+          }}
+        >
+          {order.map((id) => {
+            const a = agents[id];
+            if (!a) return null;
+            const c = STATUS_COLOR[a.status];
+            const on = selectedId === id;
+            return (
+              <button
+                key={id}
+                onClick={() => { select(a.id); send({ type: "focusAgent", id: a.id }); }}
+                title={STATUS_LABEL[a.status]}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "4px 11px", borderRadius: 20,
+                  cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "#e8ecf2",
+                  border: `1px solid ${on ? c : "rgba(255,255,255,0.14)"}`,
+                  background: on ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)",
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
+                {a.folderName}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* +Agent */}
       <div style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
         <button

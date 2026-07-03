@@ -72,9 +72,25 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       this.manager.removeBySession(sessionId);
       return;
     }
-    const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
-    const agent = this.manager.ensureSessionAgent(sessionId, cwd);
+    let agent = this.store.findBySession(sessionId);
+    if (!agent) {
+      // Yangi sessiya — faqat SHU loyiha ichидаги bo'lsa agent yaratamiz
+      // (boshqa loyihадаги global Claude sessiyalari e'tiborsiz qoladi).
+      const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
+      if (!cwd || !this.isInWorkspace(cwd)) return;
+      agent = this.manager.ensureSessionAgent(sessionId, cwd);
+    }
     handleHookEvent(this.store, agent, raw);
+  }
+
+  private isInWorkspace(cwd: string): boolean {
+    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+    const norm = (p: string) => p.replace(/[\\/]+$/, "").toLowerCase();
+    const c = norm(cwd);
+    return folders.some((f) => {
+      const nf = norm(f);
+      return c === nf || c.startsWith(nf + "/") || c.startsWith(nf + "\\");
+    });
   }
 
   private sendOrBuffer(msg: ServerMessage): void {
