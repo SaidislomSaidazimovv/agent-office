@@ -95,15 +95,12 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.sin(tt * 8)) * 0.03 : 0);
     if (bodyRef.current) bodyRef.current.position.y = damp(bodyRef.current.position.y, pelvisY, 12, dt);
 
-    // Oyoqlar
+    // Oyoqlar (o'tirganда son OLDINGA −z, boldir pastga; yurganда tebranish)
     const swing = walk ? Math.sin(tt * 8) * 0.6 : 0;
-    const hipTargetL = sit ? -1.5 : swing;
-    const hipTargetR = sit ? -1.5 : -swing;
-    const kneeTarget = sit ? 1.5 : walk ? Math.max(0, -Math.sin(tt * 8)) * 0.5 : 0.02;
-    if (hipL.current) hipL.current.rotation.x = damp(hipL.current.rotation.x, hipTargetL, 12, dt);
-    if (hipR.current) hipR.current.rotation.x = damp(hipR.current.rotation.x, hipTargetR, 12, dt);
-    if (kneeL.current) kneeL.current.rotation.x = damp(kneeL.current.rotation.x, sit ? kneeTarget : Math.max(0, Math.sin(tt * 8)) * 0.5, 12, dt);
-    if (kneeR.current) kneeR.current.rotation.x = damp(kneeR.current.rotation.x, sit ? kneeTarget : Math.max(0, -Math.sin(tt * 8)) * 0.5, 12, dt);
+    if (hipL.current) hipL.current.rotation.x = damp(hipL.current.rotation.x, sit ? 1.5 : swing, 12, dt);
+    if (hipR.current) hipR.current.rotation.x = damp(hipR.current.rotation.x, sit ? 1.5 : -swing, 12, dt);
+    if (kneeL.current) kneeL.current.rotation.x = damp(kneeL.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
+    if (kneeR.current) kneeR.current.rotation.x = damp(kneeR.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, -Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
 
     // Yuqori tana engashishi
     let lean = 0.03;
@@ -121,10 +118,10 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       headRef.current.rotation.z = damp(headRef.current.rotation.z, tilt, 6, dt);
     }
 
-    // Yelka/qo'l — o'tirganда yozish, yurганда tebranish
+    // Yelka/qo'l — o'tirганда OLDINGA (yozish), yurганда tebranish
     const armSwing = walk ? Math.sin(tt * 8) * 0.5 : 0;
-    const shTL = sit ? (working ? -0.9 - Math.max(0, Math.sin(tt * 11)) * 0.3 : -0.7) : -armSwing;
-    const shTR = sit ? (working ? -0.9 - Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.3 : -0.7) : armSwing;
+    const shTL = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11)) * 0.25 : 0.5) : -armSwing;
+    const shTR = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0.5) : armSwing;
     if (shoL.current) shoL.current.rotation.x = damp(shoL.current.rotation.x, shTL, 10, dt);
     if (shoR.current) shoR.current.rotation.x = damp(shoR.current.rotation.x, shTR, 10, dt);
 
