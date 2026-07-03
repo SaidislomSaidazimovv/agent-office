@@ -1,14 +1,20 @@
 import { useMemo } from "react";
 import type { JSX } from "react";
 
-// ── Katta ofisni to'ldiruvchi low-poly jihozlar (flat, yengil) ──
-// Hammasi qutı/silindr/konus — teksturasiz, tez. Majlis xonasi, oshxona,
-// dam olish zonasi, qo'shimcha stollar, javonlar, o'simliklar.
+// ── Ko'p-xonali low-poly ofis (Pixel Agents kabi) ────────────
+// Qattiq devorlar bilan ajratilган xonalar (eshik teshiklари bilan), har
+// xonaning o'z pol rangi. Hammasi qutı/silindr/konus — yengil, tez.
+// Xona reja (x[-16,16], z[-13,13]):
+//   burchaklarда 4 yopiq xona + markazда ochiq ish maydoni.
 
 type V3 = [number, number, number];
-const M = (color: string, rough = 0.85) => <meshStandardMaterial color={color} roughness={rough} />;
+const M = (color: string, rough = 0.9) => <meshStandardMaterial color={color} roughness={rough} />;
 
-function Box({ p, s, c, rough = 0.85 }: { p: V3; s: V3; c: string; rough?: number }) {
+const WALL_H = 2.5;
+const WALL_T = 0.24;
+const WALL_C = "#cabfad";
+
+function Box({ p, s, c, rough = 0.9 }: { p: V3; s: V3; c: string; rough?: number }) {
   return (
     <mesh position={p} castShadow receiveShadow>
       <boxGeometry args={s} />
@@ -17,32 +23,75 @@ function Box({ p, s, c, rough = 0.85 }: { p: V3; s: V3; c: string; rough?: numbe
   );
 }
 
-// O'simlik — tuvak + barglar
+// Pol rangi (xona uchun)
+function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: number; c: string }) {
+  return (
+    <mesh position={[(x0 + x1) / 2, 0.02, (z0 + z1) / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[x1 - x0, z1 - z0]} />
+      {M(c, 1)}
+    </mesh>
+  );
+}
+
+// Devor X o'qi bo'ylab (o'rtada eshik teshigi)
+function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
+  const len = x1 - x0;
+  const cx = (x0 + x1) / 2;
+  const seg = Math.max(0.01, (len - door) / 2);
+  return (
+    <group>
+      <Box p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
+      <Box p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
+      {/* eshik tepasidagi bo'sag'a */}
+      <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={WALL_C} />
+    </group>
+  );
+}
+
+// Devor Z o'qi bo'ylab
+function WallZ({ z0, z1, x, door = 2 }: { z0: number; z1: number; x: number; door?: number }) {
+  const len = z1 - z0;
+  const cz = (z0 + z1) / 2;
+  const seg = Math.max(0.01, (len - door) / 2);
+  return (
+    <group>
+      <Box p={[x, WALL_H / 2, cz - (door / 2 + seg / 2)]} s={[WALL_T, WALL_H, seg]} c={WALL_C} />
+      <Box p={[x, WALL_H / 2, cz + (door / 2 + seg / 2)]} s={[WALL_T, WALL_H, seg]} c={WALL_C} />
+      <Box p={[x, WALL_H - 0.15, cz]} s={[WALL_T, 0.3, door]} c={WALL_C} />
+    </group>
+  );
+}
+
+// Nom yorlig'i (xona ustida — pol tekisligida yozuv o'rniga oddiy plita)
+function RoomSign({ p, c }: { p: V3; c: string }) {
+  return <Box p={p} s={[1.6, 0.05, 0.5]} c={c} rough={0.5} />;
+}
+
+// ── Jihozlar (low-poly) ──
 function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow>
-        <cylinderGeometry args={[0.22, 0.17, 0.4, 12]} />
+        <cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />
         {M("#b5643c")}
       </mesh>
       {[0, 1, 2, 3, 4].map((i) => {
         const a = (i / 5) * Math.PI * 2;
         return (
           <mesh key={i} position={[Math.cos(a) * 0.12, 0.75, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow>
-            <coneGeometry args={[0.16, 0.8, 6]} />
+            <coneGeometry args={[0.16, 0.8, 5]} />
             {M(i % 2 ? "#4a8a52" : "#3c7444")}
           </mesh>
         );
       })}
       <mesh position={[0, 1.0, 0]} castShadow>
-        <coneGeometry args={[0.18, 0.7, 6]} />
+        <coneGeometry args={[0.18, 0.7, 5]} />
         {M("#579a5e")}
       </mesh>
     </group>
   );
 }
 
-// Divan
 function Sofa({ p, ry = 0, c = "#4a5568" }: { p: V3; ry?: number; c?: string }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
@@ -50,12 +99,11 @@ function Sofa({ p, ry = 0, c = "#4a5568" }: { p: V3; ry?: number; c?: string }) 
       <Box p={[0, 0.6, -0.4]} s={[2.2, 0.6, 0.2]} c={c} />
       <Box p={[-1.05, 0.5, 0]} s={[0.2, 0.5, 0.9]} c={c} />
       <Box p={[1.05, 0.5, 0]} s={[0.2, 0.5, 0.9]} c={c} />
-      {[-0.55, 0.55].map((x) => <Box key={x} p={[x, 0.44, 0.05]} s={[0.95, 0.16, 0.7]} c="#5a6678" rough={0.95} />)}
+      {[-0.55, 0.55].map((x) => <Box key={x} p={[x, 0.44, 0.05]} s={[0.95, 0.16, 0.7]} c="#5a6678" />)}
     </group>
   );
 }
 
-// Past stol (kofe)
 function CoffeeTable({ p }: { p: V3 }) {
   return (
     <group position={p}>
@@ -67,27 +115,23 @@ function CoffeeTable({ p }: { p: V3 }) {
   );
 }
 
-// Yumaloq majlis stoli + stullar
 function MeetingTable({ p }: { p: V3 }) {
   return (
     <group position={p}>
       <mesh position={[0, 0.72, 0]} castShadow>
-        <cylinderGeometry args={[1.1, 1.1, 0.09, 24]} />
+        <cylinderGeometry args={[1.1, 1.1, 0.09, 20]} />
         {M("#7a6349")}
       </mesh>
       <mesh position={[0, 0.36, 0]} castShadow>
-        <cylinderGeometry args={[0.12, 0.28, 0.7, 12]} />
+        <cylinderGeometry args={[0.12, 0.28, 0.7, 10]} />
         {M("#4a3a2a")}
       </mesh>
       {[0, 1, 2, 3, 4, 5].map((i) => {
         const a = (i / 6) * Math.PI * 2;
-        const x = Math.cos(a) * 1.5;
-        const z = Math.sin(a) * 1.5;
         return (
-          <group key={i} position={[x, 0, z]} rotation={[0, -a + Math.PI / 2, 0]}>
+          <group key={i} position={[Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5]} rotation={[0, -a + Math.PI / 2, 0]}>
             <Box p={[0, 0.42, 0]} s={[0.42, 0.08, 0.42]} c="#3a3f48" />
             <Box p={[0, 0.68, -0.18]} s={[0.42, 0.44, 0.07]} c="#3a3f48" />
-            <mesh position={[0, 0.2, 0]}><cylinderGeometry args={[0.04, 0.05, 0.4, 8]} />{M("#555b66")}</mesh>
           </group>
         );
       })}
@@ -95,7 +139,6 @@ function MeetingTable({ p }: { p: V3 }) {
   );
 }
 
-// Kitob javoni (rangli kitoblar bilan)
 function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   const books = useMemo(() => {
     const cols = ["#c0392b", "#2980b9", "#27ae60", "#e67e22", "#8e44ad", "#16a085", "#c99a2e"];
@@ -123,57 +166,38 @@ function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
-// Shkaf/tumba
-function Cabinet({ p, ry = 0, c = "#8a7a66" }: { p: V3; ry?: number; c?: string }) {
-  return (
-    <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 0.45, 0]} s={[1.3, 0.9, 0.5]} c={c} />
-      {[0.28, 0.62].map((y) => <Box key={y} p={[0, y, 0.26]} s={[1.2, 0.28, 0.03]} c="#9d8d78" />)}
-      {[-0.3, 0.3].map((x) => [0.28, 0.62].map((y) => <mesh key={`${x}-${y}`} position={[x, y, 0.28]}><sphereGeometry args={[0.03, 8, 8]} />{M("#3a3228")}</mesh>))}
-    </group>
-  );
-}
-
-// Suv sovutgich
 function WaterCooler({ p }: { p: V3 }) {
   return (
     <group position={p}>
       <Box p={[0, 0.45, 0]} s={[0.4, 0.9, 0.4]} c="#e8ecf0" />
-      <mesh position={[0, 1.1, 0]} castShadow><cylinderGeometry args={[0.16, 0.2, 0.4, 12]} />{M("#5aa0e0", 0.4)}</mesh>
+      <mesh position={[0, 1.1, 0]} castShadow><cylinderGeometry args={[0.16, 0.2, 0.4, 10]} />{M("#5aa0e0", 0.4)}</mesh>
     </group>
   );
 }
 
-// Oshxona bloki (peshtaxta + shkaflar + muzlatgich)
 function Kitchen({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
       <Box p={[0, 0.45, 0]} s={[5, 0.9, 0.7]} c="#c9c0ae" />
       <Box p={[0, 0.92, 0]} s={[5.05, 0.06, 0.75]} c="#3a3f48" />
-      <Box p={[-1.6, 0.93, 0]} s={[0.7, 0.04, 0.5]} c="#5a6270" />{/* rakovina */}
+      <Box p={[-1.6, 0.93, 0]} s={[0.7, 0.04, 0.5]} c="#5a6270" />
       {[-0.4, 0.4, 1.2, 2.0].map((x) => <Box key={x} p={[x, 0.45, 0.34]} s={[0.7, 0.7, 0.02]} c="#b8ae9a" />)}
-      <mesh position={[0.3, 1.05, 0]}><cylinderGeometry args={[0.03, 0.03, 0.28, 8]} />{M("#8a8f98", 0.4)}</mesh>{/* jo'mrak */}
-      {/* Muzlatgich */}
       <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#dfe3e8" />
       <Box p={[2.9, 0.95, 0.36]} s={[0.05, 0.6, 0.03]} c="#9aa0a8" />
     </group>
   );
 }
 
-// Doska
 function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 1.2, 0]} s={[1.8, 1.1, 0.05]} c="#f4f4ee" rough={0.6} />
-      <Box p={[0, 1.2, -0.03]} s={[1.9, 1.2, 0.03]} c="#8a8f98" />
-      {[-0.5, 0.5].map((x) => <Box key={x} p={[x, 0.35, 0]} s={[0.05, 0.7, 0.05]} c="#6a6f78" />)}
-      <mesh position={[-0.4, 1.35, 0.04]}><boxGeometry args={[0.5, 0.03, 0.01]} /><meshStandardMaterial color="#3d7dd6" /></mesh>
-      <mesh position={[0.2, 1.15, 0.04]}><boxGeometry args={[0.7, 0.03, 0.01]} /><meshStandardMaterial color="#33a852" /></mesh>
+      <Box p={[0, 1.4, 0]} s={[1.8, 1.05, 0.06]} c="#f4f4ee" rough={0.6} />
+      <mesh position={[-0.4, 1.55, 0.05]}><boxGeometry args={[0.5, 0.03, 0.01]} /><meshStandardMaterial color="#3d7dd6" /></mesh>
+      <mesh position={[0.2, 1.35, 0.05]}><boxGeometry args={[0.7, 0.03, 0.01]} /><meshStandardMaterial color="#33a852" /></mesh>
     </group>
   );
 }
 
-// Bo'sh dekorativ ish stoli (monitor o'chiq)
 function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
@@ -185,7 +209,6 @@ function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
         <Box p={[0, 0.03, 0]} s={[0.08, 0.14, 0.08]} c="#23262b" />
       </group>
       <Box p={[0, 0.77, 0.14]} s={[0.46, 0.03, 0.16]} c="#2a2e35" />
-      {/* stul */}
       <group position={[0, 0, 0.6]}>
         <Box p={[0, 0.46, 0]} s={[0.48, 0.08, 0.48]} c="#454b55" />
         <Box p={[0, 0.74, 0.22]} s={[0.48, 0.46, 0.08]} c="#454b55" />
@@ -194,109 +217,64 @@ function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
-// Shisha panel
-function Glass({ p, s }: { p: V3; s: V3 }) {
-  return (
-    <group position={p}>
-      <mesh>
-        <boxGeometry args={s} />
-        <meshStandardMaterial color="#bfe0ff" transparent opacity={0.16} roughness={0.08} metalness={0.1} />
-      </mesh>
-      <Box p={[0, s[1] / 2 - 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c="#3a3f48" />
-      <Box p={[0, -s[1] / 2 + 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c="#3a3f48" />
-    </group>
-  );
-}
-
-// Shisha devorли xona (old tomonда eshik teshigi bilan)
-function GlassRoom({ cx, cz, w, d, doorW = 1.4 }: { cx: number; cz: number; w: number; d: number; doorW?: number }) {
-  const t = 0.08;
-  const h = 2.2;
-  const hw = w / 2;
-  const hd = d / 2;
-  const segW = (w - doorW) / 2;
-  return (
-    <group position={[cx, 0, cz]}>
-      <Glass p={[0, h / 2, -hd]} s={[w, h, t]} />
-      <Glass p={[-hw, h / 2, 0]} s={[t, h, d]} />
-      <Glass p={[hw, h / 2, 0]} s={[t, h, d]} />
-      {/* old devor — o'rtada eshik */}
-      <Glass p={[-(w + doorW) / 4, h / 2, hd]} s={[segW, h, t]} />
-      <Glass p={[(w + doorW) / 4, h / 2, hd]} s={[segW, h, t]} />
-    </group>
-  );
-}
-
-// Gilam
-function Rug({ p, s, c }: { p: [number, number]; s: [number, number]; c: string }) {
-  return (
-    <mesh position={[p[0], 0.02, p[1]]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={s} />
-      {M(c, 1)}
-    </mesh>
-  );
-}
-
 export default function OfficeDecor() {
   return (
     <group>
-      {/* ── Majlis xonasi (shisha devorли, orqa-chap) ── */}
-      <GlassRoom cx={-9.5} cz={-8} w={6.6} d={6.6} doorW={1.6} />
-      <Rug p={[-9.5, -8]} s={[6, 6]} c="#cdd6df" />
-      <MeetingTable p={[-9.5, 0, -8]} />
-      <Whiteboard p={[-9.5, 0, -10.9]} />
+      {/* ══ OSHXONA (yuqori-chap burchak) ══ */}
+      <Floor x0={-16} x1={-8} z0={-13} z1={-7} c="#d3d7d3" />
+      <WallZ x={-8} z0={-13} z1={-7} door={2} />
+      <WallX z={-7} x0={-16} x1={-8} door={2} />
+      <Kitchen p={[-12, 0, -12]} />
+      <WaterCooler p={[-9, 0, -8.5]} />
+      <RoomSign p={[-12, 2.7, -7]} c="#c9a24c" />
 
-      {/* ── Jamoa xonasi (shisha, chap qanot desk pod'i atrofида) ── */}
-      <GlassRoom cx={-12} cz={-0.5} w={4.8} d={5.4} doorW={1.4} />
+      {/* ══ MAJLIS XONASI (yuqori-o'ng burchak) ══ */}
+      <Floor x0={8} x1={16} z0={-13} z1={-7} c="#cdd6df" />
+      <WallZ x={8} z0={-13} z1={-7} door={2} />
+      <WallX z={-7} x0={8} x1={16} door={2} />
+      <MeetingTable p={[12, 0, -10]} />
+      <Whiteboard p={[12, 0, -12.7]} />
+      <RoomSign p={[12, 2.7, -7]} c="#3d7dd6" />
 
-      {/* ── Fokus-xona (shisha, old-markaz) + ish stoli ── */}
-      <GlassRoom cx={0.5} cz={10.6} w={3.8} d={3.6} doorW={1.3} />
-      <EmptyDesk p={[0.5, 0, 11.2]} ry={Math.PI} />
+      {/* ══ FOKUS-XONA (past-chap burchak) ══ */}
+      <Floor x0={-16} x1={-9} z0={7} z1={13} c="#cdd8cd" />
+      <WallZ x={-9} z0={7} z1={13} door={2} />
+      <WallX z={7} x0={-16} x1={-9} door={2} />
+      <EmptyDesk p={[-12.5, 0, 8.5]} ry={Math.PI} />
+      <Bookshelf p={[-15.3, 0, 11]} ry={Math.PI / 2} />
+      <Plant p={[-10, 0, 12]} scale={1.0} />
+      <RoomSign p={[-12.5, 2.7, 7]} c="#27ae60" />
 
-      {/* ── Telefon kabinasi (kichik shisha) ── */}
-      <GlassRoom cx={5} cz={-9.5} w={1.9} d={1.9} doorW={0.9} />
-      <Plant p={[-12.5, 0, -11]} scale={1.0} />
+      {/* ══ DAM OLISH (past-o'ng burchak) ══ */}
+      <Floor x0={8} x1={16} z0={7} z1={13} c="#ddd0b8" />
+      <WallZ x={8} z0={7} z1={13} door={2} />
+      <WallX z={7} x0={8} x1={16} door={2} />
+      <Sofa p={[12, 0, 12]} ry={Math.PI} c="#4a5568" />
+      <Sofa p={[15, 0, 10]} ry={-Math.PI / 2} c="#556070" />
+      <CoffeeTable p={[12.5, 0, 10]} />
+      <Plant p={[9.2, 0, 12.2]} scale={1.1} />
+      <RoomSign p={[12, 2.7, 7]} c="#e08a3c" />
 
-      {/* ── Oshxona / dam olish (orqa-o'ng) ── */}
-      <Kitchen p={[8.5, 0, -12]} />
-      <WaterCooler p={[13.5, 0, -10]} />
-      <Cabinet p={[13.6, 0, -6.5]} ry={-Math.PI / 2} />
-
-      {/* ── Reception (old-chap) ── */}
-      <group position={[-10, 0, 9]}>
+      {/* ══ MARKAZ — ochiq ish maydoni ══ */}
+      {/* Reception (old-markaz) */}
+      <group position={[0, 0, 11]}>
         <Box p={[0, 0.55, 0]} s={[3, 1.1, 0.8]} c="#6d5741" />
         <Box p={[0, 1.12, 0]} s={[3.2, 0.06, 1]} c="#8a6f52" />
-        <Box p={[0, 0.9, 0.2]} s={[3, 0.5, 0.05]} c="#7a5f45" />
       </group>
-      <Plant p={[-12.5, 0, 11]} scale={1.3} />
-      <Plant p={[-7, 0, 11.4]} scale={1.0} />
+      <Plant p={[-3, 0, 11.5]} scale={1.1} />
+      <Plant p={[3, 0, 11.5]} scale={1.1} />
 
-      {/* ── Dam olish zonasi (old-o'ng) ── */}
-      <Rug p={[8, 9]} s={[7, 6]} c="#d8cab0" />
-      <Sofa p={[8, 0, 11]} ry={Math.PI} c="#4a5568" />
-      <Sofa p={[11, 0, 9]} ry={-Math.PI / 2} c="#556070" />
-      <CoffeeTable p={[8, 0, 9]} />
-      <Plant p={[4.5, 0, 11.5]} scale={1.2} />
-      <Plant p={[12.5, 0, 12]} scale={1.1} />
+      {/* Qo'shimcha ish stollari (markaz chetlarида) */}
+      <EmptyDesk p={[-1.5, 0, -10]} ry={0} />
+      <EmptyDesk p={[1.5, 0, -10]} ry={0} />
+      <EmptyDesk p={[0, 0, 6.5]} ry={Math.PI} />
 
-      {/* ── Qo'shimcha ish stollari (chap qanot, 2×2 pod) ── */}
-      {[-13, -11].map((x) =>
-        [-2, 1].map((z, j) => <EmptyDesk key={`L${x}${z}`} p={[x, 0, z]} ry={x < -12 ? Math.PI / 2 : -Math.PI / 2} />),
-      )}
-
-      {/* ── Qo'shimcha ish stollari (o'ng qanot) ── */}
-      {[11, 13].map((x) =>
-        [2, 5].map((z) => <EmptyDesk key={`R${x}${z}`} p={[x, 0, z]} ry={x > 12 ? -Math.PI / 2 : Math.PI / 2} />),
-      )}
-
-      {/* ── Devor bo'yi javonlar + o'simliklar ── */}
-      <Bookshelf p={[-15.4, 0, -3]} ry={Math.PI / 2} />
-      <Bookshelf p={[-15.4, 0, 3]} ry={Math.PI / 2} />
-      <Cabinet p={[-15.2, 0, 6]} ry={Math.PI / 2} />
-      <Plant p={[15, 0, -2]} scale={1.2} />
-      <Plant p={[15, 0, 6]} scale={1.0} />
-      <Plant p={[0, 0, -12.4]} scale={1.1} />
-      <Plant p={[-3, 0, 12]} scale={0.9} />
+      {/* O'simliklar + tumbalar */}
+      <Bookshelf p={[-15.4, 0, 0]} ry={Math.PI / 2} />
+      <Bookshelf p={[15.4, 0, 0]} ry={-Math.PI / 2} />
+      <Plant p={[-7.5, 0, -3]} scale={1.0} />
+      <Plant p={[7.5, 0, 3]} scale={1.0} />
+      <Plant p={[0, 0, 0]} scale={0.9} />
     </group>
   );
 }
