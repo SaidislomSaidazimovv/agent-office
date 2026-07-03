@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/protocol.ts","./src/store.ts","./src/transport.ts","./src/useextensionmessages.ts","./src/scene/character.tsx","./src/scene/room.tsx","./src/scene/workstation.tsx","./src/scene/roles.ts","./src/ui/hud.tsx"],"version":"5.9.3"}

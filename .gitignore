@@ -10,6 +10,7 @@ dist-ssr/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
 
 # Multi-agent live state (kanban + locks) — config.json stays committed
 active_tasks.md
@@ -24,3 +25,5 @@ active_files.md
 
 # Local self-verify helper (puppeteer, not a saved dep)
 _shot.cjs
+_shot_agents.cjs
+scratchpad/

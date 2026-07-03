@@ -1,34 +1,74 @@
 {
   "name": "agent-office",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "main": "electron/main.cjs",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "app": "concurrently -k -n vite,electron \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "app:prod": "vite build && electron ."
+  "displayName": "Agent Office 3D",
+  "description": "A realistic 3D office where your Claude Code agents come to life as animated characters",
+  "version": "0.1.0",
+  "publisher": "agent-office",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SaidislomSaidazimovv/agent-office"
   },
-  "dependencies": {
-    "@react-three/drei": "^9.114.0",
-    "@react-three/fiber": "^8.17.10",
-    "@react-three/postprocessing": "^2.19.1",
-    "postprocessing": "^6.39.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "three": "^0.169.0",
-    "zustand": "^5.0.1"
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "extensionKind": ["workspace"],
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agent-office.showPanel",
+        "title": "Agent Office: Show Panel"
+      }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "agent-office-panel",
+          "title": "Agent Office",
+          "icon": "$(window)"
+        }
+      ]
+    },
+    "views": {
+      "agent-office-panel": [
+        {
+          "type": "webview",
+          "id": "agent-office.panelView",
+          "name": "Agent Office"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Agent Office",
+      "properties": {
+        "agent-office.autoShowPanel": {
+          "type": "boolean",
+          "default": false,
+          "description": "VS Code ochilganda Agent Office panelини avtomatik ochish."
+        },
+        "agent-office.autoSpawnAgent": {
+          "type": "boolean",
+          "default": false,
+          "description": "VS Code ochilganда, agar hech qanday agent ishlamayotgan bo'lsa, avtomatik bittasini ishga tushirish."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check-types": "tsc -p tsconfig.json",
+    "build:extension": "node esbuild.mjs",
+    "build:webview": "npm --prefix webview-ui run build",
+    "build": "npm run check-types && npm run build:extension && npm run build:webview",
+    "watch:extension": "node esbuild.mjs --watch",
+    "install:all": "npm install && npm --prefix webview-ui install"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.3",
-    "concurrently": "^10.0.3",
-    "cross-env": "^10.1.0",
-    "electron": "^43.0.0",
-    "vite": "^5.4.10",
-    "vite-plugin-electron": "^1.1.0",
-    "vite-plugin-electron-renderer": "^1.0.0",
-    "wait-on": "^9.0.10"
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.84.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
   }
 }
