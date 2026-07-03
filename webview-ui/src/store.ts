@@ -26,7 +26,8 @@ export interface AgentView {
   reading: boolean;
   toolLabel?: string;
   activeToolCount: number;
-  subagentCount: number;
+  /** Faol sub-agentlar (parentToolId kalitlari) — har biri alohida personaj. */
+  subagents: string[];
   inputTokens: number;
   outputTokens: number;
   // Hisoblangan
@@ -39,7 +40,7 @@ function computeStatus(a: AgentView): AgentStatus {
   if (a.permission) return "review";
   if (!a.active && a.awaitingInput) return "review";
   if (!a.active) return "idle";
-  if (a.subagentCount > 0) return "collab";
+  if (a.subagents.length > 0) return "collab";
   if (a.activeToolCount > 0) return a.reading ? "thinking" : "working";
   return "thinking";
 }
@@ -58,8 +59,8 @@ interface OfficeState {
   toolDone(id: number): void;
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
-  addSubagent(id: number): void;
-  clearSubagent(id: number): void;
+  addSubagent(id: number, key: string): void;
+  clearSubagent(id: number, key: string): void;
   setTokens(id: number, input: number, output: number): void;
   select(id: number | null): void;
   setSound(on: boolean): void;
@@ -95,7 +96,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         permission: false,
         reading: false,
         activeToolCount: 0,
-        subagentCount: 0,
+        subagents: [],
         inputTokens: 0,
         outputTokens: 0,
         status: "idle",
@@ -127,7 +128,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           ...a,
           active,
           awaitingInput,
-          ...(active ? {} : { activeToolCount: 0, subagentCount: 0, toolLabel: undefined, permission: false }),
+          ...(active ? {} : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false }),
         }),
       },
     }));
@@ -167,7 +168,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set((s) => ({
       agents: {
         ...s.agents,
-        [id]: recompute({ ...a, activeToolCount: 0, subagentCount: 0, toolLabel: undefined }),
+        [id]: recompute({ ...a, activeToolCount: 0, subagents: [], toolLabel: undefined }),
       },
     }));
   },
@@ -178,19 +179,19 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) } }));
   },
 
-  addSubagent(id) {
+  addSubagent(id, key) {
     const a = get().agents[id];
-    if (!a) return;
+    if (!a || a.subagents.includes(key)) return;
     set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, active: true, subagentCount: a.subagentCount + 1 }) },
+      agents: { ...s.agents, [id]: recompute({ ...a, active: true, subagents: [...a.subagents, key] }) },
     }));
   },
 
-  clearSubagent(id) {
+  clearSubagent(id, key) {
     const a = get().agents[id];
     if (!a) return;
     set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, subagentCount: Math.max(0, a.subagentCount - 1) }) },
+      agents: { ...s.agents, [id]: recompute({ ...a, subagents: a.subagents.filter((k) => k !== key) }) },
     }));
   },
 

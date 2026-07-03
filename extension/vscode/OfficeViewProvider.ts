@@ -65,32 +65,17 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /** Hook eventини agentга yo'naltiradi (sessiya bo'yicha topib/yaratib). */
+  /** Hook eventини MAVJUD (terminalга bog'liq) agentга yo'naltiradi.
+   *  Yangi agent YARATMAYDI — agent faqat +Agent orqali paydo bo'ladi. */
   private onHookEvent(sessionId: string, raw: Record<string, unknown>): void {
     const event = raw.hook_event_name as string;
     if (event === "SessionEnd") {
       this.manager.removeBySession(sessionId);
       return;
     }
-    let agent = this.store.findBySession(sessionId);
-    if (!agent) {
-      // Yangi sessiya — faqat SHU loyiha ichидаги bo'lsa agent yaratamiz
-      // (boshqa loyihадаги global Claude sessiyalari e'tiborsiz qoladi).
-      const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
-      if (!cwd || !this.isInWorkspace(cwd)) return;
-      agent = this.manager.ensureSessionAgent(sessionId, cwd);
-    }
+    const agent = this.store.findBySession(sessionId);
+    if (!agent) return; // bu sessiya biror +Agent terminaliga bog'lanmagan
     handleHookEvent(this.store, agent, raw);
-  }
-
-  private isInWorkspace(cwd: string): boolean {
-    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
-    const norm = (p: string) => p.replace(/[\\/]+$/, "").toLowerCase();
-    const c = norm(cwd);
-    return folders.some((f) => {
-      const nf = norm(f);
-      return c === nf || c.startsWith(nf + "/") || c.startsWith(nf + "\\");
-    });
   }
 
   private sendOrBuffer(msg: ServerMessage): void {

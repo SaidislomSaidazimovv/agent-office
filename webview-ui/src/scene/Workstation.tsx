@@ -80,6 +80,20 @@ export default function Workstation({ agent }: { agent: AgentView }) {
         <PixelPerson skin={preset} status={agent.status} />
       </group>
 
+      {/* Sub-agentlar — har biri ALOHIDA kichik personaj (stol yonида) */}
+      {agent.subagents.map((key, i) => (
+        <group key={key} position={[1.5 + (i % 2) * 0.95, 0, -0.1 - Math.floor(i / 2) * 0.95]} scale={0.6}>
+          <group rotation={[0, -Math.PI / 2, 0]}>
+            <PixelPerson skin={preset} status="working" />
+          </group>
+          <Html position={[0, 1.72, 0]} center style={{ pointerEvents: "none" }}>
+            <div style={{ padding: "2px 7px", borderRadius: 8, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+              🔧 Sub-agent
+            </div>
+          </Html>
+        </group>
+      ))}
+
       {/* Ruxsat pufagi */}
       {agent.permission && (
         <Html position={[0, 2.4, 0.3]} center style={{ pointerEvents: "none" }}>

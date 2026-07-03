@@ -53,11 +53,11 @@ export function useExtensionMessages(): void {
           store.setPermission(msg.id, false);
           break;
         case "subagentToolStart":
-          store.addSubagent(msg.id);
+          store.addSubagent(msg.id, msg.parentToolId);
           break;
         case "subagentToolDone":
         case "subagentClear":
-          store.clearSubagent(msg.id);
+          store.clearSubagent(msg.id, msg.parentToolId);
           break;
         case "agentTokenUsage":
           store.setTokens(msg.id, msg.inputTokens, msg.outputTokens);

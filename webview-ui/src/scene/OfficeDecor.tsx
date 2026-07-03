@@ -194,6 +194,39 @@ function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
+// Shisha panel
+function Glass({ p, s }: { p: V3; s: V3 }) {
+  return (
+    <group position={p}>
+      <mesh>
+        <boxGeometry args={s} />
+        <meshStandardMaterial color="#bfe0ff" transparent opacity={0.16} roughness={0.08} metalness={0.1} />
+      </mesh>
+      <Box p={[0, s[1] / 2 - 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c="#3a3f48" />
+      <Box p={[0, -s[1] / 2 + 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c="#3a3f48" />
+    </group>
+  );
+}
+
+// Shisha devorли xona (old tomonда eshik teshigi bilan)
+function GlassRoom({ cx, cz, w, d, doorW = 1.4 }: { cx: number; cz: number; w: number; d: number; doorW?: number }) {
+  const t = 0.08;
+  const h = 2.2;
+  const hw = w / 2;
+  const hd = d / 2;
+  const segW = (w - doorW) / 2;
+  return (
+    <group position={[cx, 0, cz]}>
+      <Glass p={[0, h / 2, -hd]} s={[w, h, t]} />
+      <Glass p={[-hw, h / 2, 0]} s={[t, h, d]} />
+      <Glass p={[hw, h / 2, 0]} s={[t, h, d]} />
+      {/* old devor — o'rtada eshik */}
+      <Glass p={[-(w + doorW) / 4, h / 2, hd]} s={[segW, h, t]} />
+      <Glass p={[(w + doorW) / 4, h / 2, hd]} s={[segW, h, t]} />
+    </group>
+  );
+}
+
 // Gilam
 function Rug({ p, s, c }: { p: [number, number]; s: [number, number]; c: string }) {
   return (
@@ -207,11 +240,22 @@ function Rug({ p, s, c }: { p: [number, number]; s: [number, number]; c: string 
 export default function OfficeDecor() {
   return (
     <group>
-      {/* ── Majlis xonasi (orqa-chap) ── */}
+      {/* ── Majlis xonasi (shisha devorли, orqa-chap) ── */}
+      <GlassRoom cx={-9.5} cz={-8} w={6.6} d={6.6} doorW={1.6} />
       <Rug p={[-9.5, -8]} s={[6, 6]} c="#cdd6df" />
       <MeetingTable p={[-9.5, 0, -8]} />
-      <Whiteboard p={[-9.5, 0, -11.6]} />
-      <Plant p={[-12.5, 0, -11]} scale={1.1} />
+      <Whiteboard p={[-9.5, 0, -10.9]} />
+
+      {/* ── Jamoa xonasi (shisha, chap qanot desk pod'i atrofида) ── */}
+      <GlassRoom cx={-12} cz={-0.5} w={4.8} d={5.4} doorW={1.4} />
+
+      {/* ── Fokus-xona (shisha, old-markaz) + ish stoli ── */}
+      <GlassRoom cx={0.5} cz={10.6} w={3.8} d={3.6} doorW={1.3} />
+      <EmptyDesk p={[0.5, 0, 11.2]} ry={Math.PI} />
+
+      {/* ── Telefon kabinasi (kichik shisha) ── */}
+      <GlassRoom cx={5} cz={-9.5} w={1.9} d={1.9} doorW={0.9} />
+      <Plant p={[-12.5, 0, -11]} scale={1.0} />
 
       {/* ── Oshxona / dam olish (orqa-o'ng) ── */}
       <Kitchen p={[8.5, 0, -12]} />
