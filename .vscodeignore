@@ -6,6 +6,9 @@ node_modules/**
 # Dev / vaqtinchalik
 scratchpad/**
 media/**
+test/**
+.github/**
+.test-out.cjs
 .vscode/**
 .multi-agent/**
 _shot*.cjs
