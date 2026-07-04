@@ -28,9 +28,12 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
   const group = useRef<THREE.Group>(null);
   const pos = useRef<WP>({ ...sit.current });
   const path = useRef<WP[]>([]);
+  const curNode = useRef(nearestNode(sit.current.x, sit.current.z)); // joriy graf tuguni
+  const pendingNode = useRef<string | null>(null);
   const pause = useRef(0);
   const seated = useRef(true);
   const movingRef = useRef(false);
+  const prevDesired = useRef(true);
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
 
@@ -41,51 +44,66 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
     const desiredSit = statusRef.current !== "idle";
     const p = pos.current;
 
-    // Yo'l tugagan bo'lsa — keyingi maqsad
+    // Rejim o'zgarsa — joriy tugunга yetib qayta rejalaymiz (uzoq aylanmasin)
+    if (desiredSit !== prevDesired.current) {
+      prevDesired.current = desiredSit;
+      if (path.current.length > 1) {
+        path.current = path.current.slice(0, 1);
+        pendingNode.current = null;
+      }
+    }
+
+    // Yo'l tugagan — keyingi maqsad. HAR DOIM graf tuguniдан (curNode) yo'l
+    // olamiz → yo'llar faqat eshiklardан o'tadi, devor/mebeldan emas.
     if (path.current.length === 0) {
-      const atSeat = Math.hypot(p.x - sit.current.x, p.z - sit.current.z) < 0.2;
+      const atSeat = Math.hypot(p.x - sit.current.x, p.z - sit.current.z) < 0.25;
       if (desiredSit) {
-        if (!atSeat) {
-          path.current = [...pathBetween(nearestNode(p.x, p.z), nearestNode(sit.current.x, sit.current.z)), sit.current];
-        } else {
+        if (atSeat) {
           seated.current = true;
+        } else {
+          const target = nearestNode(sit.current.x, sit.current.z);
+          path.current = [...pathBetween(curNode.current, target), sit.current];
+          pendingNode.current = target;
         }
       } else {
         seated.current = false;
         if (pause.current > 0) {
           pause.current -= dt;
         } else {
-          path.current = pathBetween(nearestNode(p.x, p.z), randomNodeKey());
+          const target = randomNodeKey();
+          path.current = pathBetween(curNode.current, target);
+          pendingNode.current = target;
         }
       }
     }
 
-    // Harakat
+    // Harakat — faqat yo'l nuqtalari orasidа (graf qirralари devor kesmaydi)
     let moving = false;
     if (path.current.length > 0) {
       seated.current = false;
-      const target = path.current[0];
-      const dx = target.x - p.x;
-      const dz = target.z - p.z;
+      const t = path.current[0];
+      const dx = t.x - p.x;
+      const dz = t.z - p.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 0.12) {
-        p.x = target.x;
-        p.z = target.z;
+      if (dist < 0.1) {
+        p.x = t.x;
+        p.z = t.z;
         path.current.shift();
-        if (path.current.length === 0 && !desiredSit) pause.current = 1 + Math.random() * 4;
+        if (path.current.length === 0) {
+          curNode.current = pendingNode.current ?? nearestNode(p.x, p.z);
+          pendingNode.current = null;
+          if (!desiredSit) pause.current = 1.5 + Math.random() * 4;
+        }
       } else {
         p.x += (dx / dist) * SPEED * dt;
         p.z += (dz / dist) * SPEED * dt;
         moving = true;
-        const yaw = Math.atan2(-dx, -dz);
-        g.rotation.y = dampAngle(g.rotation.y, yaw, 10, dt);
+        g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 10, dt);
       }
     }
     movingRef.current = moving;
 
-    // O'tirganда stol tomon qaraydi
     if (seated.current) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
-
     g.position.x = p.x;
     g.position.z = p.z;
   });

@@ -102,11 +102,16 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     if (kneeL.current) kneeL.current.rotation.x = damp(kneeL.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
     if (kneeR.current) kneeR.current.rotation.x = damp(kneeR.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, -Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
 
-    // Yuqori tana engashishi
+    // Yuqori tana engashishi + NAFAS OLISH (ko'krak ko'tarilib-tushadi)
     let lean = 0.03;
     if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
     else if (thinking) lean = -0.04;
-    if (upperRef.current) upperRef.current.rotation.x = damp(upperRef.current.rotation.x, lean, 7, dt);
+    else if (walk) lean = 0.11; // yurганда oldинга engashadi
+    const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.014 : 0.024);
+    if (upperRef.current) {
+      upperRef.current.rotation.x = damp(upperRef.current.rotation.x, lean, 7, dt);
+      upperRef.current.scale.y = damp(upperRef.current.scale.y, breathe, 6, dt);
+    }
 
     // Bosh
     let nod = 0, tilt = 0;
@@ -126,8 +131,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     if (shoR.current) shoR.current.rotation.x = damp(shoR.current.rotation.x, shTR, 10, dt);
 
     if (rootRef.current) {
-      const sway = Math.sin(tt * 0.7) * 0.01;
-      rootRef.current.rotation.z = damp(rootRef.current.rotation.z, status === "blocked" ? Math.sin(tt * 20) * 0.02 : sway, 5, dt);
+      // yurганда tabiiy yon-tebranish, turганда nozik chayqalish, blocked'да asabiy
+      const sway = status === "blocked" ? Math.sin(tt * 20) * 0.02 : walk ? Math.sin(tt * 8) * 0.028 : Math.sin(tt * 0.7) * 0.01;
+      rootRef.current.rotation.z = damp(rootRef.current.rotation.z, sway, walk ? 9 : 5, dt);
     }
   });
 
@@ -143,8 +149,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
           <boxGeometry args={[0.12, 0.42, 0.12]} />
           {cloth(s.bottom)}
         </mesh>
-        <mesh position={[0, -0.42, 0.05]} castShadow>
-          <boxGeometry args={[0.13, 0.1, 0.24]} />
+        {/* poyabzal — tovoni orqада, tumshug'i OLDINGA (−z, yuz tomon) */}
+        <mesh position={[0, -0.42, -0.05]} castShadow>
+          <boxGeometry args={[0.13, 0.1, 0.26]} />
           {cloth(s.shoes)}
         </mesh>
       </group>
@@ -195,7 +202,17 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
           </mesh>
           <group ref={headRef} position={[0, 0.62, 0]}>
             <mesh castShadow><boxGeometry args={[0.3, 0.3, 0.3]} />{skinMat}</mesh>
-            {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0.02, -0.153]}><boxGeometry args={[0.045, 0.06, 0.02]} /><meshStandardMaterial color="#1a1a22" roughness={0.5} /></mesh>)}
+            {/* ko'zlar (oq + qorachiq) */}
+            {[-0.07, 0.07].map((x) => (
+              <group key={x} position={[x, 0.025, -0.151]}>
+                <mesh><boxGeometry args={[0.05, 0.055, 0.02]} /><meshStandardMaterial color="#f4f0ea" roughness={0.5} /></mesh>
+                <mesh position={[0, 0, -0.012]}><boxGeometry args={[0.025, 0.03, 0.01]} /><meshStandardMaterial color="#1a1a22" /></mesh>
+              </group>
+            ))}
+            {/* burun */}
+            <mesh position={[0, -0.03, -0.155]}><boxGeometry args={[0.04, 0.05, 0.03]} />{skinMat}</mesh>
+            {/* quloqlar */}
+            {[-0.157, 0.157].map((x) => <mesh key={x} position={[x, 0.0, 0.01]} castShadow><boxGeometry args={[0.03, 0.08, 0.08]} />{skinMat}</mesh>)}
             <Hair style={s.hairStyle} color={s.hair} />
           </group>
         </group>
