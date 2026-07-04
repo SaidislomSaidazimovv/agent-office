@@ -270,6 +270,17 @@ test("kech-bog'lash: terminal keyin ochilса focusAgent bog'laydi", () => {
   assert.equal(store.has(a.id), false, "focusAgent kech-bog'lashi kerak");
 });
 
+console.log("Launch: 'claude' PATH-fail zombi tozalanadi:");
+test("transcript 20s'да paydo bo'lmasa agent olib tashlanadi", () => {
+  const { store, mgr } = mgrSetup();
+  mgr.launchAgent({});
+  const agent = store.values()[0];
+  assert.ok(agent, "launch agent yaratishi kerak");
+  // transcript fayli mavjud emas (createTerminal mock, claude yozmaydi)
+  (mgr as unknown as { checkLaunchStalled(id: number, f: string): void }).checkLaunchStalled(agent.id, agent.filePath);
+  assert.equal(store.has(agent.id), false, "transcript yo'q → zombi olib tashlanishi kerak");
+});
+
 console.log("/clear|/resume dublikatsizlik:");
 test("single-agent /clear → o'sha agent reassign bo'ladi (dublikat yo'q)", () => {
   const { store, mgr } = mgrSetup();
@@ -322,6 +333,30 @@ test("11 agent → 11 xil o'rindiq (7-agent 0-o'ringa tushmaydi)", () => {
   // World-koordinatalar ham ustma-ust emas (generatsiya qilinganlar ham)
   const pts = agents.map((a) => { const s = seatFor(a.seatIndex); return `${s.x},${s.z}`; });
   assert.equal(new Set(pts).size, 11, "world pozitsiyalar ustma-ust bo'lmasligi kerak");
+});
+
+console.log("FileWatcher UTF-8 chegара:");
+test("64KB chegарада bo'linган ko'p-baytли belgi buzilmaydi (StringDecoder)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-utf"));
+  const file = path.join(dir, "sess.jsonl");
+  const mb = "ў"; // ў — UTF-8'да 2 bayt
+  const head = `{"type":"assistant","message":{"pad":"`;
+  const mid = `","content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"`;
+  // 'ў' belgisiнинг birinchi baytи aynan 65535-offsetда bo'lsin → 65536 chunk
+  // chegараси belgini ikkiga bo'ladi.
+  const padLen = 65535 - Buffer.byteLength(head) - Buffer.byteLength(mid);
+  assert.ok(padLen > 0, "pad musbat bo'lishi kerak");
+  const line = head + "A".repeat(padLen) + mid + `${mb}x.ts"}}]}}`;
+  fs.writeFileSync(file, line + "\n");
+
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const agent = createAgentState(1, file, "t");
+  watcher.primeFromStart(agent);
+
+  assert.ok(agent.currentToolLabel?.includes(mb), "ko'p-baytли belgi butun qolishi kerak");
+  assert.ok(!agent.currentToolLabel?.includes("�"), "U+FFFD (buzilган belgi) bo'lmasligi kerak");
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 console.log("Adopt: tarix jimgina o'qiladi (flood yo'q):");

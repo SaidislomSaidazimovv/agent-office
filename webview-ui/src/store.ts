@@ -63,6 +63,7 @@ interface OfficeState {
   selectedId: number | null;
   seatCount: number;
   soundEnabled: boolean;
+  hookActive: boolean;
   readingTools: Set<string>;
   folders: { name: string; path: string }[];
   cameraMode: CameraMode;
@@ -81,6 +82,7 @@ interface OfficeState {
   setTokens(id: number, input: number, output: number, contextWindow?: number): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
+  setHookActive(active: boolean): void;
   select(id: number | null): void;
   setSound(on: boolean): void;
 }
@@ -95,6 +97,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   selectedId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,
+  hookActive: false,
   readingTools: new Set(DEFAULT_READING),
   folders: [],
   cameraMode: "iso",
@@ -249,5 +252,9 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   setFolders(folders) {
     set({ folders: folders ?? [] });
+  },
+
+  setHookActive(active) {
+    set({ hookActive: active });
   },
 }));

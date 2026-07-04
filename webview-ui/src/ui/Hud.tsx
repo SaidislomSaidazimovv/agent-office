@@ -15,6 +15,7 @@ export default function Hud() {
   const cameraMode = useOffice((s) => s.cameraMode);
   const setCameraMode = useOffice((s) => s.setCameraMode);
   const folders = useOffice((s) => s.folders);
+  const hookActive = useOffice((s) => s.hookActive);
   const [menu, setMenu] = useState(false);
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
@@ -39,6 +40,17 @@ export default function Hud() {
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} agent{order.length === 1 ? "" : "lar"}
+        </div>
+        {/* Aniqlash rejimi — jonli hook yoki JSONL zaxira */}
+        <div
+          title={hookActive ? "Jonli hook oqimи (ishonchli aniqlash)" : "Faqat JSONL kuzatuvи (hook boshqa oynада yoki o'chiq — aniqlash evristik)"}
+          style={{
+            display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 600,
+            background: hookActive ? "rgba(48,209,88,0.16)" : "rgba(255,159,10,0.16)",
+            color: hookActive ? "#30d158" : "#ff9f0a", border: `1px solid ${hookActive ? "rgba(48,209,88,0.4)" : "rgba(255,159,10,0.4)"}`,
+          }}
+        >
+          {hookActive ? "🔗 Hook" : "📄 JSONL"}
         </div>
       </div>
 

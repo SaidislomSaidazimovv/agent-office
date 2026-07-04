@@ -26,6 +26,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private watcher = new FileWatcher(this.store);
   private manager = new AgentManager(this.store, this.watcher, (m) => this.logMsg(m));
   private hookServer = new HookServer((sessionId, raw) => this.onHookEvent(sessionId, raw));
+  private hookActive = false;
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
@@ -90,12 +91,14 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (hooksEnabled) {
       void this.hookServer.start().then((handle) => {
         if (!handle) {
-          this.logMsg("⚠ Hook server ishga tushmadi — faqat JSONL kuzatuvи ishlaydi.");
+          this.logMsg("⚠ Hook server ishga tushmadi (boshqa oyna egаллаган) — shu oynада faqat JSONL kuzatuvи.");
+          this.setHookActive(false);
           return;
         }
         const hookScript = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
         const ok = installHooks(hookScript);
         this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
+        this.setHookActive(true);
       });
 
       const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
@@ -109,7 +112,14 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       }
     } else {
       this.logMsg("Hook rejimi o'chirilган (agent-office.hooksEnabled=false) — faqat JSONL.");
+      this.setHookActive(false);
     }
+  }
+
+  /** Hook holатини saqlab webview'ga yuboradi (ko'rsatkich uchun). */
+  private setHookActive(active: boolean): void {
+    this.hookActive = active;
+    this.sendOrBuffer({ type: "hookStatus", active });
   }
 
   /** Hook eventини agentга yo'naltiradi. Shu loyiha sessiyasi bo'lsa
@@ -235,6 +245,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     });
     // 5) Har agentning JORIY holatини qayta yuboramiz (SNAPSHOT) — webview
     //    qayta yuklanганда ish 0dan boshlanmasin, aynan turган joyида davom etsin.
+    this.post({ type: "hookStatus", active: this.hookActive });
     for (const a of agents) {
       for (const msg of agentSnapshotMessages(a)) this.post(msg);
     }

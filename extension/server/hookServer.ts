@@ -24,12 +24,17 @@ export class HookServer {
 
   private ownsFile = false;
 
-  start(): Promise<HookServerHandle | null> {
+  async start(): Promise<HookServerHandle | null> {
     // Boshqa VS Code oynasi hooks'ни egallab turган bo'lsa — biz raqobatlashmaymiz
     // (server.json'ни bosib yozmaymiz). U oyna hook'larни oladi, biz JSONL'да qolamiz.
     const existing = this.readServerJson();
     if (existing && existing.pid !== process.pid && this.isAlive(existing.pid)) {
-      return Promise.resolve(null);
+      // PID tirik — lekin haqiqatан bizнинг server ishlayaptimi? (PID qайta
+      // ishlatilган bo'lishi mumkin). Port javob berса — egа tirik, chekinamiz.
+      if (!existing.port || (await this.probeAlive(existing.port))) {
+        return null;
+      }
+      // Port o'lik → stale/qайta-ishlatilган PID → biz egallaymiz.
     }
     return new Promise((resolve) => {
       const server = http.createServer((req, res) => this.handle(req, res));
@@ -45,12 +50,32 @@ export class HookServer {
     });
   }
 
-  private readServerJson(): { pid: number } | null {
+  private readServerJson(): { pid: number; port?: number } | null {
     try {
       return JSON.parse(fs.readFileSync(this.serverJsonPath(), "utf8"));
     } catch {
       return null;
     }
+  }
+
+  /** Berilган portда haqiqatан hook-server ishlayaptimi? PID qайта-ishlatilган
+   *  bo'lса (egа crash bo'lиб, PID boshqa jarayonга o'tган) — port javob bermaydi.
+   *  FAQAT aniq "ulanma rad etildi" (ECONNREFUSED) → o'lik; aks holda tirik deb
+   *  hisoblaymiz (noto'g'ri egallab olmaslik uchun). */
+  private probeAlive(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const req = http.get({ host: "127.0.0.1", port, path: "/api/health", timeout: 700 }, (res) => {
+        res.resume();
+        resolve(true);
+      });
+      req.on("timeout", () => {
+        req.destroy();
+        resolve(true); // noaniq — xavfsiz tomonга (tirik deb hisoblaymiz)
+      });
+      req.on("error", (e) => {
+        resolve((e as NodeJS.ErrnoException).code !== "ECONNREFUSED");
+      });
+    });
   }
 
   private isAlive(pid: number): boolean {
@@ -63,6 +88,12 @@ export class HookServer {
   }
 
   private handle(req: http.IncomingMessage, res: http.ServerResponse): void {
+    // Liveness probe — auth'сiz (faqat "shu server tirikmi" degani).
+    if (req.method === "GET" && req.url === "/api/health") {
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end("ok");
+      return;
+    }
     if (req.method !== "POST" || !req.url || !req.url.startsWith("/api/hooks/")) {
       res.writeHead(404);
       res.end();
@@ -99,11 +130,13 @@ export class HookServer {
 
   private writeServerJson(port: number): void {
     try {
-      fs.mkdirSync(path.dirname(this.serverJsonPath()), { recursive: true });
-      fs.writeFileSync(
-        this.serverJsonPath(),
-        JSON.stringify({ port, pid: process.pid, token: this.token }),
-      );
+      const p = this.serverJsonPath();
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      // ATOMIK: temp faylга yozib, so'ng rename — hook script hech qачон
+      // yarим-yozilган faylни o'qimaydi (event tushib qolmaydi).
+      const tmp = `${p}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify({ port, pid: process.pid, token: this.token }));
+      fs.renameSync(tmp, p);
     } catch {
       /* yozib bo'lmasa — hooks ishlamaydi, lekin JSONL zaxira bor */
     }

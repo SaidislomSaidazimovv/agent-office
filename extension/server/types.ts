@@ -12,6 +12,9 @@ export interface AgentState {
   fileOffset: number;
   /** Qism-qator buferi (bitta o'qishда yarim qator qolsa). */
   lineBuffer: string;
+  /** UTF-8 dekoder — chunk chegарасидаги tugamagан ko'p-baytли belgini saqlaydi
+   *  (64KB o'rtasида belgi buzilmasин). Offset qайта o'rnatilса tozalanadi. */
+  lineDecoder?: import("node:string_decoder").StringDecoder;
   /** Claude sessiya ID (hook eventларини yo'naltirish uchun). */
   sessionId?: string;
   /** Loyiha papka nomi (ko'rsatish uchun). */

@@ -261,12 +261,22 @@ export class AgentManager {
     this.terminals.set(id, terminal);
     this.log(`+Agent #${id} terminal ochildi: claude --session-id ${sessionId.slice(0, 8)}…`);
 
-    // 20s'да transcript paydo bo'lmasa — 'claude' PATH'да bo'lmasligi mumkin
-    setTimeout(() => {
-      if (this.store.has(id) && !fs.existsSync(expectedFile)) {
-        this.log(`⚠ #${id}: 20s'да transcript topilmadi — 'claude' PATH'да o'rnatilganini tekshiring (terminalда xato bormi?).`);
-      }
-    }, 20_000);
+    // 20s'да transcript paydo bo'lmasa — 'claude' PATH'да bo'lmasligi mumkin →
+    // zombi agentни olib tashlaymiz (terminal xatoси ko'rinsin uchun terminal saqlanadi).
+    setTimeout(() => this.checkLaunchStalled(id, expectedFile), 20_000);
+  }
+
+  /** +Agent'дан 20s o'tди — transcript hali yo'q. 'claude' PATH'да yo'q yoki
+   *  terminalда xato bo'lishi mumkin. Zombi agentни olib tashlaymiz (terminalни
+   *  YOPMAYMIZ — foydalanuvchi xatoni ko'rsin). */
+  private checkLaunchStalled(id: number, expectedFile: string): void {
+    const agent = this.store.get(id);
+    if (!agent) return;
+    if (agent.filePath !== expectedFile) return; // boshqa faylга ko'chган (/clear) — tegmaymiz
+    if (fs.existsSync(expectedFile)) return; // transcript paydo bo'ldi — joyида
+    if (agent.inputTokens > 0 || !agent.isWaiting) return; // faoliyat belgisi bor
+    this.log(`⚠ #${id}: 20s'да transcript topilmadi — 'claude' PATH'да yo'q bo'lishi mumkin (terminaldаgi xatoni ko'ring). Agent olib tashlandi.`);
+    this.detach(id);
   }
 
   /** Agentни store'дан olib tashlaydi (terminalни YOPMAYDI). */

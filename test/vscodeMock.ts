@@ -64,6 +64,7 @@ export const window = {
       creationOptions: opts,
       shellIntegration: undefined,
       show(): void {},
+      sendText(): void {},
       dispose(): void {
         fireClose(t);
       },

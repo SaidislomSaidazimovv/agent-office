@@ -68,6 +68,9 @@ export function useExtensionMessages(): void {
         case "settingsLoaded":
           store.setSound(msg.soundEnabled);
           break;
+        case "hookStatus":
+          store.setHookActive(msg.active);
+          break;
         case "providerCapabilities":
           store.setCapabilities(msg.readingTools);
           break;

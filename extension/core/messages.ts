@@ -22,7 +22,8 @@ export type ServerMessage =
   | SubagentClear
   | AgentTokenUsage
   | WorkspaceFolders
-  | SettingsLoaded;
+  | SettingsLoaded
+  | HookStatus;
 
 // ── Webview → extension ──────────────────────────────────────
 export type ClientMessage =
@@ -134,6 +135,11 @@ export interface SettingsLoaded {
   type: "settingsLoaded";
   soundEnabled: boolean;
   extensionVersion: string;
+}
+export interface HookStatus {
+  type: "hookStatus";
+  /** Shu oynада jonli hook oqimи bormi (true) yoki faqat JSONL zaxиra (false). */
+  active: boolean;
 }
 
 export interface WebviewReady {

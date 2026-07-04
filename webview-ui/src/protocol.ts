@@ -21,7 +21,8 @@ export type ServerMessage =
   | { type: "subagentClear"; id: number; parentToolId: string }
   | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number }
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
-  | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string };
+  | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
+  | { type: "hookStatus"; active: boolean };
 
 export type ClientMessage =
   | { type: "webviewReady" }

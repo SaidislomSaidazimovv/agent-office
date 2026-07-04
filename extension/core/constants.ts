@@ -10,6 +10,9 @@ export const CLAUDE_TERMINAL_NAME_PREFIX = "Claude Code";
 export const FILE_WATCHER_POLL_INTERVAL_MS = 500;
 /** Bir polling'да o'qiladigan maksimal bayt (yangi qatorlar uchun). */
 export const MAX_READ_BYTES = 65536;
+/** Bitta tugamagан qator uchun maksimal belgi — bundан oshса xavfsizlik uchun
+ *  tashlanadi (buzilган/cheksiz oqim OOM qilmasin). */
+export const MAX_LINE_CHARS = 8_000_000;
 
 /** Yangi JSONL fayllar uchun loyiha skani davri (ms). */
 export const PROJECT_SCAN_INTERVAL_MS = 1000;

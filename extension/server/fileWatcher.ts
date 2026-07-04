@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
-import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_READ_BYTES } from "../core/constants.js";
+import { StringDecoder } from "node:string_decoder";
+import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_LINE_CHARS, MAX_READ_BYTES } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { agentSnapshotMessages } from "./stateActions.js";
 import { processTranscriptLine } from "./transcriptParser.js";
@@ -33,6 +34,7 @@ export class FileWatcher {
   primeFromStart(agent: AgentState): void {
     agent.fileOffset = 0;
     agent.lineBuffer = "";
+    agent.lineDecoder = undefined; // yangi UTF-8 dekoder
     this.store.beginSilent();
     try {
       let guard = 0;
@@ -72,6 +74,7 @@ export class FileWatcher {
         // Fayl qisqargan (masalan /clear) — qaytadan boshlaymiz
         agent.fileOffset = 0;
         agent.lineBuffer = "";
+        agent.lineDecoder = undefined;
       }
       return false;
     }
@@ -88,9 +91,15 @@ export class FileWatcher {
     if (bytesRead <= 0) return false;
     agent.fileOffset += bytesRead;
 
-    const text = agent.lineBuffer + buf.toString("utf8", 0, bytesRead);
+    // StringDecoder chunk chegараsидаги tugamagан ko'p-baytли belgini saqlaydi
+    // (64KB o'rtасида UTF-8 belgi buzilmasин).
+    if (!agent.lineDecoder) agent.lineDecoder = new StringDecoder("utf8");
+    const chunk = agent.lineDecoder.write(bytesRead < buf.length ? buf.subarray(0, bytesRead) : buf);
+    const text = agent.lineBuffer + chunk;
     const lines = text.split("\n");
     agent.lineBuffer = lines.pop() ?? ""; // oxirgi qism-qatorни saqlaymiz
+    // Cheksiz o'sishдан himoya — juda uzun tugamagан qatorни tashlaymiz.
+    if (agent.lineBuffer.length > MAX_LINE_CHARS) agent.lineBuffer = "";
     for (const line of lines) {
       processTranscriptLine(this.store, agent, line);
     }
