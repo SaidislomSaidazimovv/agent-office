@@ -20,8 +20,13 @@ export const JSONL_POLL_INTERVAL_MS = 1000;
 export const TEXT_IDLE_DELAY_MS = 5000;
 /** Tool tugagach "done" broadcast kechikishi (ms). */
 export const TOOL_DONE_DELAY_MS = 300;
-/** Heuristik ruxsat (permission) taymeri (ms) — hook kelmasa. */
-export const PERMISSION_TIMER_DELAY_MS = 7000;
+/** Heuristik ruxsat taymeri — INSTANT (Edit/Write) toollar uchun (ms). Bu
+ *  toollar millisekundда tugaydi, shu sababли uzoq "sukunat" = ruxsat kutish. */
+export const PERMISSION_TIMER_FAST_MS = 5000;
+/** Heuristik ruxsat taymeri — UZOQ ishlashи mumkin bo'lган toollar (Bash,
+ *  MCP, noma'lum) uchun (ms). build/test qonuniy uzoq davom etadi, shu sababли
+ *  false-positive bo'lmasин uchun ancha kutamiz. */
+export const PERMISSION_TIMER_SLOW_MS = 40000;
 
 /** "Reading" animatsiyasini ko'rsatadigan toollar (aks holda "typing"). */
 export const READING_TOOLS = new Set([
@@ -29,8 +34,17 @@ export const READING_TOOLS = new Set([
 ]);
 /** Sub-agent personajini yaratadigan toollar. */
 export const SUBAGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
-/** Ruxsat taymerini ishga tushirmaydigan toollar. */
-export const PERMISSION_EXEMPT_TOOLS = new Set(["Task", "Agent", "AskUserQuestion"]);
+/** Millisekundда tugaydigan o'zgartiruvchi toollar — bular hang bo'lса
+ *  deyarli aniq ruxsat kutilyapti (tez taymer). Bash bunда YO'Q (uzoq bo'lishi
+ *  mumkin → sekin taymer). */
+export const INSTANT_WRITE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+/** Ruxsat taymerini ishga tushirmaydigan toollar — default rejimда ular
+ *  avtomatik ruxsat etiladi (read-only + boshqaruv toollarи). Faqat
+ *  Edit/Write/Bash kabi o'zgartiruvchi toollар ruxsat so'raydi. */
+export const PERMISSION_EXEMPT_TOOLS = new Set([
+  "Task", "Agent", "AskUserQuestion", "TodoWrite",
+  "Read", "Grep", "Glob", "LS", "NotebookRead", "WebFetch", "WebSearch",
+]);
 
 /** Standart kontekst oynasi (token health-bar uchun, model aniqlanmasa). */
 export const MAX_CONTEXT_TOKENS = 200000;

@@ -43,8 +43,11 @@ function computeStatus(a: AgentView): AgentStatus {
   if (a.permission) return "review";
   if (!a.active && a.awaitingInput) return "review";
   if (!a.active) return "idle";
-  if (a.subagents.length > 0) return "collab";
+  // Ota-agentнинг O'Z ishi ustuvor — subagent bo'lса ham kod yozayotган bo'lса
+  // "working" ko'rinsin (subagent personajlari baribir yonида ko'rinadi).
+  // "collab" faqat ota bo'sh (subagentларни kutаётган) holatда.
   if (a.activeToolCount > 0) return a.reading ? "thinking" : "working";
+  if (a.subagents.length > 0) return "collab";
   return "thinking";
 }
 

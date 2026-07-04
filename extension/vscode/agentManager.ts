@@ -189,6 +189,7 @@ export class AgentManager {
     const agent = createAgentState(id, filePath, folderName, { role, task, isExternal, sessionId });
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
+    this.watcher.emitSnapshot(agent);
     // Tashqi agentни terminalга bog'laymiz — terminal yopilса agent ham o'chadi,
     // "Terminal" tugmasi ham shu terminalни ochadi.
     //  1) cwd (ish papkasi) mos keladigan terminal — eng ishonchli.
@@ -256,6 +257,7 @@ export class AgentManager {
     });
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
+    this.watcher.emitSnapshot(agent);
     this.terminals.set(id, terminal);
     this.log(`+Agent #${id} terminal ochildi: claude --session-id ${sessionId.slice(0, 8)}…`);
 
@@ -305,6 +307,7 @@ export class AgentManager {
     a.inputTokens = 0; // yangi sessiya — kontekst 0dan (birinchi xabar to'g'rilaydi)
     a.outputTokens = 0;
     this.watcher.primeFromStart(a);
+    this.watcher.emitSnapshot(a);
   }
 
   /** Shu papkадаги, terminalи HALI OCHIQ, boshqa fayldаgi agentlar. */

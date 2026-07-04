@@ -2,14 +2,12 @@ import {
   CONTEXT_WINDOW_1M,
   contextWindowForModel,
   MAX_CONTEXT_TOKENS,
-  PERMISSION_EXEMPT_TOOLS,
-  PERMISSION_TIMER_DELAY_MS,
   SUBAGENT_TOOL_NAMES,
   TEXT_IDLE_DELAY_MS,
   TOOL_DONE_DELAY_MS,
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
-import { formatToolStatus, markWaiting, setActive } from "./stateActions.js";
+import { formatToolStatus, markWaiting, permissionDelayFor, setActive } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
 // ── Transcript state machine (Pixel Agents §3a mantiqi) ──────
@@ -33,13 +31,25 @@ function startWaitingTimer(store: AgentStateStore, agent: AgentState): void {
   }, TEXT_IDLE_DELAY_MS);
 }
 
-function startPermissionTimer(store: AgentStateStore, agent: AgentState): void {
+function startPermissionTimer(store: AgentStateStore, agent: AgentState, delayMs: number): void {
   if (agent.permissionTimer) clearTimeout(agent.permissionTimer);
   agent.permissionTimer = setTimeout(() => {
     agent.permissionTimer = undefined;
     agent.permissionActive = true;
     store.broadcast({ type: "agentToolPermission", id: agent.id });
-  }, PERMISSION_TIMER_DELAY_MS);
+  }, delayMs);
+}
+
+/** Kutilayotган ruxsatни bekor qiladi (taymer + faol holat). */
+function clearPermission(store: AgentStateStore, agent: AgentState): void {
+  if (agent.permissionTimer) {
+    clearTimeout(agent.permissionTimer);
+    agent.permissionTimer = undefined;
+  }
+  if (agent.permissionActive) {
+    agent.permissionActive = false;
+    store.broadcast({ type: "agentToolPermissionClear", id: agent.id });
+  }
 }
 
 /** assistant xabaridan token usage'ни o'qib broadcast qiladi. */
@@ -92,6 +102,14 @@ export function processTranscriptLine(
   const type = o.type as string;
   const message = o.message as Record<string, unknown> | undefined;
 
+  // Ruxsat rejimini kuzatamiz (permission-mode satrи yoki user satrида keladi).
+  // default'дан boshqa (auto/bypassPermissions) — tool ruxsat so'ramaydi, shu
+  // sababли kutilayotган heuristik ruxsatни bekor qilamiz.
+  if (typeof o.permissionMode === "string") {
+    agent.permissionMode = o.permissionMode;
+    if (agent.permissionMode !== "default") clearPermission(store, agent);
+  }
+
   // Hook rejimi faol bo'lsa — JSONL'дан faqat tokenni o'qiymiz, qolgan
   // holat/tool/ruxsat/navbat mantiqi hook'ларга topshiriladi (ishonchliroq).
   if (agent.hookDelivered) {
@@ -143,8 +161,10 @@ export function processTranscriptLine(
             toolName: name,
             runInBackground,
           });
-          // Ruxsat talab qilishi mumkin bo'lgan tool — heuristik taymer
-          if (!PERMISSION_EXEMPT_TOOLS.has(name)) startPermissionTimer(store, agent);
+          // Heuristik ruxsat-taymer — rejim + tool turиga qarab kechikish
+          // (default emas / exempt / read-only → null → taymer yo'q).
+          const delay = permissionDelayFor(name, agent.permissionMode);
+          if (delay != null) startPermissionTimer(store, agent, delay);
         }
       }
       return;
@@ -166,13 +186,8 @@ export function processTranscriptLine(
         (b: ToolUseBlock) => b && b.type === "tool_result",
       ) as Array<ToolUseBlock & { tool_use_id?: string; is_error?: boolean }>;
       if (toolResults.length > 0) {
-        // Ruxsat berildi — permission taymerini bekor qilamiz
-        if (agent.permissionTimer || agent.permissionActive) {
-          clearTimeout(agent.permissionTimer);
-          agent.permissionTimer = undefined;
-          agent.permissionActive = false;
-          store.broadcast({ type: "agentToolPermissionClear", id: agent.id });
-        }
+        // Tool natijasi keldi — kutilayotган ruxsatни bekor qilamiz
+        clearPermission(store, agent);
         for (const tr of toolResults) {
           const toolId = tr.tool_use_id || "";
           if (agent.subagentToolIds.has(toolId)) {

@@ -1,8 +1,13 @@
 import assert from "node:assert";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
+import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
+import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { seatFor } from "../webview-ui/src/scene/roles.js";
@@ -78,6 +83,44 @@ test("model id with [1m] sets 1M window immediately", () => {
   assert.equal(agent.contextWindow, 1000000);
 });
 
+test("bypassPermissions rejimда o'zgartiruvchi tool ruxsat-taymer QO'YMAYDI", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "permission-mode", permissionMode: "bypassPermissions" }));
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "npm run build" } }] } }));
+  assert.equal(agent.permissionMode, "bypassPermissions");
+  assert.equal(agent.permissionTimer, undefined, "bypass rejimда false-positive taymer bo'lmasligi kerak");
+});
+
+test("default rejimда o'zgartiruvchi tool ruxsat-taymer qo'yadi", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Edit", input: { file_path: "a.ts" } }] } }));
+  assert.ok(agent.permissionTimer, "default rejimда Edit taymer qo'yishi kerak");
+  clearTimeout(agent.permissionTimer);
+});
+
+test("default rejimда read-only tool taymer QO'YMAYDI (exempt)", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] } }));
+  assert.equal(agent.permissionTimer, undefined, "Read exempt — taymer bo'lmasligi kerak");
+});
+
+test("permissionDelayFor: Edit tez, Bash sekin, Read/bypass → null", () => {
+  const fast = permissionDelayFor("Edit", "default");
+  const slow = permissionDelayFor("Bash", "default");
+  assert.ok(fast && slow && slow > fast, "Bash Edit'dan uzoqroq kutishi kerak");
+  assert.equal(permissionDelayFor("Read", "default"), null, "read-only exempt");
+  assert.equal(permissionDelayFor("Bash", "bypassPermissions"), null, "bypass → taymer yo'q");
+  assert.equal(permissionDelayFor("Write", "auto"), null, "auto → taymer yo'q");
+});
+
+test("rejim default→auto o'zgarса faol ruxsat tozalanadi", () => {
+  const { store, agent, ev } = setup();
+  agent.permissionActive = true;
+  processTranscriptLine(store, agent, JSON.stringify({ type: "permission-mode", permissionMode: "auto" }));
+  assert.equal(agent.permissionActive, false, "faol ruxsat tozalanishi kerak");
+  assert.ok(ev.some((e) => e.type === "agentToolPermissionClear"), "clear broadcast bo'lishi kerak");
+});
+
 console.log("Hook handler:");
 test("PreToolUse → active + toolStart; Stop → waiting; hookDelivered set", () => {
   const { store, agent, ev } = setup();
@@ -129,7 +172,7 @@ const WS = "F:\\zzz-bind-ws-unlikely-path";
 function mgrSetup() {
   resetState(WS);
   const store = new AgentStateStore();
-  const watcher = { primeFromStart() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+  const watcher = { primeFromStart() {}, emitSnapshot() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
   const mgr = new AgentManager(store, watcher, () => {});
   mgr.start();
   return { store, mgr };
@@ -224,6 +267,51 @@ test("11 agent → 11 xil o'rindiq (7-agent 0-o'ringa tushmaydi)", () => {
   // World-koordinatalar ham ustma-ust emas (generatsiya qilinganlar ham)
   const pts = agents.map((a) => { const s = seatFor(a.seatIndex); return `${s.x},${s.z}`; });
   assert.equal(new Set(pts).size, 11, "world pozitsiyalar ustma-ust bo'lmasligi kerak");
+});
+
+console.log("Adopt: tarix jimgina o'qiladi (flood yo'q):");
+test("primeFromStart broadcast QILMAYDI, holatни tiklaydi; emitSnapshot yakuniy holat", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-"));
+  const file = path.join(dir, "sess.jsonl");
+  const lines = [
+    JSON.stringify({ type: "user", message: { content: "salom" } }),
+    JSON.stringify({ type: "assistant", message: { model: "claude-opus-4-8", content: [{ type: "tool_use", id: "t1", name: "Edit", input: { file_path: "a.ts" } }], usage: { input_tokens: 10, cache_read_input_tokens: 5000, output_tokens: 3 } } }),
+    JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1" }] } }),
+    JSON.stringify({ type: "system", subtype: "turn_duration" }),
+  ];
+  fs.writeFileSync(file, lines.join("\n") + "\n");
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const ev: { type: string; inputTokens?: number }[] = [];
+  store.on("broadcast", (m: { type: string; inputTokens?: number }) => ev.push(m));
+  const agent = createAgentState(1, file, "t");
+
+  watcher.primeFromStart(agent);
+  assert.equal(ev.length, 0, "prime davomида broadcast bo'lmasligi kerak (silent — flood yo'q)");
+  assert.equal(agent.inputTokens, 5010, "tokenlar tarixдан tiklanishi kerak");
+  assert.equal(agent.isWaiting, true, "turn_duration → waiting");
+
+  watcher.emitSnapshot(agent);
+  assert.ok(ev.length >= 2, "emitSnapshot yakuniy holatni yuborishi kerak");
+  assert.ok(ev.some((m) => m.type === "agentTokenUsage" && m.inputTokens === 5010), "token snapshot bo'lishi kerak");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+console.log("Status hisoblash (collab ota-statusni bosmaydi):");
+test("ota kod yozayotган + subagent bor → 'working' (collab emas)", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 200, folderName: "par" });
+  s.setActive(200, true);
+  s.setTool(200, "Edit", "Edit a.ts");
+  s.addSubagent(200, "sub-1");
+  assert.equal(useOffice.getState().agents[200].status, "working", "ota ishlаётганда working bo'lishi kerak");
+});
+test("ota bo'sh + subagent ishlаётган → 'collab'", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 201, folderName: "par2" });
+  s.setActive(201, true);
+  s.addSubagent(201, "sub-1");
+  assert.equal(useOffice.getState().agents[201].status, "collab");
 });
 
 console.log("Navigation:");

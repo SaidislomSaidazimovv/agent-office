@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_READ_BYTES } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
+import { agentSnapshotMessages } from "./stateActions.js";
 import { processTranscriptLine } from "./transcriptParser.js";
 import type { AgentState } from "./types.js";
 
@@ -25,10 +26,30 @@ export class FileWatcher {
     this.timer = undefined;
   }
 
-  /** Yangi agent qo'shilganда faylни boshidan o'qiymiz (mavjud tarixни ham). */
+  /** Yangi agent adopt qilinganда mavjud TARIXни JIMGINA (broadcast'siz) o'qib
+   *  holatni tiklaymiz — butun tarix webview'ga flood bo'lmasin. Yakuniy holat
+   *  keyin emitSnapshot() orqali BIR marta yuboriladi. Sinxron — tick oralиқда
+   *  tushmaydi. */
   primeFromStart(agent: AgentState): void {
     agent.fileOffset = 0;
     agent.lineBuffer = "";
+    this.store.beginSilent();
+    try {
+      let guard = 0;
+      // Butun mavjud faylни chunk-chunk o'qiб tugatamiz (offset EOF'gача).
+      while (this.readNewLines(agent) && guard++ < 200_000) {
+        /* davom */
+      }
+    } finally {
+      this.store.endSilent();
+    }
+  }
+
+  /** Agentning JORIY holatини webview'ga yuboradi (adopt/rebind'дан keyin).
+   *  Avval eski indikatorларни tozalab, so'ng snapshot qo'llaymiz. */
+  emitSnapshot(agent: AgentState): void {
+    this.store.broadcast({ type: "agentToolsClear", id: agent.id });
+    for (const msg of agentSnapshotMessages(agent)) this.store.broadcast(msg);
   }
 
   private tick(): void {
@@ -37,12 +58,14 @@ export class FileWatcher {
     }
   }
 
-  private readNewLines(agent: AgentState): void {
+  /** Bir chunk (MAX_READ_BYTES) yangi baytларни o'qiydi. Yana o'qish mumkin
+   *  bo'lса (fayl offset'дан katta) true qaytaradi (drain sikli uchun). */
+  private readNewLines(agent: AgentState): boolean {
     let stat: fs.Stats;
     try {
       stat = fs.statSync(agent.filePath);
     } catch {
-      return; // fayl hali yo'q yoki o'chirilgan
+      return false; // fayl hali yo'q yoki o'chirilgan
     }
     if (stat.size <= agent.fileOffset) {
       if (stat.size < agent.fileOffset) {
@@ -50,7 +73,7 @@ export class FileWatcher {
         agent.fileOffset = 0;
         agent.lineBuffer = "";
       }
-      return;
+      return false;
     }
     const toRead = Math.min(stat.size - agent.fileOffset, MAX_READ_BYTES);
     const buf = Buffer.alloc(toRead);
@@ -60,8 +83,9 @@ export class FileWatcher {
       bytesRead = fs.readSync(fd, buf, 0, toRead, agent.fileOffset);
       fs.closeSync(fd);
     } catch {
-      return;
+      return false;
     }
+    if (bytesRead <= 0) return false;
     agent.fileOffset += bytesRead;
 
     const text = agent.lineBuffer + buf.toString("utf8", 0, bytesRead);
@@ -70,5 +94,7 @@ export class FileWatcher {
     for (const line of lines) {
       processTranscriptLine(this.store, agent, line);
     }
+    // Yana o'qiladigan bayt qoldи (fayl > MAX_READ_BYTES) → drain davom etsin.
+    return agent.fileOffset < stat.size;
   }
 }

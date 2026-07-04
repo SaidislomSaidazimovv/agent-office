@@ -6,6 +6,7 @@ import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
 import { handleHookEvent } from "../server/hookHandler.js";
+import { agentSnapshotMessages } from "../server/stateActions.js";
 import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
@@ -235,17 +236,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     // 5) Har agentning JORIY holatини qayta yuboramiz (SNAPSHOT) — webview
     //    qayta yuklanганда ish 0dan boshlanmasin, aynan turган joyида davom etsin.
     for (const a of agents) {
-      this.post({ type: "agentStatus", id: a.id, status: a.isWaiting ? "waiting" : "active" });
-      if (a.inputTokens > 0 || a.outputTokens > 0) {
-        this.post({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow });
-      }
-      if (!a.isWaiting && a.currentToolLabel) {
-        this.post({ type: "agentToolStart", id: a.id, toolId: "restore", status: a.currentToolLabel, toolName: a.currentToolName });
-      }
-      for (const tid of a.subagentToolIds) {
-        this.post({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Sub-agent" });
-      }
-      if (a.permissionActive) this.post({ type: "agentToolPermission", id: a.id });
+      for (const msg of agentSnapshotMessages(a)) this.post(msg);
     }
     // Snapshot joriy holatни to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];

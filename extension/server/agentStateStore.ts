@@ -12,6 +12,9 @@ import type { AgentState } from "./types.js";
 export class AgentStateStore extends EventEmitter {
   private agents = new Map<number, AgentState>();
   private nextId = 1;
+  /** >0 bo'lса broadcast'lar o'chiriladi (tarixни jimgina o'qish uchun).
+   *  FAQAT sinxron blok davomida ishlatiladi (tick oralиқда tushmaydi). */
+  private silent = 0;
 
   /** Keyingi agent uchun ID ajratadi. */
   allocateId(): number {
@@ -64,8 +67,18 @@ export class AgentStateStore extends EventEmitter {
     return undefined;
   }
 
-  /** Webview'ga faoliyat xabarини uzatadi. */
+  /** Broadcast'larни vaqtincha o'chiradi (tarixни jimgina qайта o'qish uchun).
+   *  begin/end juftlik sinxron blokда ishlatilishi shart. */
+  beginSilent(): void {
+    this.silent++;
+  }
+  endSilent(): void {
+    if (this.silent > 0) this.silent--;
+  }
+
+  /** Webview'ga faoliyat xabarини uzatadi (silent rejimда o'tkazib yuboriladi). */
   broadcast(msg: ServerMessage): void {
+    if (this.silent > 0) return;
     this.emit("broadcast", msg);
   }
 

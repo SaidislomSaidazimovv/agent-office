@@ -37,6 +37,11 @@ export interface AgentState {
   currentToolLabel?: string;
   currentToolName?: string;
   permissionActive: boolean;
+  /** Sessiya ruxsat rejimi (transcript `permissionMode`): "default" |
+   *  "auto" | "bypassPermissions". Faqat "default"да tool ruxsat so'raydi —
+   *  boshqa rejimда heuristik permission-taymer ishlatilmaydi (false-positive
+   *  bo'lmasин). Ko'pchilik sessiya bypass/auto (ruxsat so'ramaydi). */
+  permissionMode: string;
 
   // ── Hook rejimi ──
   /** Bu agentga hook eventи kelgan — JSONL heuristikasi o'chiriladi. */
@@ -83,6 +88,7 @@ export function createAgentState(
     activeToolIds: new Set(),
     subagentToolIds: new Set(),
     permissionActive: false,
+    permissionMode: "default", // mode satrи ko'rilгунча konservativ (heuristik yoqiq)
     hookDelivered: false,
     hookToolQueue: new Map(),
     hookToolCounter: 0,
