@@ -37,13 +37,27 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
 
 ## Highlights
 
-- 🧑‍💻 **Live agent characters** — one voxel character per Claude Code session. They sit and type while working, stand up and **wander the office** (through doors, into rooms) when idle, and return to their desk when you give them a task.
-- 🏢 **A whole company floor** — a large multi-room office: a server room, kitchen, meeting rooms, a library, a bathroom, a lounge, glass-walled rooms and an open work area — each a real room with walls, doors and its own floor.
-- 🎥 **Two camera modes** — an **isometric** observer view (dollhouse cutaway) and a **first-person** walk-around mode (`WASD` + mouse) to explore the office from inside.
-- 📊 **Rich status at a glance** — floating labels show the current tool and file (`Edit App.tsx`, `Read db.ts`, …), a colour-coded **context/token health-bar**, permission "🔔" bubbles, and a per-agent inspector panel.
+- 🧑‍💻 **Live agent characters** — one voxel character per Claude Code session. They sit and type while working, stand up and **wander the office** (through doors, into rooms) when idle, and return to their desk when you give them a task. Solid collision: characters and the camera never pass through walls, glass or furniture.
+- 🏢 **A whole company floor** — a large, fully-enclosed multi-room office with **modern furniture**: a server room, kitchen, meeting rooms, a library, a bathroom, a lounge, glass-walled rooms and an open work area — each a real room with walls, doors and its own floor.
+- 🎥 **Two camera modes** — an **isometric** observer view (near walls turn translucent so you can see in) and a **first-person** walk-around mode (`WASD` + mouse) to explore the office from inside.
+- 📊 **Rich status at a glance** — floating labels show the current tool and file (`Edit App.tsx`, `Read db.ts`, …), a colour-coded **context/token health-bar**, permission "🔔" bubbles, and a per-agent inspector. Labels stay compact for unselected agents so a crowded office never turns into a wall of text.
+- 🎯 **Model-aware context meter** — the token gauge sizes itself to the session's real context window, so **1M-context** sessions read correctly instead of pegging at 100%.
 - 🧩 **Sub-agents** — when an agent spawns a `Task`/`Agent` sub-agent, it appears as its own small character beside the parent.
-- 🔔 **Sound + notifications** — subtle chimes when a turn finishes or a permission is requested.
-- 🔌 **Two detection paths** — reliable **Claude Code Hooks** plus a **JSONL transcript** fallback, so it works whether or not hooks are installed.
+- 🔔 **Sound + notifications** — subtle chimes when a turn finishes or a permission is requested, with a one-click mute toggle.
+- 🔌 **Two detection paths, clearly labelled** — reliable **Claude Code Hooks** plus a **JSONL transcript** fallback. A badge in the top bar shows whether this window has the live **🔗 Hook** stream or is on the **📄 JSONL** fallback.
+
+### Status at a glance
+
+Every character's colour and label reflect what the agent is actually doing:
+
+| | Status | Meaning |
+|---|--------|---------|
+| 🟢 | **Working** | actively editing / running a tool |
+| 🔵 | **Thinking** | reasoning or reading |
+| 🟡 | **Collab** | orchestrating sub-agents |
+| 🟠 | **Review** | waiting on you — a permission prompt or your input |
+| 🔴 | **Blocked** | an error occurred (failed tool / API error) — needs attention |
+| ⚪ | **Idle** | done — up and wandering the office |
 
 ## How It Works
 
@@ -66,7 +80,7 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
                        React + three.js webview → live 3D office
 ```
 
-The extension **does not run** Claude — it only watches. When Hooks are delivering, they are authoritative and the JSONL heuristics stand down (JSONL still supplies token usage).
+The extension **does not run** Claude — it only watches. When Hooks are delivering, they are authoritative and the JSONL heuristics stand down (JSONL still supplies token usage). Detection is hardened for real sessions: parallel tool calls are tracked independently, `/clear` and `/resume` re-bind the existing character instead of spawning a duplicate, a long transcript is replayed silently on adoption (no event flood), and multibyte-safe reads keep non-ASCII paths intact.
 
 ## Requirements
 
@@ -88,10 +102,11 @@ Then reload the window (`Ctrl+Shift+P` → *Developer: Reload Window*).
 ## Usage
 
 1. Open the **Agent Office** panel from the bottom panel area, or run **`Agent Office: Show Panel`**.
-2. Click **`+ Agent`** and pick a role — a new Claude Code terminal opens and a character appears. (Any Claude session you start in the workspace is auto-detected too.)
+2. Click **`+ Agent`** and pick a role — a new Claude Code terminal opens and a character appears. In a multi-root workspace you can choose the folder; there is also an optional **⚡ skip-permissions** launch. (Any Claude session you start in the workspace is auto-detected too.)
 3. Give Claude a task and watch the character work; when it finishes, it gets up and wanders the office.
 4. Toggle **🚶 Ichki / 🔭 Yuqori** to switch between the first-person and isometric camera. In first-person: click to look, `WASD` to walk, `Esc` to exit.
 5. Click a character to open its inspector (task, tokens, **Terminal** / **Close**).
+6. The top bar shows the detection mode (**🔗 Hook** / **📄 JSONL**) and a **🔊** sound toggle.
 
 ### Settings
 
