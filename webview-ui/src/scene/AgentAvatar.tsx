@@ -7,7 +7,7 @@ import { useOffice } from "../store";
 import { slide } from "./collision";
 import { nearestNode, pathBetween, randomNodeKey, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
-import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
+import { presetFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
 // ── Agent personaji (dunyo darajасида, navigatsiya bilan) ────
 // Ishlaganда stolда o'tiradi; bo'sh (idle) turганda ofis bo'ylab sayr
@@ -16,15 +16,15 @@ import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles"
 const SPEED = 1.7;
 
 export default function AgentAvatar({ agent }: { agent: AgentView }) {
-  const seat = SEATS[agent.seatIndex] ?? SEATS[0];
+  const seat = seatFor(agent.seatIndex);
   const preset = presetFor(agent.role, agent.seatIndex);
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];
   const tok = tokenBar(agent.inputTokens, agent.contextWindow);
 
-  // O'tirish nuqtasi (stoldan biroz chetда — collision radiusи bloklamasin)
-  const sit = useRef<WP>({ x: seat.x + (seat.ry > 0 ? 0.72 : -0.72), z: seat.z });
+  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishга mos, collision chetда)
+  const sit = useRef<WP>({ ...sitPoint(seat) });
 
   const group = useRef<THREE.Group>(null);
   const pos = useRef<WP>({ ...sit.current });

@@ -42,6 +42,7 @@ export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingI
   agent.hadToolsInTurn = false;
   agent.activeToolIds.clear();
   agent.subagentToolIds.clear();
+  agent.hookToolQueue.clear();
   agent.currentToolLabel = undefined;
   agent.currentToolName = undefined;
   agent.permissionActive = false;

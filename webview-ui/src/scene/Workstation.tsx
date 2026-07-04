@@ -1,6 +1,6 @@
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
-import { SEATS, STATUS_COLOR } from "./roles";
+import { seatFor, STATUS_COLOR } from "./roles";
 
 // ── Agent ish joyi — MEBEL (personaj AgentAvatar'да, alohida) ──
 
@@ -9,7 +9,7 @@ const DESKTOP_C = "#f2efe9"; // oq stol usti
 const STEEL = "#8b929c"; // chrome oyoq
 
 export default function Workstation({ agent }: { agent: AgentView }) {
-  const seat = SEATS[agent.seatIndex] ?? SEATS[0];
+  const seat = seatFor(agent.seatIndex);
   const select = useOffice((s) => s.select);
   const color = STATUS_COLOR[agent.status];
 

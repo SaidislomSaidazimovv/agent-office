@@ -37,15 +37,44 @@ export function presetFor(role: string | undefined, seatIndex: number): CharSkin
   return PALETTE[seatIndex % PALETTE.length];
 }
 
-// Ish joylari: chap va o'ng ustunlar (3+3), hamma markazga qaraydi.
-export const SEATS: { x: number; z: number; ry: number }[] = [
+export interface Seat { x: number; z: number; ry: number }
+
+// Ish joylari — hamma markazga qaraydi.
+//  • 1-6: asosiy ikki ustun (chap/o'ng, x=±5.5).
+//  • 7-10: markazдаги qo'shimcha stollar (x=±13) — ofis to'ladi (Variant B).
+export const SEATS: Seat[] = [
   { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
   { x: -5.5, z: 0, ry: -Math.PI / 2 },
   { x: -5.5, z: 3.2, ry: -Math.PI / 2 },
   { x: 5.5, z: -3.2, ry: Math.PI / 2 },
   { x: 5.5, z: 0, ry: Math.PI / 2 },
   { x: 5.5, z: 3.2, ry: Math.PI / 2 },
+  // Qo'shimcha stollar (avval "bo'sh stol" edi — endi overflow agentlar shu yerда)
+  { x: -13, z: -3, ry: -Math.PI / 2 },
+  { x: -13, z: 3, ry: -Math.PI / 2 },
+  { x: 13, z: -3, ry: Math.PI / 2 },
+  { x: 13, z: 3, ry: Math.PI / 2 },
 ];
+
+/** O'rindiq soni — dinamik (SEATS uzunligidan). */
+export const SEAT_COUNT = SEATS.length;
+
+/** Indeks bo'yicha o'rindiq. SEATS'dan tashqari (juda ko'p agent) — ustma-ust
+ *  bo'lmasin uchun markazий ochiq maydonда neat qator generatsiya qilinadi. */
+export function seatFor(index: number): Seat {
+  if (index >= 0 && index < SEATS.length) return SEATS[index];
+  const o = index - SEATS.length;
+  const cols = 5;
+  const col = o % cols;
+  const row = Math.floor(o / cols);
+  return { x: -4.4 + col * 2.2, z: -5.2 - row * 2.0, ry: Math.PI };
+}
+
+/** Personaj o'tirish nuqtasi (stul markazi, yo'nalishга mos) — Workstation
+ *  stuli bilan bir xil formula: (0.72·sin(ry), 0.72·cos(ry)) siljish. */
+export function sitPoint(seat: Seat): { x: number; z: number } {
+  return { x: seat.x + 0.72 * Math.sin(seat.ry), z: seat.z + 0.72 * Math.cos(seat.ry) };
+}
 
 export const STATUS_COLOR: Record<string, string> = {
   idle: "#8e8e93",

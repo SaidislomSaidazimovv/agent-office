@@ -52,10 +52,8 @@ for (const m of bot) {
 for (const x of [-11, -3, 7, 15]) r(x - T, x + T, 9.5, 16);
 
 // ── Mebel ──
-// Agent stollari (chap/o'ng ustun → dunyoда x±0.45, z±0.78)
+// Agent stollari — barcha SEATS (asosiy 6 + markazий 4 qo'shimcha).
 for (const s of SEATS) r(s.x - 0.45, s.x + 0.45, s.z - 0.78, s.z + 0.78);
-// Markazdagi qo'shimcha stollar
-for (const [x, z] of [[-13, -3], [-13, 3], [13, -3], [13, 3]] as [number, number][]) r(x - 0.45, x + 0.45, z - 0.78, z + 0.78);
 // Reception
 r(-1.7, 1.7, 7.0, 8.0);
 // Server xonasi (rack qatorлари)

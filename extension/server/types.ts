@@ -41,8 +41,11 @@ export interface AgentState {
   // ── Hook rejimi ──
   /** Bu agentga hook eventи kelgan — JSONL heuristikasi o'chiriladi. */
   hookDelivered: boolean;
-  /** Joriy hook tooli ID (PreToolUse → PostToolUse mosligi uchun). */
-  currentHookToolId?: string;
+  /** PreToolUse → PostToolUse mosligи. Hook payloadда tool_use_id YO'Q, shu
+   *  sababли tool imzosи (name + input) bo'yicha moslaymiz. Imzo → FIFO tool
+   *  ID'lari (bir xil imzoли parallel tool'lар uchun navbat). Parallel tool'лар
+   *  endi to'g'ri yopiladi (biri ustiga biri yozib qo'ymaydi). */
+  hookToolQueue: Map<string, string[]>;
   /** Hook tool ID hisoblagichи. */
   hookToolCounter: number;
 
@@ -81,6 +84,7 @@ export function createAgentState(
     subagentToolIds: new Set(),
     permissionActive: false,
     hookDelivered: false,
+    hookToolQueue: new Map(),
     hookToolCounter: 0,
     inputTokens: 0,
     outputTokens: 0,

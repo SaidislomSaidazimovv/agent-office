@@ -5,6 +5,8 @@ import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { createAgentState } from "../extension/server/types.js";
 import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
+import { seatFor } from "../webview-ui/src/scene/roles.js";
+import { useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
 let passed = 0;
@@ -91,6 +93,35 @@ test("Notification permission → agentToolPermission", () => {
   const { store, agent, ev } = setup();
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude needs your permission to use Bash" });
   assert.ok(ev.some((e) => e.type === "agentToolPermission"), "no permission event");
+});
+
+test("parallel tools: har biri to'g'ri yopiladi (biri qotib qolmaydi)", () => {
+  const { store, agent } = setup();
+  // 3 ta tool parallel boshlanadi (PreToolUse x3 ketma-ket, PostToolUse'дан oldin)
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "a.ts" } });
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "b.ts" } });
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" } });
+  assert.equal(agent.activeToolIds.size, 3, "3 tool faol bo'lishi kerak");
+  // Teskari tartibда tugaydi — imzo bo'yicha to'g'ri moslanadi
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "ls" } });
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "a.ts" } });
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "b.ts" } });
+  assert.equal(agent.activeToolIds.size, 0, "hamma tool yopilishi kerak (hech biri qotib qolmasin)");
+});
+
+test("parallel: subagent + oddiy tool aralash — ajratib yopiladi", () => {
+  const { store, agent } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Task", tool_input: { prompt: "sub" } });
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Edit", tool_input: { file_path: "x.ts" } });
+  assert.equal(agent.subagentToolIds.size, 1);
+  assert.equal(agent.activeToolIds.size, 1);
+  // Oddiy tool tugadi — subagent teginmaydi
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: "x.ts" } });
+  assert.equal(agent.activeToolIds.size, 0, "oddiy tool yopildi");
+  assert.equal(agent.subagentToolIds.size, 1, "subagent hali faol bo'lishi kerak");
+  // Subagent tugadi
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Task", tool_input: { prompt: "sub" } });
+  assert.equal(agent.subagentToolIds.size, 0, "subagent yopildi");
 });
 
 console.log("Terminal binding (cwd bo'yicha):");
@@ -180,6 +211,19 @@ test("ko'p agent, faol terminal mos emas → null (noto'g'ri biriktirmaydi)", ()
   _state.activeTerminal = other; // mos kelmaydigan terminal faol
   const re = mgr.reassignForClear("b-3", WS);
   assert.equal(re, null, "disambiguatsiya yo'q — null qaytishi kerak");
+});
+
+console.log("O'rindiq taqsimoti (ustma-ust yo'q):");
+test("11 agent → 11 xil o'rindiq (7-agent 0-o'ringa tushmaydi)", () => {
+  const store = useOffice.getState();
+  for (let i = 1; i <= 11; i++) store.addAgent({ id: i, folderName: "p" + i });
+  const agents = Object.values(useOffice.getState().agents);
+  assert.equal(agents.length, 11, "11 agent qo'shilishi kerak");
+  const seats = agents.map((a) => a.seatIndex);
+  assert.equal(new Set(seats).size, 11, "har agentда UNIKAL o'rindiq indeksи bo'lishi kerak");
+  // World-koordinatalar ham ustma-ust emas (generatsiya qilinganlar ham)
+  const pts = agents.map((a) => { const s = seatFor(a.seatIndex); return `${s.x},${s.z}`; });
+  assert.equal(new Set(pts).size, 11, "world pozitsiyalar ustma-ust bo'lmasligi kerak");
 });
 
 console.log("Navigation:");

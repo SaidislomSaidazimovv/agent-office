@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
 import { useOffice } from "../store";
 import { send } from "../transport";
@@ -15,11 +15,17 @@ export default function Hud() {
   const cameraMode = useOffice((s) => s.cameraMode);
   const setCameraMode = useOffice((s) => s.setCameraMode);
   const [menu, setMenu] = useState(false);
+  const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
 
+  // Bir bosishда FAQAT 1 agent — tez ikki marta bosilса (yoki double-fire)
+  // 1 soniyа ichидаги takroriy so'rovni e'tiborsiz qoldiramiz.
   const launch = (role?: string) => {
-    send({ type: "launchAgent", role });
+    const now = Date.now();
+    if (now - launchLock.current < 1000) return;
+    launchLock.current = now;
     setMenu(false);
+    send({ type: "launchAgent", role });
   };
 
   return (

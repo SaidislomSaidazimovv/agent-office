@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { MAX_CONTEXT_TOKENS } from "./scene/roles";
+import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
 
 // ── Sahna agent holati ───────────────────────────────────────
 // Server xabarlari flaglarни yangilaydi; `status` ular asosida hisoblanadi
@@ -81,7 +81,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   agents: {},
   order: [],
   selectedId: null,
-  seatCount: 6,
+  seatCount: SEAT_COUNT,
   soundEnabled: true,
   cameraMode: "iso",
   setCameraMode(m) {
@@ -91,17 +91,18 @@ export const useOffice = create<OfficeState>((set, get) => ({
   addAgent(meta) {
     set((s) => {
       if (s.agents[meta.id]) return s;
-      // Bo'sh seat topamiz
+      // Birinchi BO'SH o'rin indeksини topamiz (chegarasiz — hech qачон
+      // ustma-ust tushmaydi; SEATS tugasa seatFor() qo'shimcha joy beradi).
       const used = new Set(Object.values(s.agents).map((a) => a.seatIndex));
       let seat = 0;
-      while (used.has(seat) && seat < s.seatCount) seat++;
+      while (used.has(seat)) seat++;
       const a: AgentView = {
         id: meta.id,
         folderName: meta.folderName ?? "loyiha",
         role: meta.role,
         task: meta.task,
         isExternal: meta.isExternal ?? false,
-        seatIndex: seat % s.seatCount,
+        seatIndex: seat,
         active: false,
         awaitingInput: false,
         permission: false,

@@ -395,11 +395,8 @@ export default function OfficeDecor() {
         {/* logo bloklari */}
         {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
       </group>
-      {/* Qo'shimcha ish stollari */}
-      <EmptyDesk p={[-13, 0, -3]} ry={Math.PI / 2} />
-      <EmptyDesk p={[-13, 0, 3]} ry={Math.PI / 2} />
-      <EmptyDesk p={[13, 0, -3]} ry={-Math.PI / 2} />
-      <EmptyDesk p={[13, 0, 3]} ry={-Math.PI / 2} />
+      {/* Markazдаги x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
+          Workstation ular ustiga stol chizadi (overflow agentlar shu yerда). */}
       {/* Printer, lampalar, o'simliklar */}
       <StandingLamp p={[-9, 0, 6]} />
       <StandingLamp p={[9, 0, -6]} />
