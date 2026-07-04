@@ -37,6 +37,10 @@ export interface AgentState {
   currentToolLabel?: string;
   currentToolName?: string;
   permissionActive: boolean;
+  /** Xato yuz berди (tool is_error / api_error / PostToolUseFailure) va agent
+   *  hali tiklanmagан — "Bloklangan" (qizил) ko'rsatiladi. Yangi navbat yoki
+   *  muvaffaqiyatли tool bilan tozalanadi. */
+  blocked: boolean;
   /** Sessiya ruxsat rejimi (transcript `permissionMode`): "default" |
    *  "auto" | "bypassPermissions". Faqat "default"да tool ruxsat so'raydi —
    *  boshqa rejimда heuristik permission-taymer ishlatilmaydi (false-positive
@@ -88,6 +92,7 @@ export function createAgentState(
     activeToolIds: new Set(),
     subagentToolIds: new Set(),
     permissionActive: false,
+    blocked: false,
     permissionMode: "default", // mode satrи ko'rilгунча konservativ (heuristik yoqiq)
     hookDelivered: false,
     hookToolQueue: new Map(),

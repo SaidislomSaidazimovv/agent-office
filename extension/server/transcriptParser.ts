@@ -7,7 +7,7 @@ import {
   TOOL_DONE_DELAY_MS,
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
-import { formatToolStatus, markWaiting, permissionDelayFor, setActive } from "./stateActions.js";
+import { formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
 // ── Transcript state machine (Pixel Agents §3a mantiqi) ──────
@@ -122,12 +122,18 @@ export function processTranscriptLine(
     markWaiting(store, agent, false);
     return;
   }
+  // ── system: api_error = agent bloklandi (xato) ──
+  if (type === "system" && (o.subtype as string) === "api_error") {
+    setBlocked(store, agent, true);
+    return;
+  }
 
   // ── assistant ──
   if (type === "assistant" && message && Array.isArray(message.content)) {
     const blocks = message.content as ToolUseBlock[];
     const toolUses = blocks.filter((b) => b && b.type === "tool_use");
     const hasText = blocks.some((b) => b && b.type === "text");
+    const hasThinking = blocks.some((b) => b && (b.type === "thinking" || b.type === "redacted_thinking"));
 
     emitTokens(store, agent, message);
 
@@ -170,7 +176,11 @@ export function processTranscriptLine(
       return;
     }
 
-    // Faqat matn (yoki thinking) — navbat oxiriga yaqin: sukunat taymeri
+    // Fikrlash (thinking) — agent faol o'ylayapti (sukunat-taymer YO'Q).
+    if (hasThinking) {
+      setActive(store, agent);
+    }
+    // Faqat matn — navbat oxiriga yaqin: sukunat taymeri (idle heuristikaсi).
     if (hasText) {
       setActive(store, agent);
       if (!agent.hadToolsInTurn) startWaitingTimer(store, agent);
@@ -188,6 +198,8 @@ export function processTranscriptLine(
       if (toolResults.length > 0) {
         // Tool natijasi keldi — kutilayotган ruxsatни bekor qilamiz
         clearPermission(store, agent);
+        // Xato natija → bloklandi; toza natija → tiklandi.
+        setBlocked(store, agent, toolResults.some((tr) => tr.is_error === true));
         for (const tr of toolResults) {
           const toolId = tr.tool_use_id || "";
           if (agent.subagentToolIds.has(toolId)) {
@@ -206,6 +218,7 @@ export function processTranscriptLine(
       const hasText = content.some((b: ToolUseBlock) => b && b.type === "text");
       if (hasText) {
         setActive(store, agent);
+        setBlocked(store, agent, false); // yangi navbat — xato tozalandi
         agent.hadToolsInTurn = false;
       }
       return;
@@ -213,6 +226,7 @@ export function processTranscriptLine(
     if (typeof content === "string" && content && !content.startsWith("<")) {
       // Yangi matn so'rov — yangi navbat boshlandi
       setActive(store, agent);
+      setBlocked(store, agent, false);
       agent.hadToolsInTurn = false;
     }
     return;

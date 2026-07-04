@@ -14,9 +14,13 @@ export default function Hud() {
   const select = useOffice((s) => s.select);
   const cameraMode = useOffice((s) => s.cameraMode);
   const setCameraMode = useOffice((s) => s.setCameraMode);
+  const folders = useOffice((s) => s.folders);
   const [menu, setMenu] = useState(false);
+  const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
+  const multiRoot = folders.length > 1;
+  const activeFolder = folderPath ?? folders[0]?.path;
 
   // Bir bosishда FAQAT 1 agent — tez ikki marta bosilса (yoki double-fire)
   // 1 soniyа ichидаги takroriy so'rovni e'tiborsiz qoldiramiz.
@@ -25,7 +29,7 @@ export default function Hud() {
     if (now - launchLock.current < 1000) return;
     launchLock.current = now;
     setMenu(false);
-    send({ type: "launchAgent", role });
+    send({ type: "launchAgent", role, folderPath: multiRoot ? activeFolder : undefined });
   };
 
   return (
@@ -113,6 +117,29 @@ export default function Hud() {
               borderRadius: 10, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
             }}
           >
+            {/* Papka tanlash — faqat multi-root ish maydonида */}
+            {multiRoot && (
+              <>
+                <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>Papka</div>
+                {folders.map((f) => (
+                  <button
+                    key={f.path}
+                    onClick={() => setFolderPath(f.path)}
+                    title={f.path}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
+                      padding: "6px 8px", borderRadius: 7, border: "none", cursor: "pointer",
+                      background: activeFolder === f.path ? "rgba(94,155,255,0.22)" : "transparent",
+                      color: "#e8ecf2", fontSize: 12,
+                    }}
+                  >
+                    <span style={{ opacity: activeFolder === f.path ? 1 : 0.3 }}>📁</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                  </button>
+                ))}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 4px" }} />
+              </>
+            )}
             <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>Rol tanlang</div>
             {ROLES.map((r) => (
               <button

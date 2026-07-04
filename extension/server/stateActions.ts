@@ -26,6 +26,7 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Sub-agent" });
   }
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
+  if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true });
   return msgs;
 }
 
@@ -54,6 +55,13 @@ export function formatToolStatus(name: string, input?: Record<string, unknown>):
 
 export function isReadingTool(name: string): boolean {
   return READING_TOOLS.has(name);
+}
+
+/** "Bloklangan" holatini o'rnatadi/tozalaydi (xato → qizил status). */
+export function setBlocked(store: AgentStateStore, agent: AgentState, on: boolean): void {
+  if (agent.blocked === on) return;
+  agent.blocked = on;
+  store.broadcast({ type: "agentBlocked", id: agent.id, blocked: on });
 }
 
 export function setActive(store: AgentStateStore, agent: AgentState): void {

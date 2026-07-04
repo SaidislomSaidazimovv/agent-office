@@ -52,6 +52,9 @@ export function useExtensionMessages(): void {
         case "agentToolPermissionClear":
           store.setPermission(msg.id, false);
           break;
+        case "agentBlocked":
+          store.setBlocked(msg.id, msg.blocked);
+          break;
         case "subagentToolStart":
           store.addSubagent(msg.id, msg.parentToolId);
           break;
@@ -66,7 +69,10 @@ export function useExtensionMessages(): void {
           store.setSound(msg.soundEnabled);
           break;
         case "providerCapabilities":
+          store.setCapabilities(msg.readingTools);
+          break;
         case "workspaceFolders":
+          store.setFolders(msg.folders);
           break;
       }
     });

@@ -24,6 +24,7 @@ export interface AgentView {
   active: boolean;
   awaitingInput: boolean;
   permission: boolean;
+  blocked: boolean;
   reading: boolean;
   toolLabel?: string;
   activeToolCount: number;
@@ -37,10 +38,13 @@ export interface AgentView {
   status: AgentStatus;
 }
 
-const READING = new Set(["Read", "Grep", "Glob", "LS", "NotebookRead", "WebFetch", "WebSearch"]);
+// Standart "reading" toollar — host `providerCapabilities` yuborса yangilanadi
+// (bitta manba, takror emas).
+const DEFAULT_READING = ["Read", "Grep", "Glob", "LS", "NotebookRead", "WebFetch", "WebSearch"];
 
 function computeStatus(a: AgentView): AgentStatus {
   if (a.permission) return "review";
+  if (a.blocked) return "blocked"; // xato — e'tibor talab qiladi (qizил)
   if (!a.active && a.awaitingInput) return "review";
   if (!a.active) return "idle";
   // Ota-agentнинг O'Z ishi ustuvor — subagent bo'lса ham kod yozayotган bo'lса
@@ -59,6 +63,8 @@ interface OfficeState {
   selectedId: number | null;
   seatCount: number;
   soundEnabled: boolean;
+  readingTools: Set<string>;
+  folders: { name: string; path: string }[];
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
 
@@ -69,9 +75,12 @@ interface OfficeState {
   toolDone(id: number): void;
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
+  setBlocked(id: number, on: boolean): void;
   addSubagent(id: number, key: string): void;
   clearSubagent(id: number, key: string): void;
   setTokens(id: number, input: number, output: number, contextWindow?: number): void;
+  setCapabilities(readingTools: string[]): void;
+  setFolders(folders: { name: string; path: string }[]): void;
   select(id: number | null): void;
   setSound(on: boolean): void;
 }
@@ -86,6 +95,8 @@ export const useOffice = create<OfficeState>((set, get) => ({
   selectedId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,
+  readingTools: new Set(DEFAULT_READING),
+  folders: [],
   cameraMode: "iso",
   setCameraMode(m) {
     set({ cameraMode: m });
@@ -109,6 +120,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         active: false,
         awaitingInput: false,
         permission: false,
+        blocked: false,
         reading: false,
         activeToolCount: 0,
         subagents: [],
@@ -161,7 +173,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           active: true,
           activeToolCount: a.activeToolCount + 1,
           toolLabel: label,
-          reading: toolName ? READING.has(toolName) : false,
+          reading: toolName ? get().readingTools.has(toolName) : false,
         }),
       },
     }));
@@ -195,6 +207,12 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) } }));
   },
 
+  setBlocked(id, on) {
+    const a = get().agents[id];
+    if (!a) return;
+    set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) } }));
+  },
+
   addSubagent(id, key) {
     const a = get().agents[id];
     if (!a || a.subagents.includes(key)) return;
@@ -223,5 +241,13 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   setSound(on) {
     set({ soundEnabled: on });
+  },
+
+  setCapabilities(readingTools) {
+    if (readingTools && readingTools.length > 0) set({ readingTools: new Set(readingTools) });
+  },
+
+  setFolders(folders) {
+    set({ folders: folders ?? [] });
   },
 }));

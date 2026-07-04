@@ -47,6 +47,13 @@ test("assistant tool_use → active + toolStart with file label", () => {
   assert.ok(ts && ts.status!.includes("App.tsx"), "tool label missing file");
 });
 
+test("thinking blok → agent faol (active), sukunat-taymer yo'q", () => {
+  const { store, agent, ev } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "thinking", thinking: "hmm..." }] } }));
+  assert.ok(ev.some((e) => e.type === "agentStatus" && e.status === "active"), "thinking → active bo'lishi kerak");
+  assert.equal(agent.waitingTimer, undefined, "thinking sukunat-taymer boshlamasligi kerak");
+});
+
 test("turn_duration → waiting (Done)", () => {
   const { store, agent, ev } = setup();
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } }] } }));
@@ -121,6 +128,23 @@ test("rejim default→auto o'zgarса faol ruxsat tozalanadi", () => {
   assert.ok(ev.some((e) => e.type === "agentToolPermissionClear"), "clear broadcast bo'lishi kerak");
 });
 
+test("is_error tool_result → blocked; keyingi toza natija → tozalanadi", () => {
+  const { store, agent, ev } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", is_error: true }] } }));
+  assert.equal(agent.blocked, true, "xato → blocked");
+  assert.ok(ev.some((e) => e.type === "agentBlocked" && (e as { blocked?: boolean }).blocked === true), "agentBlocked broadcast");
+  processTranscriptLine(store, agent, JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t2" }] } }));
+  assert.equal(agent.blocked, false, "toza natija bloklovni tozalashi kerak");
+});
+
+test("api_error → blocked; yangi user so'rovi → tozalanadi", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "system", subtype: "api_error" }));
+  assert.equal(agent.blocked, true);
+  processTranscriptLine(store, agent, JSON.stringify({ type: "user", message: { content: "yangi so'rov" } }));
+  assert.equal(agent.blocked, false, "yangi navbat xatoni tozalashi kerak");
+});
+
 console.log("Hook handler:");
 test("PreToolUse → active + toolStart; Stop → waiting; hookDelivered set", () => {
   const { store, agent, ev } = setup();
@@ -136,6 +160,37 @@ test("Notification permission → agentToolPermission", () => {
   const { store, agent, ev } = setup();
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude needs your permission to use Bash" });
   assert.ok(ev.some((e) => e.type === "agentToolPermission"), "no permission event");
+});
+
+test("Notification 'waiting for input' → awaiting (permission EMAS)", () => {
+  const { store, agent, ev } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude is waiting for your input" });
+  assert.ok(ev.some((e) => e.type === "agentStatus" && (e as { awaitingInput?: boolean }).awaitingInput === true), "awaiting bo'lishi kerak");
+  assert.ok(!ev.some((e) => e.type === "agentToolPermission"), "permission YASALMASLIGI kerak");
+});
+
+test("noma'lum Notification → soxta permission YASAMAYDI", () => {
+  const { store, agent, ev } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Background task finished" });
+  assert.ok(!ev.some((e) => e.type === "agentToolPermission"), "noma'lum xabar permission bermasligi kerak");
+});
+
+test("hook: tool tugagach ruxsat pufagи tozalanadi", () => {
+  const { store, agent, ev } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "x" } });
+  handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude needs your permission" });
+  assert.equal(agent.permissionActive, true);
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "x" } });
+  assert.equal(agent.permissionActive, false, "PostToolUse ruxsatni tozalashi kerak");
+  assert.ok(ev.some((e) => e.type === "agentToolPermissionClear"), "clear broadcast");
+});
+
+test("hook PostToolUseFailure → blocked; PostToolUse → tozalanadi", () => {
+  const { store, agent } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "x" } });
+  assert.equal(agent.blocked, true);
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "a" } });
+  assert.equal(agent.blocked, false, "muvaffaqiyat bloklovni tozalashi kerak");
 });
 
 test("parallel tools: har biri to'g'ri yopiladi (biri qotib qolmaydi)", () => {
@@ -312,6 +367,16 @@ test("ota bo'sh + subagent ishlаётган → 'collab'", () => {
   s.setActive(201, true);
   s.addSubagent(201, "sub-1");
   assert.equal(useOffice.getState().agents[201].status, "collab");
+});
+test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 202, folderName: "b" });
+  s.setActive(202, true);
+  s.setTool(202, "Bash", "Bash x");
+  s.setBlocked(202, true);
+  assert.equal(useOffice.getState().agents[202].status, "blocked", "blocked working'ni bosishi kerak");
+  s.setBlocked(202, false);
+  assert.equal(useOffice.getState().agents[202].status, "working", "tozalanса asl status");
 });
 
 console.log("Navigation:");
