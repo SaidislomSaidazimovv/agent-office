@@ -127,6 +127,15 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         this.logMsg(`[hook] o'tkazildi — sessiya bu loyihада emas (cwd=${cwd ?? "?"})`);
         return;
       }
+      // Yangi sessiya boshlandi — bu /clear yoki /resume bo'lishi mumkin:
+      // o'sha terminalning mavjud agentини qayta biriktiramiz (dublikatsiz).
+      if (event === "SessionStart") {
+        const re = this.manager.reassignForClear(sessionId, cwd);
+        if (re) {
+          handleHookEvent(this.store, re, raw);
+          return;
+        }
+      }
       agent = this.manager.ensureSessionAgent(sessionId, cwd);
     }
     handleHookEvent(this.store, agent, raw);

@@ -33,3 +33,6 @@ scratchpad/
 
 # Packaged extension (regenerable, large)
 *.vsix
+
+# test output
+.test-out.cjs

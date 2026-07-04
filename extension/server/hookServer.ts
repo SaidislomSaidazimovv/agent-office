@@ -22,7 +22,15 @@ export class HookServer {
 
   constructor(private onEvent: (sessionId: string, raw: Record<string, unknown>) => void) {}
 
+  private ownsFile = false;
+
   start(): Promise<HookServerHandle | null> {
+    // Boshqa VS Code oynasi hooks'ни egallab turган bo'lsa — biz raqobatlashmaymiz
+    // (server.json'ни bosib yozmaymiz). U oyna hook'larни oladi, biz JSONL'да qolamiz.
+    const existing = this.readServerJson();
+    if (existing && existing.pid !== process.pid && this.isAlive(existing.pid)) {
+      return Promise.resolve(null);
+    }
     return new Promise((resolve) => {
       const server = http.createServer((req, res) => this.handle(req, res));
       server.on("error", () => resolve(null));
@@ -30,10 +38,28 @@ export class HookServer {
         const addr = server.address();
         const port = typeof addr === "object" && addr ? addr.port : 0;
         this.server = server;
+        this.ownsFile = true;
         this.writeServerJson(port);
         resolve({ port, token: this.token });
       });
     });
+  }
+
+  private readServerJson(): { pid: number } | null {
+    try {
+      return JSON.parse(fs.readFileSync(this.serverJsonPath(), "utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  private isAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === "EPERM";
+    }
   }
 
   private handle(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -89,10 +115,13 @@ export class HookServer {
     } catch {
       /* ignore */
     }
-    try {
-      fs.rmSync(this.serverJsonPath(), { force: true });
-    } catch {
-      /* ignore */
+    // Faqat O'ZIMIZ yozган server.json'ни o'chiramiz (boshqa oynаникини emas)
+    if (this.ownsFile) {
+      try {
+        fs.rmSync(this.serverJsonPath(), { force: true });
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

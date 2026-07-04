@@ -1,0 +1,27 @@
+name: Release
+
+# Bir versiya tegи (masalan v0.1.0) push qilinganда .vsix yasalib
+# GitHub Release'ga biriktiriladi.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm --prefix webview-ui ci
+      - name: Package .vsix
+        run: npm run package
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.vsix"
+          generate_release_notes: true

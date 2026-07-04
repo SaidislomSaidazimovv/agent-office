@@ -205,6 +205,27 @@ export class AgentManager {
     if (a) this.detach(a.id);
   }
 
+  /** `/clear` yoki `/resume` — o'sha loyihадаги terminal-agentини yangi
+   *  sessiyaга qayta biriktiradi (dublikat yaratmaydi). Topsa — qайта
+   *  biriktirilган agentni, aks holda null. */
+  reassignForClear(newSessionId: string, cwd: string): AgentState | null {
+    const dir = getSessionDir(cwd);
+    const candidates = this.store
+      .values()
+      .filter((a) => path.dirname(a.filePath) === dir && this.terminals.has(a.id) && a.sessionId !== newSessionId);
+    if (candidates.length !== 1) return null;
+    const a = candidates[0];
+    a.sessionId = newSessionId;
+    a.filePath = path.join(dir, `${newSessionId}.jsonl`);
+    a.hookDelivered = false;
+    a.isWaiting = true;
+    a.activeToolIds.clear();
+    a.subagentToolIds.clear();
+    this.watcher.primeFromStart(a);
+    this.log(`↻ #${a.id} qayta biriktirildi (/clear yoki /resume) → session=${newSessionId.slice(0, 8)}…`);
+    return a;
+  }
+
   focusAgent(id: number): void {
     const term = this.terminals.get(id);
     if (term) term.show();
