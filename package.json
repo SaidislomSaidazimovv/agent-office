@@ -86,7 +86,7 @@
     "build:extension": "node esbuild.mjs",
     "build:webview": "npm --prefix webview-ui run build",
     "build": "npm run check-types && npm run build:extension && npm run build:webview",
-    "test": "esbuild test/run.ts --bundle --platform=node --format=cjs --outfile=.test-out.cjs --log-level=error && node .test-out.cjs",
+    "test": "esbuild test/run.ts --bundle --platform=node --format=cjs --alias:vscode=./test/vscodeMock.ts --outfile=.test-out.cjs --log-level=error && node .test-out.cjs",
     "watch:extension": "node esbuild.mjs --watch",
     "install:all": "npm install && npm --prefix webview-ui install",
     "package": "npm run build && vsce package --no-dependencies"

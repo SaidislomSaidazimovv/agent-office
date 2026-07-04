@@ -1,6 +1,8 @@
 // ── Server-tomon agent holati ────────────────────────────────
 // Har bir kuzatilayotgan Claude Code sessiyasi = bitta AgentState.
 
+import { MAX_CONTEXT_TOKENS } from "../core/constants.js";
+
 export interface AgentState {
   /** Monoton o'suvchi butun ID (webview personajи shu bilan kalitlanadi). */
   id: number;
@@ -47,6 +49,10 @@ export interface AgentState {
   // ── Tokenlar ──
   inputTokens: number;
   outputTokens: number;
+  /** Sessiya modeli (transcript `message.model`дан). */
+  model?: string;
+  /** Shu model uchun kontekst oynasi (200k yoki 1M). */
+  contextWindow: number;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;
@@ -78,5 +84,6 @@ export function createAgentState(
     hookToolCounter: 0,
     inputTokens: 0,
     outputTokens: 0,
+    contextWindow: MAX_CONTEXT_TOKENS,
   };
 }

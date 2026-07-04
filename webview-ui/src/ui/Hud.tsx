@@ -183,17 +183,22 @@ export default function Hud() {
             <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4, lineHeight: 1.4 }}>📋 {sel.task}</div>
           )}
           {/* Token kontekst */}
-          {sel.inputTokens > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 3 }}>
-                <span>Kontekst</span>
-                <span>{Math.round((sel.inputTokens / MAX_CONTEXT_TOKENS) * 100)}% · {(sel.outputTokens / 1000).toFixed(1)}k chiqish</span>
+          {sel.inputTokens > 0 && (() => {
+            const win = sel.contextWindow || MAX_CONTEXT_TOKENS;
+            const bar = tokenBar(sel.inputTokens, win);
+            const winLabel = win >= 1000000 ? "1M" : `${Math.round(win / 1000)}k`;
+            return (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 3 }}>
+                  <span>Kontekst · {winLabel}</span>
+                  <span>{Math.round(bar.pct * 100)}% · {(sel.inputTokens / 1000).toFixed(0)}k / {(sel.outputTokens / 1000).toFixed(1)}k chiqish</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max(3, bar.pct * 100)}%`, height: "100%", background: bar.color }} />
+                </div>
               </div>
-              <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
-                <div style={{ width: `${Math.max(3, tokenBar(sel.inputTokens).pct * 100)}%`, height: "100%", background: tokenBar(sel.inputTokens).color }} />
-              </div>
-            </div>
-          )}
+            );
+          })()}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={() => send({ type: "focusAgent", id: sel.id })}

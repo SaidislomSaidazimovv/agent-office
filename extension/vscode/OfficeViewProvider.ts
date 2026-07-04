@@ -237,7 +237,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     for (const a of agents) {
       this.post({ type: "agentStatus", id: a.id, status: a.isWaiting ? "waiting" : "active" });
       if (a.inputTokens > 0 || a.outputTokens > 0) {
-        this.post({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens });
+        this.post({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow });
       }
       if (!a.isWaiting && a.currentToolLabel) {
         this.post({ type: "agentToolStart", id: a.id, toolId: "restore", status: a.currentToolLabel, toolName: a.currentToolName });

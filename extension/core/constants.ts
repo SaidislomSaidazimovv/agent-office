@@ -32,5 +32,18 @@ export const SUBAGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
 /** Ruxsat taymerini ishga tushirmaydigan toollar. */
 export const PERMISSION_EXEMPT_TOOLS = new Set(["Task", "Agent", "AskUserQuestion"]);
 
-/** Bitta agent kontekst oynasi (token health-bar uchun). */
+/** Standart kontekst oynasi (token health-bar uchun, model aniqlanmasa). */
 export const MAX_CONTEXT_TOKENS = 200000;
+/** 1M-kontekst rejimidagi sessiyalar (masalan opus-4-8[1m]). */
+export const CONTEXT_WINDOW_1M = 1000000;
+
+/** Model ID'сидан kontekst oynasi hajmини aniqlaydi. Claude Code transcriptи
+ *  `message.model` maydonида model nomini beradi (masalan "claude-opus-4-8[1m]",
+ *  "claude-sonnet-5", "claude-haiku-4-5"). "1m" belgisи bo'lsa 1M, aks holda 200k. */
+export function contextWindowForModel(model: string | undefined): number {
+  if (!model) return MAX_CONTEXT_TOKENS;
+  const m = model.toLowerCase();
+  // [1m], -1m, "1m" — 1M-kontekst beta rejimi
+  if (m.includes("1m")) return CONTEXT_WINDOW_1M;
+  return MAX_CONTEXT_TOKENS;
+}

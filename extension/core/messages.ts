@@ -117,6 +117,8 @@ export interface AgentTokenUsage {
   id: number;
   inputTokens: number;
   outputTokens: number;
+  /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
+  contextWindow: number;
 }
 export interface WorkspaceFolders {
   type: "workspaceFolders";

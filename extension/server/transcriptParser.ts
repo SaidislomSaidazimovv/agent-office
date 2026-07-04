@@ -1,4 +1,7 @@
 import {
+  CONTEXT_WINDOW_1M,
+  contextWindowForModel,
+  MAX_CONTEXT_TOKENS,
   PERMISSION_EXEMPT_TOOLS,
   PERMISSION_TIMER_DELAY_MS,
   SUBAGENT_TOOL_NAMES,
@@ -41,6 +44,16 @@ function startPermissionTimer(store: AgentStateStore, agent: AgentState): void {
 
 /** assistant xabaridan token usage'ни o'qib broadcast qiladi. */
 function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<string, unknown>): void {
+  // Modelни aniqlab kontekst oynasini belgilaymiz (200k yoki 1M). Diqqat:
+  // transcript `message.model` 1M-rejimда ham ba'zан oddiy "claude-opus-4-8"
+  // beradi ([1m] belgisiсиз), shu sababли modelni faqat MINIMUM sifatida
+  // olamiz — asosiy ishonchli signal quyида: kuzatilган token 200kдан oshса,
+  // bu aniq 1M-kontekst sessiya (avto-yuqorilaymiz).
+  const model = message.model as string | undefined;
+  if (model && model !== agent.model && model !== "<synthetic>") {
+    agent.model = model;
+    agent.contextWindow = Math.max(agent.contextWindow, contextWindowForModel(model));
+  }
   const usage = message.usage as
     | { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
     | undefined;
@@ -49,12 +62,17 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
   // faqat delta ~0 chiqadi va health-bar noto'g'ri bo'ladi).
   const ctx = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
   if (ctx > 0) agent.inputTokens = ctx;
+  // Avto-aniqlash: kontekst 200kдан oshди → 1M-rejim (model stringга ishonmaymiz).
+  if (ctx > MAX_CONTEXT_TOKENS && agent.contextWindow < CONTEXT_WINDOW_1M) {
+    agent.contextWindow = CONTEXT_WINDOW_1M;
+  }
   agent.outputTokens += usage.output_tokens || 0;
   store.broadcast({
     type: "agentTokenUsage",
     id: agent.id,
     inputTokens: agent.inputTokens,
     outputTokens: agent.outputTokens,
+    contextWindow: agent.contextWindow,
   });
 }
 

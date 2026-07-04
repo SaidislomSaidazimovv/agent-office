@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { MAX_CONTEXT_TOKENS } from "./scene/roles";
 
 // ── Sahna agent holati ───────────────────────────────────────
 // Server xabarlari flaglarни yangilaydi; `status` ular asosida hisoblanadi
@@ -30,6 +31,8 @@ export interface AgentView {
   subagents: string[];
   inputTokens: number;
   outputTokens: number;
+  /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
+  contextWindow: number;
   // Hisoblangan
   status: AgentStatus;
 }
@@ -65,7 +68,7 @@ interface OfficeState {
   setPermission(id: number, on: boolean): void;
   addSubagent(id: number, key: string): void;
   clearSubagent(id: number, key: string): void;
-  setTokens(id: number, input: number, output: number): void;
+  setTokens(id: number, input: number, output: number, contextWindow?: number): void;
   select(id: number | null): void;
   setSound(on: boolean): void;
 }
@@ -107,6 +110,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         subagents: [],
         inputTokens: 0,
         outputTokens: 0,
+        contextWindow: MAX_CONTEXT_TOKENS,
         status: "idle",
       };
       return { agents: { ...s.agents, [meta.id]: recompute(a) }, order: [...s.order, meta.id] };
@@ -203,10 +207,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
     }));
   },
 
-  setTokens(id, input, output) {
+  setTokens(id, input, output, contextWindow) {
     const a = get().agents[id];
     if (!a) return;
-    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output } } }));
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow } } }));
   },
 
   select(id) {

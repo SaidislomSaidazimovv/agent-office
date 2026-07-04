@@ -1,9 +1,11 @@
 import assert from "node:assert";
+import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { createAgentState } from "../extension/server/types.js";
 import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
+import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +55,27 @@ test("context tokens = input + cache_read + cache_creation", () => {
   assert.equal(agent.outputTokens, 50);
 });
 
+test("default context window is 200k; token usage broadcasts it", () => {
+  const { store, agent, ev } = setup();
+  assert.equal(agent.contextWindow, 200000);
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { model: "claude-opus-4-8", content: [{ type: "text", text: "hi" }], usage: { input_tokens: 5000, output_tokens: 10 } } }));
+  const tu = ev.find((e) => e.type === "agentTokenUsage") as { contextWindow?: number } | undefined;
+  assert.equal(tu?.contextWindow, 200000);
+});
+
+test("context >200k auto-upgrades window to 1M (model string lacks [1m])", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { model: "claude-opus-4-8", content: [{ type: "text", text: "x" }], usage: { input_tokens: 10, cache_read_input_tokens: 540000, output_tokens: 5 } } }));
+  assert.equal(agent.contextWindow, 1000000, "should detect 1M from token volume");
+  assert.ok(agent.inputTokens / agent.contextWindow <= 1, "% must be <= 100");
+});
+
+test("model id with [1m] sets 1M window immediately", () => {
+  const { store, agent } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { model: "claude-opus-4-8[1m]", content: [{ type: "text", text: "x" }], usage: { input_tokens: 100, output_tokens: 5 } } }));
+  assert.equal(agent.contextWindow, 1000000);
+});
+
 console.log("Hook handler:");
 test("PreToolUse → active + toolStart; Stop → waiting; hookDelivered set", () => {
   const { store, agent, ev } = setup();
@@ -68,6 +91,95 @@ test("Notification permission → agentToolPermission", () => {
   const { store, agent, ev } = setup();
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude needs your permission to use Bash" });
   assert.ok(ev.some((e) => e.type === "agentToolPermission"), "no permission event");
+});
+
+console.log("Terminal binding (cwd bo'yicha):");
+const WS = "F:\\zzz-bind-ws-unlikely-path";
+function mgrSetup() {
+  resetState(WS);
+  const store = new AgentStateStore();
+  const watcher = { primeFromStart() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+  const mgr = new AgentManager(store, watcher, () => {});
+  mgr.start();
+  return { store, mgr };
+}
+
+test("cwd-mos terminal (nomi 'Claude Code' bo'lmasa ham) bog'lanadi → yopilса agent o'chadi", () => {
+  const { store, mgr } = mgrSetup();
+  const t = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t;
+  const a = mgr.ensureSessionAgent("sess-1", WS);
+  assert.ok(store.has(a.id), "adopt bo'lmadi");
+  fireClose(t);
+  assert.equal(store.has(a.id), false, "terminal yopilса agent o'chishi kerak");
+});
+
+test("mos kelmaydigan terminal yopilса agent NOTO'G'RI o'chirilmaydi", () => {
+  const { store, mgr } = mgrSetup();
+  const other = makeTerminal({ name: "pwsh", cwd: "C:\\butunlay\\boshqa" });
+  const a = mgr.ensureSessionAgent("sess-2", WS);
+  fireClose(other);
+  assert.equal(store.has(a.id), true, "boshqa papka terminalи agentга tegmasin");
+});
+
+test("cwd noma'lum faol terminal → fallback bog'lanadi", () => {
+  const { store, mgr } = mgrSetup();
+  const t = makeTerminal({ name: "bash" }); // shell-integration yo'q
+  _state.activeTerminal = t;
+  const a = mgr.ensureSessionAgent("sess-3", WS);
+  fireClose(t);
+  assert.equal(store.has(a.id), false, "cwd noma'lum bo'lса faol terminalга bog'lanishi kerak");
+});
+
+test("kech-bog'lash: terminal keyin ochilса focusAgent bog'laydi", () => {
+  const { store, mgr } = mgrSetup();
+  const a = mgr.ensureSessionAgent("sess-4", WS); // terminal hali yo'q
+  assert.ok(store.has(a.id));
+  const t = makeTerminal({ name: "pwsh", cwd: WS });
+  mgr.focusAgent(a.id);
+  fireClose(t);
+  assert.equal(store.has(a.id), false, "focusAgent kech-bog'lashi kerak");
+});
+
+console.log("/clear|/resume dublikatsizlik:");
+test("single-agent /clear → o'sha agent reassign bo'ladi (dublikat yo'q)", () => {
+  const { store, mgr } = mgrSetup();
+  const t = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t;
+  const a = mgr.ensureSessionAgent("old-1", WS);
+  const before = store.values().length;
+  const re = mgr.reassignForClear("new-1", WS);
+  assert.ok(re && re.id === a.id, "o'sha agent qayta biriktirilishi kerak");
+  assert.equal(re!.sessionId, "new-1");
+  assert.equal(store.values().length, before, "yangi agent yaratilmasligi kerak (dublikat yo'q)");
+});
+
+test("ko'p agent /clear → faol terminalга bog'langan agent tanlanadi", () => {
+  const { mgr } = mgrSetup();
+  const t1 = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t1;
+  const a1 = mgr.ensureSessionAgent("a-1", WS);
+  const t2 = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t2;
+  const a2 = mgr.ensureSessionAgent("a-2", WS);
+  _state.activeTerminal = t1; // /clear t1'да bo'ldi
+  const re = mgr.reassignForClear("a-3", WS);
+  assert.ok(re && re.id === a1.id, "faol terminal (t1) agentи tanlanishi kerak");
+  assert.equal(a2.sessionId, "a-2", "boshqa agent tegilmasligi kerak");
+});
+
+test("ko'p agent, faol terminal mos emas → null (noto'g'ri biriktirmaydi)", () => {
+  const { mgr } = mgrSetup();
+  const t1 = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t1;
+  mgr.ensureSessionAgent("b-1", WS);
+  const t2 = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t2;
+  mgr.ensureSessionAgent("b-2", WS);
+  const other = makeTerminal({ name: "pwsh", cwd: "C:\\boshqa" });
+  _state.activeTerminal = other; // mos kelmaydigan terminal faol
+  const re = mgr.reassignForClear("b-3", WS);
+  assert.equal(re, null, "disambiguatsiya yo'q — null qaytishi kerak");
 });
 
 console.log("Navigation:");

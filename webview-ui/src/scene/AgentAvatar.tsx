@@ -21,7 +21,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];
-  const tok = tokenBar(agent.inputTokens);
+  const tok = tokenBar(agent.inputTokens, agent.contextWindow);
 
   // O'tirish nuqtasi (stoldan biroz chetда — collision radiusи bloklamasin)
   const sit = useRef<WP>({ x: seat.x + (seat.ry > 0 ? 0.72 : -0.72), z: seat.z });
