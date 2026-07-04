@@ -7,6 +7,10 @@ export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
   const fpv = mode === "fpv";
   const wallMat = "#dcd3c2";
+  // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'да yarim-shaffof
+  // (ichi ko'rinib tursin), FPV'да to'liq qattiq/зич.
+  const nearOpacity = fpv ? 1 : 0.2;
+  const nearTransparent = !fpv;
 
   return (
     <group>
@@ -46,14 +50,14 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <boxGeometry args={[0.3, WH, D]} />
         <meshStandardMaterial color="#d2c9b7" roughness={1} />
       </mesh>
-      {/* Yaqin devorlar (kamerага qaragan) — iso'да yashirin, FPV'да ko'rinadi */}
-      <mesh position={[0, WH / 2, D / 2]} visible={fpv} receiveShadow>
+      {/* Yaqin devorlar — 4 tomon BIR XIL balandlik. Iso'да yarim-shaffof. */}
+      <mesh position={[0, WH / 2, D / 2]} receiveShadow>
         <boxGeometry args={[W, WH, 0.3]} />
-        <meshStandardMaterial color={wallMat} roughness={1} />
+        <meshStandardMaterial color={wallMat} roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
       </mesh>
-      <mesh position={[W / 2, WH / 2, 0]} visible={fpv} receiveShadow>
+      <mesh position={[W / 2, WH / 2, 0]} receiveShadow>
         <boxGeometry args={[0.3, WH, D]} />
-        <meshStandardMaterial color="#d2c9b7" roughness={1} />
+        <meshStandardMaterial color="#d2c9b7" roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
       </mesh>
 
       {/* Shift — faqat FPV (ichkи ko'rinish yopiq bo'lsin) */}

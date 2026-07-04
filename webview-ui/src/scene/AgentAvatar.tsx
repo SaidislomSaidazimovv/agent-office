@@ -4,6 +4,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
+import { slide } from "./collision";
 import { nearestNode, pathBetween, randomNodeKey, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
 import { presetFor, SEATS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
@@ -22,8 +23,8 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
   const color = STATUS_COLOR[agent.status];
   const tok = tokenBar(agent.inputTokens);
 
-  // O'tirish nuqtasi + yo'nalishи (stol oldida)
-  const sit = useRef<WP>({ x: seat.x + (seat.ry > 0 ? 0.56 : -0.56), z: seat.z });
+  // O'tirish nuqtasi (stoldan biroz chetда — collision radiusи bloklamasin)
+  const sit = useRef<WP>({ x: seat.x + (seat.ry > 0 ? 0.72 : -0.72), z: seat.z });
 
   const group = useRef<THREE.Group>(null);
   const pos = useRef<WP>({ ...sit.current });
@@ -34,6 +35,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
   const seated = useRef(true);
   const movingRef = useRef(false);
   const prevDesired = useRef(true);
+  const stuck = useRef(0);
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
 
@@ -95,10 +97,30 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
           if (!desiredSit) pause.current = 1.5 + Math.random() * 4;
         }
       } else {
-        p.x += (dx / dist) * SPEED * dt;
-        p.z += (dz / dist) * SPEED * dt;
+        // QATTIQ to'qnashuv — devor/mebeldan o'tmaydi, sirg'anadi
+        const mvx = (dx / dist) * SPEED * dt;
+        const mvz = (dz / dist) * SPEED * dt;
+        const res = slide(p.x, p.z, mvx, mvz, 0.16);
+        const moved = Math.hypot(res.x - p.x, res.z - p.z);
+        p.x = res.x;
+        p.z = res.z;
         moving = true;
         g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 10, dt);
+        // Tiqilib qolsa — bu nuqtани tashlab, qayta rejalaymiz
+        if (moved < SPEED * dt * 0.25) {
+          stuck.current += dt;
+          if (stuck.current > 0.8) {
+            path.current.shift();
+            stuck.current = 0;
+            if (path.current.length === 0) {
+              curNode.current = pendingNode.current ?? nearestNode(p.x, p.z);
+              pendingNode.current = null;
+              if (!desiredSit) pause.current = 1 + Math.random() * 3;
+            }
+          }
+        } else {
+          stuck.current = 0;
+        }
       }
     }
     movingRef.current = moving;

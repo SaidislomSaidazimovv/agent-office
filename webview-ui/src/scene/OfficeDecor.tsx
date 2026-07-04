@@ -6,11 +6,17 @@ import type { JSX } from "react";
 
 type V3 = [number, number, number];
 const M = (color: string, rough = 0.9) => <meshStandardMaterial color={color} roughness={rough} />;
+// Metall/chrome (zamonaviy oyoq-ramkalar uchun)
+const MM = (color: string, rough = 0.35, metal = 0.85) => <meshStandardMaterial color={color} roughness={rough} metalness={metal} />;
 const WALL_H = 2.6;
 const WALL_T = 0.24;
-const WALL_C = "#cabfad";
-const DOORW = "#8a6f52";
-const FRAME = "#6d5741";
+// ── Zamonaviy palitra ──
+const WALL_C = "#e6e3dd"; // toza och kul-oq devor
+const DOORW = "#3a3f47"; // matte charcoal eshik
+const FRAME = "#2a2e35"; // qora ramka
+const STEEL = "#8b929c"; // chrome/po'lat oyoq
+const DESKTOP = "#f2efe9"; // oq stol usti
+const ACCENT = "#4c8bf5"; // ko'k akцент
 
 function Box({ p, s, c, rough = 0.9 }: { p: V3; s: V3; c: string; rough?: number }) {
   return (
@@ -43,8 +49,18 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
       <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
       <group position={[cx - door / 2, (WALL_H - 0.3) / 2, z]} rotation={[0, -1.25, 0]}>
         <mesh position={[door * 0.42, 0, 0]} castShadow>
-          <boxGeometry args={[door * 0.82, WALL_H - 0.36, 0.06]} />
-          <meshStandardMaterial color={DOORW} roughness={0.7} />
+          <boxGeometry args={[door * 0.82, WALL_H - 0.36, 0.05]} />
+          <meshStandardMaterial color={DOORW} roughness={0.5} metalness={0.2} />
+        </mesh>
+        {/* shisha chizig'i */}
+        <mesh position={[door * 0.42, 0.1, 0.02]}>
+          <boxGeometry args={[door * 0.16, WALL_H - 0.9, 0.04]} />
+          <meshStandardMaterial color="#bfe0ff" transparent opacity={0.35} roughness={0.1} metalness={0.1} />
+        </mesh>
+        {/* zamonaviy uzun tutqich */}
+        <mesh position={[door * 0.72, -0.05, 0.05]}>
+          <boxGeometry args={[0.04, 0.4, 0.04]} />
+          {MM("#c8ccd2")}
         </mesh>
       </group>
     </group>
@@ -94,28 +110,56 @@ function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
     </group>
   );
 }
-function Sofa({ p, ry = 0, c = "#4a5568" }: { p: V3; ry?: number; c?: string }) {
+function Sofa({ p, ry = 0, c = "#3d4756" }: { p: V3; ry?: number; c?: string }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 0.25, 0]} s={[2.2, 0.3, 0.9]} c={c} />
-      <Box p={[0, 0.6, -0.4]} s={[2.2, 0.6, 0.2]} c={c} />
-      <Box p={[-1.05, 0.5, 0]} s={[0.2, 0.5, 0.9]} c={c} />
-      <Box p={[1.05, 0.5, 0]} s={[0.2, 0.5, 0.9]} c={c} />
+      {/* pastki blok + yumshoq yostiqlar */}
+      <Box p={[0, 0.22, 0]} s={[2.2, 0.24, 0.9]} c={c} rough={0.85} />
+      <Box p={[-0.55, 0.4, 0.05]} s={[1.0, 0.16, 0.78]} c={c} rough={0.7} />
+      <Box p={[0.55, 0.4, 0.05]} s={[1.0, 0.16, 0.78]} c={c} rough={0.7} />
+      <Box p={[0, 0.6, -0.38]} s={[2.2, 0.5, 0.18]} c={c} rough={0.7} />
+      <Box p={[-1.05, 0.42, 0]} s={[0.16, 0.44, 0.9]} c={c} rough={0.7} />
+      <Box p={[1.05, 0.42, 0]} s={[0.16, 0.44, 0.9]} c={c} rough={0.7} />
+      {/* nozik chrome oyoqlar */}
+      {[[-0.95, -0.35], [0.95, -0.35], [-0.95, 0.35], [0.95, 0.35]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.06, z]}><cylinderGeometry args={[0.03, 0.03, 0.12, 8]} />{MM(STEEL)}</mesh>
+      ))}
     </group>
   );
 }
 function CoffeeTable({ p }: { p: V3 }) {
-  return <group position={p}><Box p={[0, 0.35, 0]} s={[1.1, 0.08, 0.6]} c="#6d5741" />{[[-0.48, -0.23], [0.48, -0.23], [-0.48, 0.23], [0.48, 0.23]].map(([x, z], i) => <Box key={i} p={[x, 0.17, z]} s={[0.06, 0.34, 0.06]} c="#4a3a2a" />)}</group>;
+  return (
+    <group position={p}>
+      {/* shisha usti + chrome ramka */}
+      <mesh position={[0, 0.38, 0]}><boxGeometry args={[1.1, 0.04, 0.6]} /><meshStandardMaterial color="#cfeaff" transparent opacity={0.4} roughness={0.05} metalness={0.2} /></mesh>
+      <Box p={[0, 0.2, 0]} s={[0.95, 0.03, 0.45]} c="#e8e6e0" />
+      {[[-0.48, -0.23], [0.48, -0.23], [-0.48, 0.23], [0.48, 0.23]].map(([x, z], i) => <mesh key={i} position={[x, 0.19, z]}><cylinderGeometry args={[0.025, 0.025, 0.38, 8]} />{MM(STEEL)}</mesh>)}
+    </group>
+  );
 }
 function MeetingTable({ p, r = 1.1 }: { p: V3; r?: number }) {
   return (
     <group position={p}>
-      <mesh position={[0, 0.72, 0]} castShadow><cylinderGeometry args={[r, r, 0.09, 20]} />{M("#7a6349")}</mesh>
-      <mesh position={[0, 0.36, 0]} castShadow><cylinderGeometry args={[0.12, 0.28, 0.7, 10]} />{M("#4a3a2a")}</mesh>
+      {/* oq yaltiroq usti + chrome ustun-oyoq */}
+      <mesh position={[0, 0.72, 0]} castShadow><cylinderGeometry args={[r, r, 0.07, 28]} /><meshStandardMaterial color={DESKTOP} roughness={0.3} metalness={0.1} /></mesh>
+      <mesh position={[0, 0.68, 0]}><cylinderGeometry args={[r - 0.04, r - 0.04, 0.02, 28]} />{M(ACCENT, 0.5)}</mesh>
+      <mesh position={[0, 0.35, 0]} castShadow><cylinderGeometry args={[0.09, 0.09, 0.68, 12]} />{MM("#6a7078")}</mesh>
+      <mesh position={[0, 0.03, 0]}><cylinderGeometry args={[0.42, 0.42, 0.05, 20]} />{MM("#5a6068")}</mesh>
       {[0, 1, 2, 3, 4, 5].map((i) => {
         const a = (i / 6) * Math.PI * 2;
-        return <group key={i} position={[Math.cos(a) * (r + 0.4), 0, Math.sin(a) * (r + 0.4)]} rotation={[0, -a + Math.PI / 2, 0]}><Box p={[0, 0.42, 0]} s={[0.42, 0.08, 0.42]} c="#3a3f48" /><Box p={[0, 0.68, -0.18]} s={[0.42, 0.44, 0.07]} c="#3a3f48" /></group>;
+        return <group key={i} position={[Math.cos(a) * (r + 0.4), 0, Math.sin(a) * (r + 0.4)]} rotation={[0, -a + Math.PI / 2, 0]}><ModChair /></group>;
       })}
+    </group>
+  );
+}
+// Zamonaviy ergonomik stul (oq qobiq + chrome oyoq)
+function ModChair({ c = "#2c313a" }: { c?: string }) {
+  return (
+    <group>
+      <Box p={[0, 0.44, 0]} s={[0.44, 0.07, 0.44]} c={c} rough={0.6} />
+      <Box p={[0, 0.7, -0.18]} s={[0.44, 0.46, 0.06]} c={c} rough={0.6} />
+      <mesh position={[0, 0.22, 0]}><cylinderGeometry args={[0.03, 0.03, 0.4, 8]} />{MM(STEEL)}</mesh>
+      {[0, 1, 2, 3, 4].map((i) => { const a = (i / 5) * Math.PI * 2; return <mesh key={i} position={[Math.cos(a) * 0.2, 0.03, Math.sin(a) * 0.2]}><boxGeometry args={[0.2, 0.04, 0.05]} />{MM("#4a4f57")}</mesh>; })}
     </group>
   );
 }
@@ -138,8 +182,10 @@ function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   }, []);
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 1.3, 0]} s={[1.2, 2.6, 0.35]} c="#5a4634" />
-      <Box p={[0, 1.3, 0.02]} s={[1.1, 2.5, 0.3]} c="#3a2e22" />
+      <Box p={[0, 1.3, 0]} s={[1.2, 2.6, 0.35]} c="#dfdcd4" rough={0.6} />
+      <Box p={[0, 1.3, 0.02]} s={[1.1, 2.5, 0.3]} c="#33373e" />
+      {/* javon taxtalari */}
+      {[0.4, 0.95, 1.5, 2.05].map((y) => <Box key={y} p={[0, y, 0.03]} s={[1.1, 0.03, 0.28]} c="#c8c5bd" />)}
       {books}
     </group>
   );
@@ -147,10 +193,16 @@ function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
 function Kitchen({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 0.45, 0]} s={[5, 0.9, 0.7]} c="#c9c0ae" />
-      <Box p={[0, 0.92, 0]} s={[5.05, 0.06, 0.75]} c="#3a3f48" />
-      <Box p={[-1.6, 0.93, 0]} s={[0.7, 0.04, 0.5]} c="#5a6270" />
-      <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#dfe3e8" />
+      {/* matte kabinetlar + qora granit usti */}
+      <Box p={[0, 0.45, 0]} s={[5, 0.9, 0.7]} c="#e8e6e0" rough={0.5} />
+      {[-2, -1, 0, 1, 2].map((x) => <Box key={x} p={[x, 0.45, 0.36]} s={[0.02, 0.86, 0.02]} c="#b8b5ad" />)}
+      <Box p={[0, 0.92, 0]} s={[5.05, 0.07, 0.75]} c="#20242b" rough={0.3} />
+      <mesh position={[-1.6, 0.94, 0]}><boxGeometry args={[0.7, 0.03, 0.5]} />{MM("#7a8290", 0.2)}</mesh>
+      {/* jomkalik kran */}
+      <mesh position={[-1.6, 1.1, -0.1]}><cylinderGeometry args={[0.02, 0.02, 0.3, 8]} />{MM("#c8ccd2")}</mesh>
+      {/* baland shkaf + akцент */}
+      <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#eceae4" rough={0.5} />
+      <Box p={[2.9, 0.95, 0.36]} s={[0.5, 0.02, 0.02]} c={ACCENT} />
     </group>
   );
 }
@@ -166,13 +218,24 @@ function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
 function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 0.72, 0]} s={[1.4, 0.08, 0.75]} c="#8a6f52" />
-      {[-0.62, 0.62].map((x) => <Box key={x} p={[x, 0.36, 0]} s={[0.08, 0.72, 0.68]} c="#6d5741" />)}
-      <Box p={[0, 1.0, -0.2]} s={[0.62, 0.4, 0.05]} c="#1a1d22" rough={0.5} />
-      <Box p={[0, 0.77, 0.14]} s={[0.46, 0.03, 0.16]} c="#2a2e35" />
-      <group position={[0, 0, 0.6]}><Box p={[0, 0.46, 0]} s={[0.48, 0.08, 0.48]} c="#454b55" /><Box p={[0, 0.74, 0.22]} s={[0.48, 0.46, 0.08]} c="#454b55" /></group>
+      {/* oq usti + qora akцент qirra */}
+      <Box p={[0, 0.72, 0]} s={[1.4, 0.06, 0.75]} c={DESKTOP} rough={0.4} />
+      <Box p={[0, 0.68, 0]} s={[1.42, 0.03, 0.77]} c="#2a2e35" />
+      {/* nozik chrome A-oyoqlar */}
+      {[-0.6, 0.6].map((x) => <mesh key={x} position={[x, 0.34, 0]}><boxGeometry args={[0.05, 0.68, 0.64]} />{MM("#4a4f57", 0.4, 0.6)}</mesh>)}
+      {/* ingichka slim monitor + stend */}
+      <Box p={[0, 1.04, -0.22]} s={[0.66, 0.4, 0.03]} c="#12151a" rough={0.3} />
+      <mesh position={[0, 1.04, -0.2]}><planeGeometry args={[0.6, 0.34]} /><meshBasicMaterial color="#1c3350" /></mesh>
+      <Box p={[0, 0.82, -0.22]} s={[0.05, 0.2, 0.05]} c="#3a3f47" />
+      <Box p={[0, 0.76, -0.22]} s={[0.24, 0.02, 0.14]} c="#2a2e35" />
+      {/* klaviatura */}
+      <Box p={[0, 0.76, 0.12]} s={[0.44, 0.02, 0.15]} c="#e2e2e0" />
+      <ModChairAt p={[0, 0, 0.58]} />
     </group>
   );
+}
+function ModChairAt({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return <group position={p} rotation={[0, ry, 0]}><ModChair /></group>;
 }
 function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} /><mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh></group>;
@@ -240,13 +303,11 @@ function Stall({ p }: { p: V3 }) {
 function ReadingTable({ p }: { p: V3 }) {
   return (
     <group position={p}>
-      <Box p={[0, 0.72, 0]} s={[2.2, 0.08, 1.0]} c="#7a6349" />
-      {[[-0.95, -0.4], [0.95, -0.4], [-0.95, 0.4], [0.95, 0.4]].map(([x, z], i) => <Box key={i} p={[x, 0.36, z]} s={[0.08, 0.72, 0.08]} c="#4a3a2a" />)}
-      {[[-0.6, -0.75], [0.6, -0.75], [-0.6, 0.75], [0.6, 0.75]].map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <Box p={[0, 0.42, 0]} s={[0.4, 0.08, 0.4]} c="#3a3f48" />
-          <Box p={[0, 0.66, z > 0 ? 0.16 : -0.16]} s={[0.4, 0.4, 0.07]} c="#3a3f48" />
-        </group>
+      <Box p={[0, 0.72, 0]} s={[2.2, 0.06, 1.0]} c={DESKTOP} rough={0.4} />
+      <Box p={[0, 0.68, 0]} s={[2.22, 0.03, 1.02]} c="#2a2e35" />
+      {[[-0.95, -0.4], [0.95, -0.4], [-0.95, 0.4], [0.95, 0.4]].map(([x, z], i) => <mesh key={i} position={[x, 0.35, z]}><cylinderGeometry args={[0.035, 0.035, 0.7, 10]} />{MM(STEEL)}</mesh>)}
+      {[[-0.6, -0.78], [0.6, -0.78], [-0.6, 0.78], [0.6, 0.78]].map(([x, z], i) => (
+        <group key={i} position={[x, 0, z]} rotation={[0, z > 0 ? Math.PI : 0, 0]}><ModChair /></group>
       ))}
     </group>
   );
@@ -328,8 +389,11 @@ export default function OfficeDecor() {
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
       {/* Reception */}
       <group position={[0, 0, 7.5]}>
-        <Box p={[0, 0.55, 0]} s={[3.2, 1.1, 0.8]} c="#6d5741" />
-        <Box p={[0, 1.12, 0]} s={[3.4, 0.06, 1]} c="#8a6f52" />
+        <Box p={[0, 0.5, 0]} s={[3.2, 1.0, 0.8]} c="#eceae4" rough={0.5} />
+        <Box p={[0, 0.5, 0.42]} s={[2.9, 0.7, 0.02]} c={ACCENT} rough={0.6} />
+        <Box p={[0, 1.06, 0]} s={[3.5, 0.07, 1.05]} c="#20242b" rough={0.3} />
+        {/* logo bloklari */}
+        {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
       </group>
       {/* Qo'shimcha ish stollari */}
       <EmptyDesk p={[-13, 0, -3]} ry={Math.PI / 2} />
