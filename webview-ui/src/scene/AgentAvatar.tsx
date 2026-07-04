@@ -155,17 +155,25 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
         </Html>
       )}
 
-      {/* Yorliq (personaj bilan yuradi) */}
-      <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }}>
-        <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: selected ? "rgba(94,155,255,0.92)" : "rgba(16,20,27,0.86)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
-          <div style={{ fontWeight: 600 }}>{agent.folderName}</div>
-          <div style={{ fontSize: 10, opacity: 0.85 }}><span style={{ color }}>●</span> {STATUS_LABEL[agent.status]}{agent.toolLabel ? ` · ${agent.toolLabel}` : ""}</div>
-          {agent.inputTokens > 0 && (
-            <div style={{ marginTop: 3, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.16)", overflow: "hidden" }}>
-              <div style={{ width: `${Math.max(4, tok.pct * 100)}%`, height: "100%", background: tok.color }} />
-            </div>
-          )}
-        </div>
+      {/* Yorliq — tanlanganда to'liq, aks holda IXCHAM (ko'p agentда ustma-ust
+          bo'lmasin: faqat nuqta + nom). */}
+      <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
+        {selected ? (
+          <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
+            <div style={{ fontWeight: 600 }}>{agent.folderName}</div>
+            <div style={{ fontSize: 10, opacity: 0.85 }}><span style={{ color }}>●</span> {STATUS_LABEL[agent.status]}{agent.toolLabel ? ` · ${agent.toolLabel}` : ""}</div>
+            {agent.inputTokens > 0 && (
+              <div style={{ marginTop: 3, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.16)", overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(4, tok.pct * 100)}%`, height: "100%", background: tok.color }} />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 11, background: "rgba(16,20,27,0.82)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
+            {agent.folderName}
+          </div>
+        )}
       </Html>
     </group>
   );

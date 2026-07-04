@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { unlockAudio } from "../notificationSound";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
 import { useOffice } from "../store";
 import { send } from "../transport";
@@ -16,7 +17,17 @@ export default function Hud() {
   const setCameraMode = useOffice((s) => s.setCameraMode);
   const folders = useOffice((s) => s.folders);
   const hookActive = useOffice((s) => s.hookActive);
+  const soundEnabled = useOffice((s) => s.soundEnabled);
+  const setSound = useOffice((s) => s.setSound);
   const [menu, setMenu] = useState(false);
+  const [bypass, setBypass] = useState(false);
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSound(next);
+    if (next) unlockAudio(); // brauzer audiosini foydalanuvchi imo-ishorasида ochamiz
+    send({ type: "setSoundEnabled", enabled: next });
+  };
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
@@ -30,7 +41,7 @@ export default function Hud() {
     if (now - launchLock.current < 1000) return;
     launchLock.current = now;
     setMenu(false);
-    send({ type: "launchAgent", role, folderPath: multiRoot ? activeFolder : undefined });
+    send({ type: "launchAgent", role, folderPath: multiRoot ? activeFolder : undefined, bypassPermissions: bypass });
   };
 
   return (
@@ -52,6 +63,18 @@ export default function Hud() {
         >
           {hookActive ? "🔗 Hook" : "📄 JSONL"}
         </div>
+        {/* Ovoz toggle */}
+        <button
+          onClick={toggleSound}
+          title={soundEnabled ? "Ovoz yoqiq (bosib o'chiring)" : "Ovoz o'chiq (bosib yoqing)"}
+          style={{
+            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
+            cursor: "pointer", border: "1px solid rgba(255,255,255,0.14)", background: "rgba(20,24,32,0.8)",
+            color: soundEnabled ? "#e8ecf2" : "#8e8e93", fontSize: 12,
+          }}
+        >
+          {soundEnabled ? "🔊" : "🔇"}
+        </button>
       </div>
 
       {/* Yuqori agent-bar (namunадеk — ismlar + status nuqta) */}
@@ -179,6 +202,15 @@ export default function Hud() {
             >
               Rolsiz ishga tushirish
             </button>
+            {/* Ruxsatсиз rejim (--dangerously-skip-permissions) */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 4px" }} />
+            <label
+              title="Yangi agent ruxsat so'ramaydi (--dangerously-skip-permissions). Ehtiyot bo'ling."
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", cursor: "pointer", fontSize: 12, color: bypass ? "#ff9f0a" : "#9aa3af" }}
+            >
+              <input type="checkbox" checked={bypass} onChange={(e) => setBypass(e.target.checked)} style={{ cursor: "pointer" }} />
+              ⚡ Ruxsatсиз rejim
+            </label>
           </div>
         )}
       </div>

@@ -59,6 +59,8 @@ export function areHooksInstalled(hookScriptPath: string): boolean {
 
 export function installHooks(hookScriptPath: string): boolean {
   try {
+    // Allaqачон o'rnatilган — foydalanuvchi settings.json'иga tegmaymiz.
+    if (areHooksInstalled(hookScriptPath)) return true;
     const s = readSettings();
     if (!s.hooks) s.hooks = {};
     const cmd = hookCommand(hookScriptPath);

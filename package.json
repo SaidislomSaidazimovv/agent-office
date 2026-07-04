@@ -27,21 +27,39 @@
     "commands": [
       {
         "command": "agent-office.showPanel",
-        "title": "Agent Office: Show Panel"
+        "title": "Agent Office: Show Panel",
+        "icon": "$(window)"
       },
       {
         "command": "agent-office.installHooks",
-        "title": "Agent Office: Claude Hook'larini o'rnatish"
+        "title": "Agent Office: Claude Hook'larini o'rnatish",
+        "icon": "$(plug)"
       },
       {
         "command": "agent-office.uninstallHooks",
-        "title": "Agent Office: Claude Hook'larini olib tashlash"
+        "title": "Agent Office: Claude Hook'larini olib tashlash",
+        "icon": "$(debug-disconnect)"
       },
       {
         "command": "agent-office.showDiagnostics",
-        "title": "Agent Office: Diagnostikани ko'rsatish"
+        "title": "Agent Office: Diagnostikани ko'rsatish",
+        "icon": "$(pulse)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agent-office.showDiagnostics",
+          "when": "view == agent-office.panelView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agent-office.installHooks",
+          "when": "view == agent-office.panelView",
+          "group": "navigation@2"
+        }
+      ]
+    },
     "viewsContainers": {
       "panel": [
         {
