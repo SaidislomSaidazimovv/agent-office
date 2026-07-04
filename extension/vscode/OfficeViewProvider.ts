@@ -23,7 +23,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private store = new AgentStateStore();
   private watcher = new FileWatcher(this.store);
-  private manager = new AgentManager(this.store, this.watcher);
+  private manager = new AgentManager(this.store, this.watcher, (m) => this.logMsg(m));
   private hookServer = new HookServer((sessionId, raw) => this.onHookEvent(sessionId, raw));
   private pending: ServerMessage[] = [];
   private ready = false;
@@ -96,6 +96,16 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         const ok = installHooks(hookScript);
         this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
       });
+
+      const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
+      if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
+        setTimeout(() => {
+          if (this.store.size === 0) {
+            this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
+            this.manager.launchAgent();
+          }
+        }, 2000);
+      }
     } else {
       this.logMsg("Hook rejimi o'chirilган (agent-office.hooksEnabled=false) — faqat JSONL.");
     }

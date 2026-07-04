@@ -28,6 +28,7 @@ export class AgentManager {
   constructor(
     private store: AgentStateStore,
     private watcher: FileWatcher,
+    private log: (m: string) => void = () => {},
   ) {}
 
   start(): void {
@@ -170,6 +171,14 @@ export class AgentManager {
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
     this.terminals.set(id, terminal);
+    this.log(`+Agent #${id} terminal ochildi: claude --session-id ${sessionId.slice(0, 8)}…`);
+
+    // 20s'да transcript paydo bo'lmasa — 'claude' PATH'да bo'lmasligi mumkin
+    setTimeout(() => {
+      if (this.store.has(id) && !fs.existsSync(expectedFile)) {
+        this.log(`⚠ #${id}: 20s'да transcript topilmadi — 'claude' PATH'да o'rnatilganini tekshiring (terminalда xato bormi?).`);
+      }
+    }, 20_000);
   }
 
   /** Agentни store'дан olib tashlaydi (terminalни YOPMAYDI). */

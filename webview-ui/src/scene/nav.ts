@@ -10,9 +10,9 @@ export interface WP {
 export const NODES: Record<string, WP> = {};
 const EDGES: [string, string][] = [];
 
-// Markaziy grid (ochiq ish maydoni, z[-9,9])
-const CX = [-19, -12, -5, 2, 9, 16];
-const CZ = [-6, 0, 6];
+// Markaziy grid (ochiq yo'laklar — mebel x=±5.5/±13 dан chetда)
+const CX = [-17, -9, 0, 9, 17];
+const CZ = [-6.5, 0, 6.5];
 const grid: string[][] = [];
 CX.forEach((x, i) => {
   grid[i] = [];
