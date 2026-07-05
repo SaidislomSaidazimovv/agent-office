@@ -10,6 +10,24 @@ import { send } from "../transport";
 
 const ROLES = Object.entries(ROLE_PRESETS).map(([key, p]) => ({ key, ...p }));
 
+// Davomiylik (ms → "12s" / "3m 5s" / "1h 4m").
+function fmtDur(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+// "necha vaqt oldin" (event tasmasi uchun).
+function fmtAgo(at: number, now: number): string {
+  const s = Math.floor((now - at) / 1000);
+  if (s < 5) return "hozir";
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h`;
+}
+
 export default function Hud() {
   const order = useOffice((s) => s.order);
   const selectedId = useOffice((s) => s.selectedId);
@@ -23,10 +41,13 @@ export default function Hud() {
   const hookActive = useOffice((s) => s.hookActive);
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
+  const events = useOffice((s) => s.events);
   const editMode = useLayout((s) => s.editMode);
   const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
+  const [feed, setFeed] = useState(false);
   const [bypass, setBypass] = useState(false);
+  const [, force] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Menyu tashqarisiga bosilsa yoki Esc — yopamiz (osilib qolmasin).
@@ -55,6 +76,13 @@ export default function Hud() {
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
+
+  // Faol agent tanlanganda "faol vaqt"ni jonli yangilab turamiz (1s).
+  useEffect(() => {
+    if (!sel || sel.activeSince == null) return;
+    const t = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [sel?.id, sel?.activeSince]);
   const multiRoot = folders.length > 1;
   const activeFolder = folderPath ?? folders[0]?.path;
 
@@ -100,7 +128,53 @@ export default function Hud() {
         >
           {soundEnabled ? "🔊" : "🔇"}
         </button>
+        {/* Faoliyat tasmasi toggle */}
+        <button
+          onClick={() => setFeed((f) => !f)}
+          title="Faoliyat tasmasi (so'nggi hodisalar)"
+          style={{
+            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
+            cursor: "pointer", fontSize: 12,
+            border: `1px solid ${feed ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.14)"}`,
+            background: feed ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)", color: "#e8ecf2",
+          }}
+        >
+          📜
+        </button>
       </div>
+
+      {/* ── Faoliyat tasmasi paneli ── */}
+      {feed && (
+        <div
+          style={{
+            position: "absolute", top: 52, right: 14, width: 262, maxHeight: "62vh", pointerEvents: "auto",
+            display: "flex", flexDirection: "column",
+            background: "rgba(16,20,27,0.96)", border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 12, boxShadow: "0 8px 28px rgba(0,0,0,0.5)", overflow: "hidden",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>📜 Faoliyat</span>
+            <button onClick={() => setFeed(false)} aria-label="Tasmani yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ overflowY: "auto", padding: "4px 0" }}>
+            {events.length === 0 ? (
+              <div style={{ padding: "14px 12px", fontSize: 12, opacity: 0.55, textAlign: "center" }}>Hozircha hodisa yo'q</div>
+            ) : (
+              events.map((e) => (
+                <div key={e.seq} style={{ display: "flex", alignItems: "baseline", gap: 7, padding: "4px 12px", fontSize: 11.5, lineHeight: 1.35 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: e.color, flexShrink: 0, transform: "translateY(1px)" }} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <b style={{ color: "#cdd6e2" }}>{e.who}</b>{" "}
+                    <span style={{ opacity: 0.82 }}>{e.text}</span>
+                  </span>
+                  <span style={{ opacity: 0.45, fontSize: 10, flexShrink: 0 }}>{fmtAgo(e.at, Date.now())}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) */}
       {order.length > 0 && (
@@ -329,6 +403,19 @@ export default function Hud() {
               </div>
             );
           })()}
+          {/* Sessiya statistikasi */}
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            {[
+              { label: "Navbat", value: `${sel.turns}` },
+              { label: "Tool", value: `${sel.toolCalls}` },
+              { label: "Faol", value: fmtDur(sel.activeMs + (sel.activeSince != null ? Date.now() - sel.activeSince : 0)) },
+            ].map((st) => (
+              <div key={st.label} style={{ flex: 1, textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{st.value}</div>
+                <div style={{ fontSize: 9.5, opacity: 0.6, marginTop: 1 }}>{st.label}</div>
+              </div>
+            ))}
+          </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={() => send({ type: "focusAgent", id: sel.id })}

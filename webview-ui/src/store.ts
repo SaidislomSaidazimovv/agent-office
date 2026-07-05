@@ -34,9 +34,29 @@ export interface AgentView {
   outputTokens: number;
   /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
   contextWindow: number;
+  // ── Sessiya statistikasi ──
+  /** Umumiy tool chaqiruvlari (sessiya davomida). */
+  toolCalls: number;
+  /** Ish navbatlari — har idle→faol o'tish (taxminiy "turn"). */
+  turns: number;
+  /** Yig'ilgan faol vaqt (ms), joriy faol interval bundan tashqari. */
+  activeMs: number;
+  /** Joriy faol interval boshlangan payt (ms) yoki null (idle). */
+  activeSince: number | null;
   // Hisoblangan
   status: AgentStatus;
 }
+
+// ── Faoliyat tasmasi (event log) ──────────────────────────────
+export interface OfficeEvent {
+  seq: number;
+  at: number;
+  who: string;
+  text: string;
+  color: string;
+}
+let evSeq = 0;
+const MAX_EVENTS = 60;
 
 // Standart "reading" toollar — host `providerCapabilities` yuborsa yangilanadi
 // (bitta manba, takror emas).
@@ -60,6 +80,7 @@ export type CameraMode = "iso" | "fpv";
 interface OfficeState {
   agents: Record<number, AgentView>;
   order: number[];
+  events: OfficeEvent[];
   selectedId: number | null;
   movingId: number | null;
   seatCount: number;
@@ -94,9 +115,25 @@ function recompute(a: AgentView): AgentView {
   return { ...a, status: computeStatus(a) };
 }
 
+// Faoliyat tasmasiga yozuv qo'shadi (eng yangi boshda, MAX_EVENTS cheklovi).
+function pushEvent(events: OfficeEvent[], who: string, text: string, color: string): OfficeEvent[] {
+  const e: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, text, color };
+  const next = [e, ...events];
+  return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
+}
+
+// idle↔faol o'tishda faol vaqt + navbat sonini yangilaydi.
+function touchActive(a: AgentView, active: boolean, now: number): Partial<AgentView> {
+  const wasActive = a.activeSince != null;
+  if (active && !wasActive) return { activeSince: now, turns: a.turns + 1 };
+  if (!active && wasActive) return { activeSince: null, activeMs: a.activeMs + (now - (a.activeSince as number)) };
+  return {};
+}
+
 export const useOffice = create<OfficeState>((set, get) => ({
   agents: {},
   order: [],
+  events: [],
   selectedId: null,
   movingId: null,
   seatCount: SEAT_COUNT,
@@ -134,21 +171,31 @@ export const useOffice = create<OfficeState>((set, get) => ({
         inputTokens: 0,
         outputTokens: 0,
         contextWindow: MAX_CONTEXT_TOKENS,
+        toolCalls: 0,
+        turns: 0,
+        activeMs: 0,
+        activeSince: null,
         status: "idle",
       };
-      return { agents: { ...s.agents, [meta.id]: recompute(a) }, order: [...s.order, meta.id] };
+      return {
+        agents: { ...s.agents, [meta.id]: recompute(a) },
+        order: [...s.order, meta.id],
+        events: pushEvent(s.events, a.folderName, "ofisga qo'shildi", "#5e9bff"),
+      };
     });
   },
 
   removeAgent(id) {
     set((s) => {
-      if (!s.agents[id]) return s;
+      const gone = s.agents[id];
+      if (!gone) return s;
       const agents = { ...s.agents };
       delete agents[id];
       return {
         agents,
         order: s.order.filter((x) => x !== id),
         selectedId: s.selectedId === id ? null : s.selectedId,
+        events: pushEvent(s.events, gone.folderName, "ofisdan chiqdi", "#8e8e93"),
       };
     });
   },
@@ -163,6 +210,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           ...a,
           active,
           awaitingInput,
+          ...touchActive(a, active, Date.now()),
           ...(active ? {} : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false }),
         }),
       },
@@ -178,11 +226,14 @@ export const useOffice = create<OfficeState>((set, get) => ({
         [id]: recompute({
           ...a,
           active: true,
+          ...touchActive(a, true, Date.now()),
           activeToolCount: a.activeToolCount + 1,
+          toolCalls: a.toolCalls + 1,
           toolLabel: label,
           reading: toolName ? get().readingTools.has(toolName) : false,
         }),
       },
+      events: pushEvent(s.events, a.folderName, label, "#30d158"),
     }));
   },
 
@@ -213,13 +264,19 @@ export const useOffice = create<OfficeState>((set, get) => ({
   setPermission(id, on) {
     const a = get().agents[id];
     if (!a) return;
-    set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) } }));
+    set((s) => ({
+      agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) },
+      events: on ? pushEvent(s.events, a.folderName, "ruxsat so'radi 🔔", "#ff9f0a") : s.events,
+    }));
   },
 
   setBlocked(id, on) {
     const a = get().agents[id];
     if (!a) return;
-    set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) } }));
+    set((s) => ({
+      agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) },
+      events: on ? pushEvent(s.events, a.folderName, "bloklandi (xato) ⛔", "#ff453a") : s.events,
+    }));
   },
 
   addSubagent(id, key) {
