@@ -19,7 +19,7 @@ import { extractFirstTask } from "../server/transcriptParser.js";
 // pipeline'i extension bilan bir xil (JSONL watcher + hook server). Kuzatuv-
 // only: terminal ochish/+Agent yo'q (u VS Code'ga xos).
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 const HEAD_BYTES = 8192;
 
 // ── Argumentlar ──

@@ -3,6 +3,16 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.2] — 2026-07-05
+
+### Fixed
+
+- **Security:** the standalone browser viewer (`node dist/cli.js` /
+  `npx agent-office`) now binds to `127.0.0.1` only. It previously listened on
+  all network interfaces, which could expose your session activity (agent names
+  and file labels) to other machines on the same network. The VS Code hook
+  server was already loopback-bound and is unaffected.
+
 ## [0.1.1] — 2026-07-05
 
 The first public release. 🎉 A living 3D office that watches your Claude Code
@@ -55,4 +65,5 @@ sessions — no API key, no configuration, purely local.
   bails out (never overwrites) if the file can't be parsed, and writes
   atomically; stale prior-version hook entries are cleaned up on install.
 
+[0.1.2]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.2
 [0.1.1]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.1
