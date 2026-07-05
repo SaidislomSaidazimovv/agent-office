@@ -19,11 +19,11 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   if (a.inputTokens > 0 || a.outputTokens > 0) {
     msgs.push({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow });
   }
-  // Har faol tool uchun bitta start — webview sanog'i server bilan aniq mos
-  // keladi (real tool_id'lar), reload'dan keyin sanoq buzilmaydi/osilmaydi.
-  if (!a.isWaiting && a.currentToolLabel) {
-    const ids = a.activeToolIds.size > 0 ? [...a.activeToolIds] : ["restore"];
-    for (const tid of ids) {
+  // Har REAL faol tool uchun bitta start — webview sanog'i server bilan aniq mos
+  // keladi va tugaganda to'g'ri tozalanadi (sun'iy "restore" id'siz — u hech
+  // qachon mos kelmay osilib qolardi).
+  if (!a.isWaiting && a.currentToolLabel && a.activeToolIds.size > 0) {
+    for (const tid of a.activeToolIds) {
       msgs.push({ type: "agentToolStart", id: a.id, toolId: tid, status: a.currentToolLabel, toolName: a.currentToolName });
     }
   }

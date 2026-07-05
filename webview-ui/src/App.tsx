@@ -1,7 +1,9 @@
 import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { useEffect } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import AgentAvatar from "./scene/AgentAvatar";
+import { setActiveSeats } from "./scene/collision";
 import FirstPersonView from "./scene/FirstPersonView";
 import OfficeDecor from "./scene/OfficeDecor";
 import PixelPerson from "./scene/PixelPerson";
@@ -55,6 +57,14 @@ export default function App() {
   const agents = useOffice((s) => s.agents);
   const select = useOffice((s) => s.select);
   const cameraMode = useOffice((s) => s.cameraMode);
+
+  // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
+  // yasamasin). Faqat o'rindiqlar to'plami o'zgarganda yangilanadi.
+  const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
+  useEffect(() => {
+    setActiveSeats(order.map((id) => agents[id]?.seatIndex).filter((i): i is number => typeof i === "number"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seatKey]);
 
   if (GALLERY) return <Gallery />;
 

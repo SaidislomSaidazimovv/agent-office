@@ -149,8 +149,8 @@ export class HookServer {
       /* ignore */
     }
     // Faqat server.json HALI BIZNIKI bo'lsa o'chiramiz. Ikki oyna bir vaqtda
-    // ochilib, birининг yozuvi ustiga boshqasi yozgan bo'lishi mumkin (TOCTOU) —
-    // bunda yutqazgan oyna yopilганда yutganning tirik faylini o'chirmasin.
+    // ochilib, birining yozuvi ustiga boshqasi yozgan bo'lishi mumkin (TOCTOU) —
+    // bunda yutqazgan oyna yopilganda yutganning tirik faylini o'chirmasin.
     if (this.ownsFile) {
       const cur = this.readServerJson();
       if (!cur || cur.pid === process.pid) {

@@ -1,4 +1,4 @@
-import { SEATS, seatFor } from "./roles";
+import { seatFor } from "./roles";
 
 // ── To'qnashuv (AABB to'siqlar) ──────────────────────────────
 // Devor/oyna/mebel — to'rtburchak to'siqlar. Kamera ham personaj ham
@@ -51,18 +51,21 @@ for (const m of bot) {
 }
 for (const x of [-11, -3, 7, 15]) r(x - T, x + T, 9.5, 16);
 
-// ── Mebel ──
-// Agent stollari — barcha SEATS (10) + overflow buffer (juda ko'p agent).
-// Stol 1.5×0.8; to'siq stol yo'nalishiga (ry) qarab aylanadi, shuning uchun
-// markaziy ustunlar (ry=±π/2) ham, overflow qatorlari (ry=π) ham to'g'ri
-// qamrab olinadi — 11+ agentda personajlar stoldan o'tib ketmaydi.
-const SEAT_RECT_COUNT = SEATS.length + 20; // ~30 agentgacha
-for (let i = 0; i < SEAT_RECT_COUNT; i++) {
-  const s = seatFor(i);
-  const hx = Math.abs(0.75 * Math.cos(s.ry)) + Math.abs(0.4 * Math.sin(s.ry)) + 0.05;
-  const hz = Math.abs(0.75 * Math.sin(s.ry)) + Math.abs(0.4 * Math.cos(s.ry)) + 0.05;
-  r(s.x - hx, s.x + hx, s.z - hz, s.z + hz);
+// ── Agent stollari — DINAMIK (faqat band o'rindiqlar) ──
+// Stol collision'i faqat renderlangan (band) stollar uchun bo'ladi. Aks holda
+// bo'sh overflow o'rindiqlari markaziy yo'lakda "fantom devor" hosil qilardi.
+// Stol 1.5×0.8; to'siq stol yo'nalishiga (ry) qarab aylanadi.
+let seatRects: Rect[] = [];
+export function setActiveSeats(seatIndexes: number[]): void {
+  seatRects = seatIndexes.map((i) => {
+    const s = seatFor(i);
+    const hx = Math.abs(0.75 * Math.cos(s.ry)) + Math.abs(0.4 * Math.sin(s.ry)) + 0.05;
+    const hz = Math.abs(0.75 * Math.sin(s.ry)) + Math.abs(0.4 * Math.cos(s.ry)) + 0.05;
+    return { x0: s.x - hx, x1: s.x + hx, z0: s.z - hz, z1: s.z + hz };
+  });
 }
+
+// ── Statik mebel (doim bor) ──
 // Reception
 r(-1.7, 1.7, 7.0, 8.0);
 // Server xonasi (rack qatorlari)
@@ -93,9 +96,12 @@ r(11.7, 13.3, 13.8, 15.2);
 // glassC stol
 r(18, 20, 12, 14);
 
-/** (x,z) nuqta radius r bilan biror to'siqga tegadimi? */
+/** (x,z) nuqta radius r bilan biror to'siqga tegadimi? (statik mebel + band stollar) */
 export function blocked(x: number, z: number, rad: number): boolean {
   for (const b of B) {
+    if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;
+  }
+  for (const b of seatRects) {
     if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;
   }
   return false;

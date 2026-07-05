@@ -32,10 +32,14 @@ export function useExtensionMessages(): void {
         case "agentSelected":
           store.select(msg.id);
           break;
-        case "agentStatus":
-          if (msg.status === "waiting" && useOffice.getState().soundEnabled) playDone();
+        case "agentStatus": {
+          // Faqat active→waiting O'TISHIDA chime — snapshot/reload'da bo'sh
+          // (idle) agentlar uchun N ta chime chalinmasin.
+          const wasActive = useOffice.getState().agents[msg.id]?.active;
+          if (msg.status === "waiting" && wasActive && useOffice.getState().soundEnabled) playDone();
           store.setActive(msg.id, msg.status === "active", msg.awaitingInput);
           break;
+        }
         case "agentToolStart":
           store.setTool(msg.id, msg.toolName, msg.status);
           break;

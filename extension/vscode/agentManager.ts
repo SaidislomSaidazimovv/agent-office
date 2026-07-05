@@ -330,10 +330,16 @@ export class AgentManager {
     a.isWaiting = true;
     a.activeToolIds.clear();
     a.subagentToolIds.clear();
+    a.hookToolQueue.clear();
     a.inputTokens = 0; // yangi sessiya — kontekst 0dan (birinchi xabar to'g'rilaydi)
     a.outputTokens = 0;
     a.model = undefined; // yangi sessiya modelini qaytadan aniqlaymiz
     a.contextWindow = MAX_CONTEXT_TOKENS; // 1M→200k downgrade'da o'lchagich to'g'ri bo'lsin
+    // Eski indikatorlar yangi sessiyaga o'tib qolmasin (blocked/permission/tool).
+    a.blocked = false;
+    a.permissionActive = false;
+    a.currentToolLabel = undefined;
+    a.currentToolName = undefined;
     this.watcher.primeFromStart(a);
     this.watcher.emitSnapshot(a);
   }

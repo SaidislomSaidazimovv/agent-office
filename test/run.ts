@@ -11,7 +11,7 @@ import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
-import { blocked } from "../webview-ui/src/scene/collision.js";
+import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
@@ -389,6 +389,21 @@ test("ko'p agent /clear → faol terminalga bog'langan agent tanlanadi", () => {
   assert.equal(a2.sessionId, "a-2", "boshqa agent tegilmasligi kerak");
 });
 
+test("/clear stale blocked/permission/tool indikatorlarini tozalaydi", () => {
+  const { mgr } = mgrSetup();
+  const t = makeTerminal({ name: "pwsh", cwd: WS });
+  _state.activeTerminal = t;
+  const a = mgr.ensureSessionAgent("s1", WS);
+  a.blocked = true;
+  a.permissionActive = true;
+  a.currentToolLabel = "Edit x.ts";
+  const re = mgr.reassignForClear("s2", WS);
+  assert.ok(re && re.id === a.id);
+  assert.equal(re!.blocked, false, "blocked yangi sessiyaga o'tmasligi kerak");
+  assert.equal(re!.permissionActive, false, "permission tozalanishi kerak");
+  assert.equal(re!.currentToolLabel, undefined, "tool label tozalanishi kerak");
+});
+
 test("ko'p agent, faol terminal mos emas → null (noto'g'ri biriktirmaydi)", () => {
   const { mgr } = mgrSetup();
   const t1 = makeTerminal({ name: "pwsh", cwd: WS });
@@ -503,20 +518,24 @@ test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   assert.equal(useOffice.getState().agents[202].status, "working", "tozalansa asl status");
 });
 
-console.log("Collision: overflow o'rindiqlar to'siqlangan:");
-test("overflow stol (>10) markazi bloklangan, sit nuqtasi ochiq", () => {
-  const s = seatFor(13); // overflow o'rindiq (SEATS'dan tashqari)
-  assert.ok(blocked(s.x, s.z, 0.16), "overflow stol markazi bloklangan bo'lishi kerak (o'tib ketmasin)");
-  const sit = sitPoint(s);
-  assert.ok(!blocked(sit.x, sit.z, 0.16), "sit nuqtasi ochiq — agent o'tira olishi kerak");
+console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");
+test("band overflow stol bloklangan; BO'SH o'rindiq fantom devor yasamaydi", () => {
+  setActiveSeats([0, 5, 13]); // faqat shu o'rindiqlar band
+  const occupied = seatFor(13);
+  assert.ok(blocked(occupied.x, occupied.z, 0.16), "band overflow stol bloklangan bo'lishi kerak");
+  assert.ok(!blocked(sitPoint(occupied).x, sitPoint(occupied).z, 0.16), "sit nuqtasi ochiq");
+  // Band bo'lmagan overflow o'rindiq (masalan 15) — fantom devor bo'lmasin
+  const empty = seatFor(15);
+  assert.ok(!blocked(empty.x, empty.z, 0.16), "BO'SH o'rindiq bloklamasligi kerak (fantom devor yo'q)");
 });
-test("asosiy o'rindiq: stol bloklangan, sit ochiq (regressiya)", () => {
+test("asosiy band o'rindiq: stol bloklangan, sit ochiq", () => {
+  setActiveSeats([0, 5, 9]);
   for (const i of [0, 5, 9]) {
     const s = seatFor(i);
     assert.ok(blocked(s.x, s.z, 0.16), `seat ${i} stol bloklangan`);
-    const sit = sitPoint(s);
-    assert.ok(!blocked(sit.x, sit.z, 0.16), `seat ${i} sit ochiq`);
+    assert.ok(!blocked(sitPoint(s).x, sitPoint(s).z, 0.16), `seat ${i} sit ochiq`);
   }
+  setActiveSeats([]); // keyingi testlar toza boshlansin
 });
 
 console.log("Navigation:");
