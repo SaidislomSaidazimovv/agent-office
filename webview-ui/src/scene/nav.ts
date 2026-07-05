@@ -111,3 +111,35 @@ export function pathBetween(from: string, to: string): WP[] {
 export function randomNodeKey(): string {
   return KEYS[Math.floor(Math.random() * KEYS.length)];
 }
+
+// ── Kontekstli (smart) idle manzillari ──────────────────────
+// Bo'sh turgan agent tasodifiy nuqtaga emas — rolига mos xonaga boradi
+// (tadqiqotchi kutubxonaga, backend serverga, hamma oshxonaga tanaffusga...).
+// Bu ofisni "tirik" ko'rsatadi: har kim maqsad bilan yuradi.
+
+const ROLE_ROOMS: Record<string, string[]> = {
+  research: ["library_i", "focus_i", "kitchen_i"],
+  docs: ["library_i", "focus_i", "lounge_i"],
+  frontend: ["kitchen_i", "lounge_i", "meeting_i"],
+  backend: ["server_i", "kitchen_i", "lounge_i"],
+  data: ["focus_i", "library_i", "kitchen_i"],
+  qa: ["meeting_i", "lounge_i", "kitchen_i"],
+};
+
+// Ishdan keyingi birinchi "tanaffus" xonalari (oshxona/lounge).
+const BREAK_ROOMS = ["kitchen_i", "lounge_i"];
+
+// Barcha xona ichki nuqtalari (rol noma'lum bo'lsa — istalgan xona).
+const ALL_ROOMS = ROOMS.map(([k]) => `${k}_i`);
+
+/** Ishni tugatgach birinchi idle safar — tanaffusga (oshxona/lounge). */
+export function breakRoom(): string {
+  return BREAK_ROOMS[Math.floor(Math.random() * BREAK_ROOMS.length)];
+}
+
+/** Rolига mos idle manzil. 25% holatda umumiy tasodif — tabiiy ko'rinsin. */
+export function idleDestination(role: string | undefined): string {
+  if (Math.random() < 0.25) return randomNodeKey();
+  const rooms = (role && ROLE_ROOMS[role]) || ALL_ROOMS;
+  return rooms[Math.floor(Math.random() * rooms.length)];
+}

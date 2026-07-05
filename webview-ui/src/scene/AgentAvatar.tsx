@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { slide } from "./collision";
-import { nearestNode, pathBetween, randomNodeKey, type WP } from "./nav";
+import { breakRoom, idleDestination, nearestNode, pathBetween, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
 import { characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
@@ -36,6 +36,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const movingRef = useRef(false);
   const prevDesired = useRef(true);
   const stuck = useRef(0);
+  const firstIdleTrip = useRef(false); // ishdan endi bo'shadi → tanaffusga
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
 
@@ -49,6 +50,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     // Rejim o'zgarsa — joriy tugunga yetib qayta rejalaymiz (uzoq aylanmasin)
     if (desiredSit !== prevDesired.current) {
       prevDesired.current = desiredSit;
+      if (!desiredSit) firstIdleTrip.current = true; // ishni tugatdi → tanaffus
       if (path.current.length > 1) {
         path.current = path.current.slice(0, 1);
         pendingNode.current = null;
@@ -72,7 +74,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         if (pause.current > 0) {
           pause.current -= dt;
         } else {
-          const target = randomNodeKey();
+          const target = firstIdleTrip.current ? breakRoom() : idleDestination(agent.role);
+          firstIdleTrip.current = false;
           path.current = pathBetween(curNode.current, target);
           pendingNode.current = target;
         }
