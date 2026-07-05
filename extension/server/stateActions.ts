@@ -19,8 +19,13 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   if (a.inputTokens > 0 || a.outputTokens > 0) {
     msgs.push({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow });
   }
+  // Har faol tool uchun bitta start — webview sanog'i server bilan aniq mos
+  // keladi (real tool_id'lar), reload'dan keyin sanoq buzilmaydi/osilmaydi.
   if (!a.isWaiting && a.currentToolLabel) {
-    msgs.push({ type: "agentToolStart", id: a.id, toolId: "restore", status: a.currentToolLabel, toolName: a.currentToolName });
+    const ids = a.activeToolIds.size > 0 ? [...a.activeToolIds] : ["restore"];
+    for (const tid of ids) {
+      msgs.push({ type: "agentToolStart", id: a.id, toolId: tid, status: a.currentToolLabel, toolName: a.currentToolName });
+    }
   }
   for (const tid of a.subagentToolIds) {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Sub-agent" });

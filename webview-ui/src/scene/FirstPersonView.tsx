@@ -2,6 +2,7 @@ import { PerspectiveCamera, PointerLockControls } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useOffice } from "../store";
 import { slide } from "./collision";
 
 // ── Ichki "yurib kuzatish" (birinchi shaxs) + QATTIQ to'qnashuv ──
@@ -16,6 +17,7 @@ const RAD = 0.4;
 
 export default function FirstPersonView() {
   const keys = useRef<Record<string, boolean>>({});
+  const setCameraMode = useOffice((s) => s.setCameraMode);
   useEffect(() => {
     const down = (e: KeyboardEvent) => (keys.current[e.code] = true);
     const up = (e: KeyboardEvent) => (keys.current[e.code] = false);
@@ -26,6 +28,21 @@ export default function FirstPersonView() {
       window.removeEventListener("keyup", up);
     };
   }, []);
+
+  // Esc (pointer-lock chiqishi) → iso'ga qaytamiz — "Esc chiqish" maslahati
+  // haqiqatan ishlasin (avval faqat sichqonni ozod qilardi).
+  useEffect(() => {
+    let wasLocked = false;
+    const onChange = () => {
+      if (document.pointerLockElement) wasLocked = true;
+      else if (wasLocked) {
+        wasLocked = false;
+        setCameraMode("iso");
+      }
+    };
+    document.addEventListener("pointerlockchange", onChange);
+    return () => document.removeEventListener("pointerlockchange", onChange);
+  }, [setCameraMode]);
 
   const dir = useRef(new THREE.Vector3());
   const right = useRef(new THREE.Vector3());

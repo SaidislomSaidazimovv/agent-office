@@ -148,12 +148,17 @@ export class HookServer {
     } catch {
       /* ignore */
     }
-    // Faqat O'ZIMIZ yozgan server.json'ni o'chiramiz (boshqa oynanikini emas)
+    // Faqat server.json HALI BIZNIKI bo'lsa o'chiramiz. Ikki oyna bir vaqtda
+    // ochilib, birининг yozuvi ustiga boshqasi yozgan bo'lishi mumkin (TOCTOU) —
+    // bunda yutqazgan oyna yopilганда yutganning tirik faylini o'chirmasin.
     if (this.ownsFile) {
-      try {
-        fs.rmSync(this.serverJsonPath(), { force: true });
-      } catch {
-        /* ignore */
+      const cur = this.readServerJson();
+      if (!cur || cur.pid === process.pid) {
+        try {
+          fs.rmSync(this.serverJsonPath(), { force: true });
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

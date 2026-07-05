@@ -185,10 +185,12 @@ export const useOffice = create<OfficeState>((set, get) => ({
   toolDone(id) {
     const a = get().agents[id];
     if (!a) return;
+    const count = Math.max(0, a.activeToolCount - 1);
     set((s) => ({
       agents: {
         ...s.agents,
-        [id]: recompute({ ...a, activeToolCount: Math.max(0, a.activeToolCount - 1) }),
+        // Barcha tool tugasa — yorliqni ham tozalaymiz (eski "Edit x.ts" osilib qolmasin).
+        [id]: recompute({ ...a, activeToolCount: count, ...(count === 0 ? { toolLabel: undefined, reading: false } : {}) }),
       },
     }));
   },

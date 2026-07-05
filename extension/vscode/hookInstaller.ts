@@ -45,6 +45,13 @@ function hookCommand(hookScriptPath: string): string {
   return `node "${hookScriptPath}"`;
 }
 
+/** Bu bizning hookmi? Marker — o'ziga xos skript nomi (yo'l versiyadan versiyaga
+ *  o'zgaradi, shuning uchun aynan yo'lga emas, faylga qaraymiz). Shu orqali eski
+ *  versiyalarning yozuvlarini ham tozalab tashlaymiz. */
+function isOurHook(command: unknown): boolean {
+  return typeof command === "string" && command.includes("claude-hook.js");
+}
+
 /** Sozlamalarni o'qiydi. `readable=false` — fayl mavjud, lekin parse bo'lmadi
  *  (bunda YOZMASLIK kerak — ma'lumotni yo'qotmaslik uchun). Fayl yo'q yoki
  *  bo'sh bo'lsa `readable=true` + bo'sh obyekt (yangi fayl yaratish xavfsiz). */
@@ -81,22 +88,32 @@ export function areHooksInstalled(hookScriptPath: string, settingsFile: string =
   );
 }
 
+/** s.hooks'dan bizning BARCHA hooklarni (har qanday versiya yo'li) olib tashlaydi. */
+function stripOurHooks(s: Settings): void {
+  if (!s.hooks) return;
+  for (const e of Object.keys(s.hooks)) {
+    s.hooks[e] = (s.hooks[e] || [])
+      .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !isOurHook(h.command)) }))
+      .filter((g) => (g.hooks || []).length > 0);
+    if (s.hooks[e].length === 0) delete s.hooks[e];
+  }
+}
+
 export function installHooks(hookScriptPath: string, settingsFile: string = defaultSettingsPath()): boolean {
   try {
     const { settings: s, readable } = readSettings(settingsFile);
     // Fayl mavjud lekin buzuq/o'qib bo'lmadi — UMUMAN yozmaymiz (ma'lumot yo'qotmaymiz).
     if (!readable) return false;
-    // Allaqachon o'rnatilgan — faylga tegmaymiz.
-    if (areHooksInstalled(hookScriptPath, settingsFile)) return true;
     if (!s.hooks) s.hooks = {};
+    const before = JSON.stringify(s.hooks);
+    // Bizning eski (boshqa versiya yo'lli) hooklarni tozalab, joriysini qo'shamiz —
+    // versiya yangilanganda settings.json'da o'lik yozuvlar to'planmasin.
+    stripOurHooks(s);
     const cmd = hookCommand(hookScriptPath);
     for (const e of EVENTS) {
-      const groups = s.hooks[e] || (s.hooks[e] = []);
-      const already = groups.some((g) => (g.hooks || []).some((h) => h.command === cmd));
-      if (!already) {
-        groups.push({ matcher: "*", hooks: [{ type: "command", command: cmd, timeout: 5 }] });
-      }
+      (s.hooks[e] || (s.hooks[e] = [])).push({ matcher: "*", hooks: [{ type: "command", command: cmd, timeout: 5 }] });
     }
+    if (JSON.stringify(s.hooks) === before) return true; // o'zgarish yo'q — yozmaymiz (idempotent)
     writeSettingsAtomic(settingsFile, s);
     return true;
   } catch {
@@ -104,17 +121,11 @@ export function installHooks(hookScriptPath: string, settingsFile: string = defa
   }
 }
 
-export function uninstallHooks(hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {
+export function uninstallHooks(_hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {
   try {
     const { settings: s, readable } = readSettings(settingsFile);
     if (!readable || !s.hooks) return; // buzuq bo'lsa tegmaymiz
-    const cmd = hookCommand(hookScriptPath);
-    for (const e of Object.keys(s.hooks)) {
-      s.hooks[e] = (s.hooks[e] || [])
-        .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => h.command !== cmd) }))
-        .filter((g) => (g.hooks || []).length > 0);
-      if (s.hooks[e].length === 0) delete s.hooks[e];
-    }
+    stripOurHooks(s); // barcha versiyalarni oladi (marker bo'yicha)
     writeSettingsAtomic(settingsFile, s);
   } catch {
     /* ignore */

@@ -263,6 +263,9 @@ export class AgentManager {
       isExternal: false,
       sessionId,
     });
+    // Bypass rejimida tool ruxsat so'ramaydi — permissionMode'ni seed qilamiz,
+    // aks holda JSONL heuristikasi soxta "ruxsat so'raldi" pufagi ko'rsatadi.
+    if (opts.bypassPermissions) agent.permissionMode = "bypassPermissions";
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
     this.watcher.emitSnapshot(agent);

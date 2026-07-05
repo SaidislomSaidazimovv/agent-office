@@ -325,6 +325,16 @@ test("bo'sh/mavjud bo'lmagan settings → yangi fayl yaratiladi", () => {
   assert.ok(JSON.parse(fs.readFileSync(f, "utf8")).hooks, "hooks bilan yaratilishi kerak");
 });
 
+test("versiya yangilanganda eski hook tozalanadi (to'planmaydi)", () => {
+  const f = tmpSettings();
+  installHooks("/old/v1/dist/hooks/claude-hook.js", f);
+  installHooks("/new/v2/dist/hooks/claude-hook.js", f);
+  const s = JSON.parse(fs.readFileSync(f, "utf8"));
+  const cmds = (Object.values(s.hooks) as { hooks: { command: string }[] }[][]).flat().flatMap((g) => g.hooks).map((h) => h.command);
+  assert.ok(cmds.every((c) => !c.includes("/old/")), "eski versiya hooklari tozalanishi kerak");
+  assert.ok(cmds.some((c) => c.includes("/new/")), "yangi versiya bo'lishi kerak");
+});
+
 test("uninstall faqat bizning hookni oladi, boshqasini saqlaydi", () => {
   const f = tmpSettings(JSON.stringify({ hooks: { Stop: [{ matcher: "*", hooks: [{ type: "command", command: "node /boshqa/hook.js" }] }] } }));
   installHooks(SCRIPT, f);
@@ -343,6 +353,13 @@ test("transcript 20s'da paydo bo'lmasa agent olib tashlanadi", () => {
   // transcript fayli mavjud emas (createTerminal mock, claude yozmaydi)
   (mgr as unknown as { checkLaunchStalled(id: number, f: string): void }).checkLaunchStalled(agent.id, agent.filePath);
   assert.equal(store.has(agent.id), false, "transcript yo'q → zombi olib tashlanishi kerak");
+});
+
+test("launchAgent bypass → permissionMode=bypassPermissions (soxta pufak yo'q)", () => {
+  const { store, mgr } = mgrSetup();
+  mgr.launchAgent({ bypassPermissions: true });
+  const a = store.values()[0];
+  assert.equal(a.permissionMode, "bypassPermissions", "bypass rejim seed qilinishi kerak");
 });
 
 console.log("/clear|/resume dublikatsizlik:");
@@ -466,6 +483,14 @@ test("ota bo'sh + subagent ishlayotgan → 'collab'", () => {
   s.setActive(201, true);
   s.addSubagent(201, "sub-1");
   assert.equal(useOffice.getState().agents[201].status, "collab");
+});
+test("toolDone: sanoq 0ga tushsa yorliq tozalanadi (osilib qolmaydi)", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 400, folderName: "t" });
+  s.setTool(400, "Edit", "Edit a.ts");
+  assert.equal(useOffice.getState().agents[400].toolLabel, "Edit a.ts");
+  s.toolDone(400);
+  assert.equal(useOffice.getState().agents[400].toolLabel, undefined, "sanoq 0da yorliq tozalanishi kerak");
 });
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();

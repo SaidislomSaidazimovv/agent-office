@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { unlockAudio } from "../notificationSound";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
 import { useOffice } from "../store";
@@ -21,6 +21,24 @@ export default function Hud() {
   const setSound = useOffice((s) => s.setSound);
   const [menu, setMenu] = useState(false);
   const [bypass, setBypass] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Menyu tashqarisiga bosilsa yoki Esc — yopamiz (osilib qolmasin).
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -42,6 +60,7 @@ export default function Hud() {
     launchLock.current = now;
     setMenu(false);
     send({ type: "launchAgent", role, folderPath: multiRoot ? activeFolder : undefined, bypassPermissions: bypass });
+    setBypass(false); // xavfli rejim keyingi launchda armlanib qolmasin
   };
 
   return (
@@ -133,7 +152,7 @@ export default function Hud() {
       )}
 
       {/* +Agent */}
-      <div style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
+      <div ref={menuRef} style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
         <button
           onClick={() => setMenu((m) => !m)}
           style={{

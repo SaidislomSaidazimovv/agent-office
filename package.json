@@ -10,6 +10,26 @@
     "type": "git",
     "url": "https://github.com/SaidislomSaidazimovv/agent-office"
   },
+  "bugs": {
+    "url": "https://github.com/SaidislomSaidazimovv/agent-office/issues"
+  },
+  "homepage": "https://github.com/SaidislomSaidazimovv/agent-office#readme",
+  "keywords": [
+    "claude",
+    "claude code",
+    "agent",
+    "ai",
+    "3d",
+    "visualization",
+    "monitor",
+    "office",
+    "voxel",
+    "three.js"
+  ],
+  "galleryBanner": {
+    "color": "#12151a",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -17,6 +37,7 @@
     "workspace"
   ],
   "categories": [
+    "Visualization",
     "Other"
   ],
   "activationEvents": [
