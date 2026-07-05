@@ -1,5 +1,7 @@
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
 import type { JSX } from "react";
+import * as THREE from "three";
 
 // ── Katta ko'p-xonali ofis (server/xojatxona/kutubxona/shisha) ──
 // Hammasi qutı/silindr/konus — yengil. Xona: x[-23,23], z[-16,16].
@@ -99,14 +101,26 @@ function GlassWallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number
 
 // ── Jihozlar ──
 export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
+  const leaves = useRef<THREE.Group>(null);
+  const ph = useMemo(() => Math.random() * Math.PI * 2, []); // har o'simlik boshqa fazada
+  // Yumshoq shamol tebranishi — barglar tuvak ustidan (y=0.4) chayqaladi.
+  useFrame((state) => {
+    const g = leaves.current;
+    if (!g) return;
+    const t = state.clock.elapsedTime;
+    g.rotation.z = Math.sin(t * 1.1 + ph) * 0.05;
+    g.rotation.x = Math.cos(t * 0.85 + ph) * 0.04;
+  });
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow><cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />{M("#b5643c")}</mesh>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const a = (i / 5) * Math.PI * 2;
-        return <mesh key={i} position={[Math.cos(a) * 0.12, 0.75, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow><coneGeometry args={[0.16, 0.8, 5]} />{M(i % 2 ? "#4a8a52" : "#3c7444")}</mesh>;
-      })}
-      <mesh position={[0, 1.0, 0]} castShadow><coneGeometry args={[0.18, 0.7, 5]} />{M("#579a5e")}</mesh>
+      <group ref={leaves} position={[0, 0.4, 0]}>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const a = (i / 5) * Math.PI * 2;
+          return <mesh key={i} position={[Math.cos(a) * 0.12, 0.35, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow><coneGeometry args={[0.16, 0.8, 5]} />{M(i % 2 ? "#4a8a52" : "#3c7444")}</mesh>;
+        })}
+        <mesh position={[0, 0.6, 0]} castShadow><coneGeometry args={[0.18, 0.7, 5]} />{M("#579a5e")}</mesh>
+      </group>
     </group>
   );
 }

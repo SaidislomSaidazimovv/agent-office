@@ -1,4 +1,5 @@
 import { memo } from "react";
+import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { seatFor, STATUS_COLOR } from "./roles";
@@ -42,6 +43,11 @@ function Workstation({ agent }: { agent: AgentView }) {
         <mesh position={[0, 0.26, -0.02]}>
           <planeGeometry args={[0.64, 0.36]} />
           <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+        {/* ekran porlashi — holat rangida yumshoq halo (qo'shimcha yorug'lik hissi) */}
+        <mesh position={[0, 0.26, -0.025]}>
+          <planeGeometry args={[0.98, 0.66]} />
+          <meshBasicMaterial color={color} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
         </mesh>
         {/* nozik stend */}
         <mesh position={[0, 0.05, 0]} castShadow>
