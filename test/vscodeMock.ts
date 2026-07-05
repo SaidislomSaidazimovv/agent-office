@@ -1,6 +1,6 @@
 // ── Minimal `vscode` mock (test bundle uchun alias bilan ulanadi) ──
-// npm test skriptида `--alias:vscode=./test/vscodeMock.ts` orqali ulanadi,
-// shunда agentManager haqiqiy VS Code'сиз sinaladi.
+// npm test skriptida `--alias:vscode=./test/vscodeMock.ts` orqali ulanadi,
+// shunda agentManager haqiqiy VS Code'siz sinaladi.
 type Listener = (t: unknown) => void;
 
 class Uri {
@@ -30,7 +30,7 @@ export function fireClose(t: unknown): void {
   for (const fn of _state.closeListeners) fn(t);
 }
 
-/** Sinov terminalи yaratadi (ro'yxatga qo'shadi). */
+/** Sinov terminali yaratadi (ro'yxatga qo'shadi). */
 export function makeTerminal(opts: { name?: string; cwd?: string } = {}): {
   name: string;
   creationOptions: Record<string, unknown>;

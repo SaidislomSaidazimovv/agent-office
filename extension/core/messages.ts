@@ -1,7 +1,7 @@
 // ── Xabar protokoli (webview ↔ extension) ────────────────────
 // Pixel Agents'ning AsyncAPI protokolining 3D-clone uchun moslangan qismi.
 // Pixel-sprite xabarlari (characterSpritesLoaded, floorTilesLoaded, ...) olib
-// tashlandi — biz 3D GLB'larни webview ichida to'g'ridan-to'g'ri yuklaymiz.
+// tashlandi — biz 3D GLB'larni webview ichida to'g'ridan-to'g'ri yuklaymiz.
 
 // ── Extension → webview ──────────────────────────────────────
 export type ServerMessage =
@@ -47,7 +47,7 @@ export interface AgentCreated {
   isExternal?: boolean;
   /** Foydalanuvchi tanlagan rol (research/frontend/backend/qa/docs/data). */
   role?: string;
-  /** Boshlang'ich vazifa yorlig'i (transcriptдан). */
+  /** Boshlang'ich vazifa yorlig'i (transcriptdan). */
   task?: string;
 }
 export interface AgentClosed {
@@ -138,7 +138,7 @@ export interface SettingsLoaded {
 }
 export interface HookStatus {
   type: "hookStatus";
-  /** Shu oynада jonli hook oqimи bormi (true) yoki faqat JSONL zaxиra (false). */
+  /** Shu oynada jonli hook oqimi bormi (true) yoki faqat JSONL zaxira (false). */
   active: boolean;
 }
 

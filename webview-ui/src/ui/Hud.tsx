@@ -25,7 +25,7 @@ export default function Hud() {
   const toggleSound = () => {
     const next = !soundEnabled;
     setSound(next);
-    if (next) unlockAudio(); // brauzer audiosini foydalanuvchi imo-ishorasида ochamiz
+    if (next) unlockAudio(); // brauzer audiosini foydalanuvchi imo-ishorasida ochamiz
     send({ type: "setSoundEnabled", enabled: next });
   };
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
@@ -34,8 +34,8 @@ export default function Hud() {
   const multiRoot = folders.length > 1;
   const activeFolder = folderPath ?? folders[0]?.path;
 
-  // Bir bosishда FAQAT 1 agent — tez ikki marta bosilса (yoki double-fire)
-  // 1 soniyа ichидаги takroriy so'rovni e'tiborsiz qoldiramiz.
+  // Bir bosishda FAQAT 1 agent — tez ikki marta bosilsa (yoki double-fire)
+  // 1 soniya ichidagi takroriy so'rovni e'tiborsiz qoldiramiz.
   const launch = (role?: string) => {
     const now = Date.now();
     if (now - launchLock.current < 1000) return;
@@ -54,7 +54,7 @@ export default function Hud() {
         </div>
         {/* Aniqlash rejimi — jonli hook yoki JSONL zaxira */}
         <div
-          title={hookActive ? "Jonli hook oqimи (ishonchli aniqlash)" : "Faqat JSONL kuzatuvи (hook boshqa oynада yoki o'chiq — aniqlash evristik)"}
+          title={hookActive ? "Jonli hook oqimi (ishonchli aniqlash)" : "Faqat JSONL kuzatuvi (hook boshqa oynada yoki o'chiq — aniqlash evristik)"}
           style={{
             display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 600,
             background: hookActive ? "rgba(48,209,88,0.16)" : "rgba(255,159,10,0.16)",
@@ -77,7 +77,7 @@ export default function Hud() {
         </button>
       </div>
 
-      {/* Yuqori agent-bar (namunадеk — ismlar + status nuqta) */}
+      {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) */}
       {order.length > 0 && (
         <div
           style={{
@@ -125,7 +125,7 @@ export default function Hud() {
         </button>
       </div>
 
-      {/* FPV maslahatи */}
+      {/* FPV maslahati */}
       {cameraMode === "fpv" && (
         <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.9)", color: "#e8ecf2", fontSize: 12, whiteSpace: "nowrap" }}>
           🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish
@@ -152,7 +152,7 @@ export default function Hud() {
               borderRadius: 10, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
             }}
           >
-            {/* Papka tanlash — faqat multi-root ish maydonида */}
+            {/* Papka tanlash — faqat multi-root ish maydonida */}
             {multiRoot && (
               <>
                 <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>Papka</div>
@@ -202,14 +202,14 @@ export default function Hud() {
             >
               Rolsiz ishga tushirish
             </button>
-            {/* Ruxsatсиз rejim (--dangerously-skip-permissions) */}
+            {/* Ruxsatsiz rejim (--dangerously-skip-permissions) */}
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 4px" }} />
             <label
               title="Yangi agent ruxsat so'ramaydi (--dangerously-skip-permissions). Ehtiyot bo'ling."
               style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", cursor: "pointer", fontSize: 12, color: bypass ? "#ff9f0a" : "#9aa3af" }}
             >
               <input type="checkbox" checked={bypass} onChange={(e) => setBypass(e.target.checked)} style={{ cursor: "pointer" }} />
-              ⚡ Ruxsatсиз rejim
+              ⚡ Ruxsatsiz rejim
             </label>
           </div>
         )}
@@ -225,13 +225,13 @@ export default function Hud() {
         >
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Ofis hozircha bo'sh</div>
           <div style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.5 }}>
-            <b>+ Agent</b> tugmасини bosing — yangi Claude Code terminali ochiladi va
-            uning faoliyati shu ofisда jonli ko'rinadi.
+            <b>+ Agent</b> tugmasini bosing — yangi Claude Code terminali ochiladi va
+            uning faoliyati shu ofisda jonli ko'rinadi.
           </div>
         </div>
       )}
 
-      {/* Agent inspektor paneli (personaj tanlanганда) */}
+      {/* Agent inspektor paneli (personaj tanlanganda) */}
       {sel && (
         <div
           style={{

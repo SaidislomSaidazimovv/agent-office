@@ -16,7 +16,7 @@ const DOORW = "#3a3f47"; // matte charcoal eshik
 const FRAME = "#2a2e35"; // qora ramka
 const STEEL = "#8b929c"; // chrome/po'lat oyoq
 const DESKTOP = "#f2efe9"; // oq stol usti
-const ACCENT = "#4c8bf5"; // ko'k akцент
+const ACCENT = "#4c8bf5"; // ko'k aksent
 
 function Box({ p, s, c, rough = 0.9 }: { p: V3; s: V3; c: string; rough?: number }) {
   return (
@@ -72,7 +72,7 @@ function DividerZ({ x, z0, z1 }: { x: number; z0: number; z1: number }) {
   return <Box p={[x, WALL_H / 2, (z0 + z1) / 2]} s={[WALL_T, WALL_H, z1 - z0]} c={WALL_C} />;
 }
 
-// Shisha devor (X bo'ylab, eshik teshigи bilan)
+// Shisha devor (X bo'ylab, eshik teshigi bilan)
 function GlassPanel({ p, s }: { p: V3; s: V3 }) {
   return (
     <group position={p}>
@@ -200,7 +200,7 @@ function Kitchen({ p, ry = 0 }: { p: V3; ry?: number }) {
       <mesh position={[-1.6, 0.94, 0]}><boxGeometry args={[0.7, 0.03, 0.5]} />{MM("#7a8290", 0.2)}</mesh>
       {/* jomkalik kran */}
       <mesh position={[-1.6, 1.1, -0.1]}><cylinderGeometry args={[0.02, 0.02, 0.3, 8]} />{MM("#c8ccd2")}</mesh>
-      {/* baland shkaf + akцент */}
+      {/* baland shkaf + aksent */}
       <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#eceae4" rough={0.5} />
       <Box p={[2.9, 0.95, 0.36]} s={[0.5, 0.02, 0.02]} c={ACCENT} />
     </group>
@@ -218,7 +218,7 @@ function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
 function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      {/* oq usti + qora akцент qirra */}
+      {/* oq usti + qora aksent qirra */}
       <Box p={[0, 0.72, 0]} s={[1.4, 0.06, 0.75]} c={DESKTOP} rough={0.4} />
       <Box p={[0, 0.68, 0]} s={[1.42, 0.03, 0.77]} c="#2a2e35" />
       {/* nozik chrome A-oyoqlar */}
@@ -395,8 +395,8 @@ export default function OfficeDecor() {
         {/* logo bloklari */}
         {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
       </group>
-      {/* Markazдаги x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
-          Workstation ular ustiga stol chizadi (overflow agentlar shu yerда). */}
+      {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
+          Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
       {/* Printer, lampalar, o'simliklar */}
       <StandingLamp p={[-9, 0, 6]} />
       <StandingLamp p={[9, 0, -6]} />

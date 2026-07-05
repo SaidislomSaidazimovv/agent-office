@@ -9,9 +9,9 @@ import type { ServerMessage } from "../core/messages.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import type { AgentState } from "./types.js";
 
-/** Agentning JORIY holatини tasvirlaydigan xabarlar (snapshot). Webview qайта
- *  yuklanганда VA yangi agent adopt qilinganда bir xil ishlatiladi — shunда
- *  butun tarixни qайта broadcast qilish shart emas. */
+/** Agentning JORIY holatini tasvirlaydigan xabarlar (snapshot). Webview qayta
+ *  yuklanganda VA yangi agent adopt qilinganda bir xil ishlatiladi — shunda
+ *  butun tarixni qayta broadcast qilish shart emas. */
 export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   const msgs: ServerMessage[] = [
     { type: "agentStatus", id: a.id, status: a.isWaiting ? "waiting" : "active" },
@@ -33,8 +33,8 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
 // ── Umumiy holat amallari (transcriptParser + hookHandler ishlatadi) ──
 
 /** Heuristik ruxsat-taymer kechikishi (ms) yoki null (taymer kerak emas).
- *  • faqat "default" rejimда (bypass/auto tool so'ramaydi);
- *  • exempt (read-only/boshqaruv) toollarда null;
+ *  • faqat "default" rejimda (bypass/auto tool so'ramaydi);
+ *  • exempt (read-only/boshqaruv) toollarda null;
  *  • Edit/Write → tez (instant amallar), Bash/boshqa → sekin (uzoq bo'lishi mumkin). */
 export function permissionDelayFor(name: string, mode: string): number | null {
   if (mode !== "default") return null;
@@ -42,7 +42,7 @@ export function permissionDelayFor(name: string, mode: string): number | null {
   return INSTANT_WRITE_TOOLS.has(name) ? PERMISSION_TIMER_FAST_MS : PERMISSION_TIMER_SLOW_MS;
 }
 
-/** tool_use input'дан inson-o'qiydigan status yasaydi ("Read foo.ts"). */
+/** tool_use input'dan inson-o'qiydigan status yasaydi ("Read foo.ts"). */
 export function formatToolStatus(name: string, input?: Record<string, unknown>): string {
   const i = input || {};
   const raw =
@@ -57,7 +57,7 @@ export function isReadingTool(name: string): boolean {
   return READING_TOOLS.has(name);
 }
 
-/** "Bloklangan" holatini o'rnatadi/tozalaydi (xato → qizил status). */
+/** "Bloklangan" holatini o'rnatadi/tozalaydi (xato → qizil status). */
 export function setBlocked(store: AgentStateStore, agent: AgentState, on: boolean): void {
   if (agent.blocked === on) return;
   agent.blocked = on;

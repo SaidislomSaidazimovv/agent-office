@@ -3,9 +3,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 // ── Claude Code hook o'rnatuvchisi ───────────────────────────
-// ~/.claude/settings.json'даги "hooks" bo'limiga bizning hook-skriptимизни
-// qo'shadi (mavjudларини buzmasdan). Faqat bizniki (aniq command yo'li bilan)
+// ~/.claude/settings.json'dagi "hooks" bo'limiga bizning hook-skriptimizni
+// qo'shadi (mavjudlarini buzmasdan). Faqat bizniki (aniq command yo'li bilan)
 // olib tashlanadi.
+//
+// XAVFSIZLIK: fayl mavjud, lekin o'qib/parse qilib bo'lmasa (Claude o'zi
+// yozayotganda yarim-yozuv, BOM, izohlar) — biz UMUMAN yozmaymiz. Aks holda
+// foydalanuvchining barcha sozlamalari yo'qolishi mumkin edi. Yozuv atomik
+// (temp + rename), shuning uchun o'quvchi hech qachon yarim-faylni ko'rmaydi.
 
 const EVENTS = [
   "PreToolUse",
@@ -32,7 +37,7 @@ interface Settings {
   [k: string]: unknown;
 }
 
-function settingsPath(): string {
+function defaultSettingsPath(): string {
   return path.join(os.homedir(), ".claude", "settings.json");
 }
 
@@ -40,28 +45,49 @@ function hookCommand(hookScriptPath: string): string {
   return `node "${hookScriptPath}"`;
 }
 
-function readSettings(): Settings {
+/** Sozlamalarni o'qiydi. `readable=false` — fayl mavjud, lekin parse bo'lmadi
+ *  (bunda YOZMASLIK kerak — ma'lumotni yo'qotmaslik uchun). Fayl yo'q yoki
+ *  bo'sh bo'lsa `readable=true` + bo'sh obyekt (yangi fayl yaratish xavfsiz). */
+function readSettings(settingsFile: string): { settings: Settings; readable: boolean } {
+  if (!fs.existsSync(settingsFile)) return { settings: {}, readable: true };
+  let text: string;
   try {
-    return JSON.parse(fs.readFileSync(settingsPath(), "utf8")) as Settings;
+    text = fs.readFileSync(settingsFile, "utf8");
   } catch {
-    return {};
+    return { settings: {}, readable: false }; // o'qib bo'lmadi — tegmaymiz
+  }
+  if (!text.trim()) return { settings: {}, readable: true }; // bo'sh fayl
+  try {
+    return { settings: JSON.parse(text) as Settings, readable: true };
+  } catch {
+    return { settings: {}, readable: false }; // buzuq JSON — TEGMAYMIZ
   }
 }
 
-export function areHooksInstalled(hookScriptPath: string): boolean {
-  const s = readSettings();
-  if (!s.hooks) return false;
+/** Atomik yozuv — temp faylga yozib, so'ng rename. */
+function writeSettingsAtomic(settingsFile: string, s: Settings): void {
+  fs.mkdirSync(path.dirname(settingsFile), { recursive: true });
+  const tmp = `${settingsFile}.agent-office-${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(s, null, 2));
+  fs.renameSync(tmp, settingsFile);
+}
+
+export function areHooksInstalled(hookScriptPath: string, settingsFile: string = defaultSettingsPath()): boolean {
+  const { settings, readable } = readSettings(settingsFile);
+  if (!readable || !settings.hooks) return false;
   const cmd = hookCommand(hookScriptPath);
   return EVENTS.every((e) =>
-    (s.hooks![e] || []).some((g) => (g.hooks || []).some((h) => h.command === cmd)),
+    (settings.hooks![e] || []).some((g) => (g.hooks || []).some((h) => h.command === cmd)),
   );
 }
 
-export function installHooks(hookScriptPath: string): boolean {
+export function installHooks(hookScriptPath: string, settingsFile: string = defaultSettingsPath()): boolean {
   try {
-    // Allaqачон o'rnatilган — foydalanuvchi settings.json'иga tegmaymiz.
-    if (areHooksInstalled(hookScriptPath)) return true;
-    const s = readSettings();
+    const { settings: s, readable } = readSettings(settingsFile);
+    // Fayl mavjud lekin buzuq/o'qib bo'lmadi — UMUMAN yozmaymiz (ma'lumot yo'qotmaymiz).
+    if (!readable) return false;
+    // Allaqachon o'rnatilgan — faylga tegmaymiz.
+    if (areHooksInstalled(hookScriptPath, settingsFile)) return true;
     if (!s.hooks) s.hooks = {};
     const cmd = hookCommand(hookScriptPath);
     for (const e of EVENTS) {
@@ -71,18 +97,17 @@ export function installHooks(hookScriptPath: string): boolean {
         groups.push({ matcher: "*", hooks: [{ type: "command", command: cmd, timeout: 5 }] });
       }
     }
-    fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
-    fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
+    writeSettingsAtomic(settingsFile, s);
     return true;
   } catch {
     return false;
   }
 }
 
-export function uninstallHooks(hookScriptPath: string): void {
+export function uninstallHooks(hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {
   try {
-    const s = readSettings();
-    if (!s.hooks) return;
+    const { settings: s, readable } = readSettings(settingsFile);
+    if (!readable || !s.hooks) return; // buzuq bo'lsa tegmaymiz
     const cmd = hookCommand(hookScriptPath);
     for (const e of Object.keys(s.hooks)) {
       s.hooks[e] = (s.hooks[e] || [])
@@ -90,7 +115,7 @@ export function uninstallHooks(hookScriptPath: string): void {
         .filter((g) => (g.hooks || []).length > 0);
       if (s.hooks[e].length === 0) delete s.hooks[e];
     }
-    fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
+    writeSettingsAtomic(settingsFile, s);
   } catch {
     /* ignore */
   }

@@ -1,6 +1,8 @@
 // ── Ofis navigatsiyasi (waypoint grafi, katta ofis) ─────────
-// Markaziy grid + har xonaning eshik/ich nuqtasi. Agentlar bo'sh turганда
-// shular orasида yuradi (eshiklardан xonаларга kiradi).
+// Markaziy grid + har xonaning eshik/ich nuqtasi. Agentlar bo'sh turganda
+// shular orasida yuradi (eshiklardan xonalarga kiradi).
+
+import { blocked } from "./collision";
 
 export interface WP {
   x: number;
@@ -11,7 +13,7 @@ export const NODES: Record<string, WP> = {};
 const EDGES: [string, string][] = [];
 
 // Markaziy grid (ochiq yo'laklar — agent stollari x=±5.5, z=-3.2/0/3.2 va
-// yon stollar x=±13 dан chetда: qatorlar ular orasидаги yo'laklarда).
+// yon stollar x=±13 dan chetda: qatorlar ular orasidagi yo'laklarda).
 const CX = [-17, -9, 0, 9, 17];
 const CZ = [-6.5, -1.8, 1.8, 6.5];
 const grid: string[][] = [];
@@ -38,8 +40,13 @@ const ROOMS: [string, number, "top" | "bottom"][] = [
 for (const [key, cx, side] of ROOMS) {
   const doorZ = side === "top" ? -9.0 : 9.0;
   const intZ = side === "top" ? -12.5 : 12.5;
+  // Ichki nuqta mebel to'siqiga tushsa — eshik tomon surib chiqaramiz (agent
+  // stolga tiqilib titramasin). O'z-o'zini to'g'rilaydi: mebel o'zgarsa ham.
+  const step = side === "top" ? 0.5 : -0.5;
+  let iz = intZ;
+  for (let g = 0; g < 12 && blocked(cx, iz, 0.3); g++) iz += step;
   NODES[`${key}_d`] = { x: cx, z: doorZ };
-  NODES[`${key}_i`] = { x: cx, z: intZ };
+  NODES[`${key}_i`] = { x: cx, z: iz };
   EDGES.push([`${key}_d`, `${key}_i`]);
   let best = "";
   let bd = Infinity;

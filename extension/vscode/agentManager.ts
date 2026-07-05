@@ -11,9 +11,9 @@ import { extractFirstTask } from "../server/transcriptParser.js";
 import { type AgentState, createAgentState } from "../server/types.js";
 
 // ── Agent boshqaruvchisi ─────────────────────────────────────
-// Ikki yo'l: (a) `+Agent` — yangi Claude terminali; (b) AVTO — shu loyihада
+// Ikki yo'l: (a) `+Agent` — yangi Claude terminali; (b) AVTO — shu loyihada
 // ochilgan Claude sessiyasi (siz +Agent bosmasangiz ham topiladi). Ofis
-// BO'SH boshlanadi: faqat ochilishдан keyingi YANGI faoliyat (mtime>=startup)
+// BO'SH boshlanadi: faqat ochilishdan keyingi YANGI faoliyat (mtime>=startup)
 // yoki +Agent agent yaratadi. Eski sessiyalar tinch qoladi.
 
 const HEAD_BYTES = 8192;
@@ -24,8 +24,8 @@ export class AgentManager {
   private disposables: vscode.Disposable[] = [];
   private terminalCounter = 0;
   private startupTime = 0;
-  /** /clear yoki /resume'дан keyin tashlab ketilган eski transcript fayllari —
-   *  scanForNew ularни qayta adopt qilmasin (aks holda zombi qайта paydo bo'ladi). */
+  /** /clear yoki /resume'dan keyin tashlab ketilgan eski transcript fayllari —
+   *  scanForNew ularni qayta adopt qilmasin (aks holda zombi qayta paydo bo'ladi). */
   private retired = new Set<string>();
 
   constructor(
@@ -35,7 +35,7 @@ export class AgentManager {
   ) {}
 
   start(): void {
-    // Terminal yopilса — unga bog'liq agent ham o'chadi (dispose emas — allaqachon yopilyapti)
+    // Terminal yopilsa — unga bog'liq agent ham o'chadi (dispose emas — allaqachon yopilyapti)
     this.disposables.push(
       vscode.window.onDidCloseTerminal((term) => {
         for (const [id, t] of this.terminals) {
@@ -44,7 +44,7 @@ export class AgentManager {
             return;
           }
         }
-        // Bog'lanmagан tashqi agent shu terminalда bo'lган bo'lса — cwd bo'yicha tozala.
+        // Bog'lanmagan tashqi agent shu terminalda bo'lgan bo'lsa — cwd bo'yicha tozala.
         const cwd = this.terminalCwd(term);
         if (!cwd) return;
         for (const a of this.store.values()) {
@@ -95,13 +95,13 @@ export class AgentManager {
     return process.platform === "win32" ? na.toLowerCase() === nb.toLowerCase() : na === nb;
   }
 
-  /** Agent qaysi ish papkasiga tegishли (sessiya papkasидан teskari topamiz). */
+  /** Agent qaysi ish papkasiga tegishli (sessiya papkasidan teskari topamiz). */
   private wsForAgent(agent: AgentState): string | undefined {
     const dir = path.dirname(agent.filePath);
     return this.workspaceFolders().find((ws) => this.samePath(getSessionDir(ws), dir));
   }
 
-  /** Agentни cwd mos keladigan, band bo'lmagan terminalga bog'laydi. */
+  /** Agentni cwd mos keladigan, band bo'lmagan terminalga bog'laydi. */
   private bindByCwd(agent: AgentState): boolean {
     if (this.terminals.has(agent.id)) return true;
     const ws = this.wsForAgent(agent);
@@ -125,34 +125,34 @@ export class AgentManager {
     return false;
   }
 
-  /** Shu loyihада YANGI faoliyatли sessiyani avto-qabul qiladi. */
+  /** Shu loyihada YANGI faoliyatli sessiyani avto-qabul qiladi. */
   private scanForNew(): void {
     for (const { dir, folderName } of this.sessionDirs()) {
       const ws = this.wsForDir(dir);
       for (const f of this.listJsonl(dir)) {
         const sid = path.basename(f.filePath, ".jsonl");
-        // Dublikatдан himoya — fayl YOKI sessiya allaqachon kuzatilsa o'tkazamiz
+        // Dublikatdan himoya — fayl YOKI sessiya allaqachon kuzatilsa o'tkazamiz
         if (this.store.findByFile(f.filePath) || this.store.findBySession(sid)) continue;
-        // /clear|/resume'дан keyin tashlab ketilган eski fayl — qayta adopt qilmaymiz
+        // /clear|/resume'dan keyin tashlab ketilgan eski fayl — qayta adopt qilmaymiz
         if (this.retired.has(f.filePath)) continue;
-        if (f.mtime < this.startupTime) continue; // ochilishдан oldingi — kutamiz
-        // /clear yoki /resume detektsiyasi (hook yo'q bo'lса) — dublikatsiz reassign
+        if (f.mtime < this.startupTime) continue; // ochilishdan oldingi — kutamiz
+        // /clear yoki /resume detektsiyasi (hook yo'q bo'lsa) — dublikatsiz reassign
         if (this.tryReassignNewFile(dir, ws, f.filePath)) continue;
         this.adopt(f.filePath, folderName, true);
       }
     }
-    // Bog'lanmagан tashqi agentларни cwd bo'yicha kech-bog'lash (terminal
-    // shell-integration cwd'ни keyinroq bergan yoki keyin faol bo'lган bo'lishi mumkin).
+    // Bog'lanmagan tashqi agentlarni cwd bo'yicha kech-bog'lash (terminal
+    // shell-integration cwd'ni keyinroq bergan yoki keyin faol bo'lgan bo'lishi mumkin).
     for (const agent of this.store.values()) {
       if (agent.isExternal && !this.terminals.has(agent.id)) this.bindByCwd(agent);
     }
-    // Yopilган terminalли agentларни tozalash (onDidCloseTerminal o'tkazib yuborilса).
+    // Yopilgan terminalli agentlarni tozalash (onDidCloseTerminal o'tkazib yuborilsa).
     const open = new Set(vscode.window.terminals);
     for (const id of [...this.terminals.keys()]) {
       const t = this.terminals.get(id);
       if (t && !open.has(t)) this.detach(id);
     }
-    // Fayli o'chirilган tashqi agentlarни tozalaymiz
+    // Fayli o'chirilgan tashqi agentlarni tozalaymiz
     for (const agent of this.store.values()) {
       if (agent.isExternal && !fs.existsSync(agent.filePath)) {
         this.store.remove(agent.id);
@@ -190,11 +190,11 @@ export class AgentManager {
     this.watcher.primeFromStart(agent);
     this.store.add(agent);
     this.watcher.emitSnapshot(agent);
-    // Tashqi agentни terminalга bog'laymiz — terminal yopilса agent ham o'chadi,
-    // "Terminal" tugmasi ham shu terminalни ochadi.
+    // Tashqi agentni terminalga bog'laymiz — terminal yopilsa agent ham o'chadi,
+    // "Terminal" tugmasi ham shu terminalni ochadi.
     //  1) cwd (ish papkasi) mos keladigan terminal — eng ishonchli.
     //  2) bo'lmasa — hozir faol terminal (foydalanuvchi endigina 'claude'
-    //     yozган bo'lishi ehtimoli katta; nomи "Claude Code" bo'lishi shart emas).
+    //     yozgan bo'lishi ehtimoli katta; nomi "Claude Code" bo'lishi shart emas).
     if (isExternal && !this.bindByCwd(agent)) {
       const active = vscode.window.activeTerminal;
       const bound = new Set(this.terminals.values());
@@ -209,14 +209,22 @@ export class AgentManager {
   }
 
   private readFirstTask(filePath: string): string {
+    let fd: number | undefined;
     try {
-      const fd = fs.openSync(filePath, "r");
+      fd = fs.openSync(filePath, "r");
       const buf = Buffer.alloc(HEAD_BYTES);
       const n = fs.readSync(fd, buf, 0, HEAD_BYTES, 0);
-      fs.closeSync(fd);
       return extractFirstTask(buf.toString("utf8", 0, n));
     } catch {
       return "Claude Code sessiya";
+    } finally {
+      if (fd !== undefined) {
+        try {
+          fs.closeSync(fd);
+        } catch {
+          /* ignore */
+        }
+      }
     }
   }
 
@@ -261,31 +269,31 @@ export class AgentManager {
     this.terminals.set(id, terminal);
     this.log(`+Agent #${id} terminal ochildi: claude --session-id ${sessionId.slice(0, 8)}…`);
 
-    // 20s'да transcript paydo bo'lmasa — 'claude' PATH'да bo'lmasligi mumkin →
-    // zombi agentни olib tashlaymiz (terminal xatoси ko'rinsin uchun terminal saqlanadi).
+    // 20s'da transcript paydo bo'lmasa — 'claude' PATH'da bo'lmasligi mumkin →
+    // zombi agentni olib tashlaymiz (terminal xatosi ko'rinsin uchun terminal saqlanadi).
     setTimeout(() => this.checkLaunchStalled(id, expectedFile), 20_000);
   }
 
-  /** +Agent'дан 20s o'tди — transcript hali yo'q. 'claude' PATH'да yo'q yoki
-   *  terminalда xato bo'lishi mumkin. Zombi agentни olib tashlaymiz (terminalни
+  /** +Agent'dan 20s o'tdi — transcript hali yo'q. 'claude' PATH'da yo'q yoki
+   *  terminalda xato bo'lishi mumkin. Zombi agentni olib tashlaymiz (terminalni
    *  YOPMAYMIZ — foydalanuvchi xatoni ko'rsin). */
   private checkLaunchStalled(id: number, expectedFile: string): void {
     const agent = this.store.get(id);
     if (!agent) return;
-    if (agent.filePath !== expectedFile) return; // boshqa faylга ko'chган (/clear) — tegmaymiz
-    if (fs.existsSync(expectedFile)) return; // transcript paydo bo'ldi — joyида
+    if (agent.filePath !== expectedFile) return; // boshqa faylga ko'chgan (/clear) — tegmaymiz
+    if (fs.existsSync(expectedFile)) return; // transcript paydo bo'ldi — joyida
     if (agent.inputTokens > 0 || !agent.isWaiting) return; // faoliyat belgisi bor
-    this.log(`⚠ #${id}: 20s'да transcript topilmadi — 'claude' PATH'да yo'q bo'lishi mumkin (terminaldаgi xatoni ko'ring). Agent olib tashlandi.`);
+    this.log(`⚠ #${id}: 20s'da transcript topilmadi — 'claude' PATH'da yo'q bo'lishi mumkin (terminaldagi xatoni ko'ring). Agent olib tashlandi.`);
     this.detach(id);
   }
 
-  /** Agentни store'дан olib tashlaydi (terminalни YOPMAYDI). */
+  /** Agentni store'dan olib tashlaydi (terminalni YOPMAYDI). */
   private detach(id: number): void {
     this.terminals.delete(id);
     this.store.remove(id);
   }
 
-  /** Webview "Yopish" tugmasi — agentни VA uning terminalини yopadi. */
+  /** Webview "Yopish" tugmasi — agentni VA uning terminalini yopadi. */
   closeAgent(id: number): void {
     const term = this.terminals.get(id);
     this.detach(id);
@@ -303,8 +311,8 @@ export class AgentManager {
     if (a) this.detach(a.id);
   }
 
-  /** Agentни yangi sessiyaга qayta biriktiradi (/clear yoki /resume). Eski
-   *  faylни "retired"га qo'shadi — scanForNew uni qayta adopt qilmasin. */
+  /** Agentni yangi sessiyaga qayta biriktiradi (/clear yoki /resume). Eski
+   *  faylni "retired"ga qo'shadi — scanForNew uni qayta adopt qilmasin. */
   private rebindAgentToSession(a: AgentState, newSessionId: string, dir: string): void {
     if (a.filePath) this.retired.add(a.filePath);
     a.sessionId = newSessionId;
@@ -320,7 +328,7 @@ export class AgentManager {
     this.watcher.emitSnapshot(a);
   }
 
-  /** Shu papkадаги, terminalи HALI OCHIQ, boshqa fayldаgi agentlar. */
+  /** Shu papkadagi, terminali HALI OCHIQ, boshqa fayldagi agentlar. */
   private openBoundAgentsInDir(dir: string, excludeFile?: string): AgentState[] {
     const open = new Set(vscode.window.terminals);
     return this.store.values().filter((a) => {
@@ -332,13 +340,13 @@ export class AgentManager {
   }
 
   /** JSONL-rejim (hook yo'q): yangi transcript fayl paydo bo'ldi — bu shu
-   *  papkадаги agentning /clear yoki /resume'и bo'lishi mumkin. Agar papkада
-   *  bog'lanmagан ochiq terminal bo'lmasa (yangi sessiya uchun joy yo'q) —
-   *  mavjud agentні yangi faylга qayta biriktiramiz (dublikatsiz). */
+   *  papkadagi agentning /clear yoki /resume'i bo'lishi mumkin. Agar papkada
+   *  bog'lanmagan ochiq terminal bo'lmasa (yangi sessiya uchun joy yo'q) —
+   *  mavjud agentni yangi faylga qayta biriktiramiz (dublikatsiz). */
   private tryReassignNewFile(dir: string, ws: string | undefined, newFile: string): boolean {
     const candidates = this.openBoundAgentsInDir(dir, newFile);
     if (candidates.length === 0) return false;
-    // Papkада bog'lanmagан ochiq terminal bormi? Bo'lса — yangi fayl o'shаники
+    // Papkada bog'lanmagan ochiq terminal bormi? Bo'lsa — yangi fayl o'shaniki
     // (haqiqiy parallel sessiya) → reassign qilmaymiz.
     if (ws) {
       const bound = new Set(this.terminals.values());
@@ -356,14 +364,14 @@ export class AgentManager {
     return true;
   }
 
-  /** Berilган sessiya papkаsига mos ish papkаsини topadi. */
+  /** Berilgan sessiya papkasiga mos ish papkasini topadi. */
   private wsForDir(dir: string): string | undefined {
     return this.workspaceFolders().find((ws) => this.samePath(getSessionDir(ws), dir));
   }
 
-  /** `/clear` yoki `/resume` — o'sha loyihадаги terminal-agentини yangi
-   *  sessiyaга qayta biriktiradi (dublikat yaratmaydi). Topsa — qайта
-   *  biriktirilган agentni, aks holda null. */
+  /** `/clear` yoki `/resume` — o'sha loyihadagi terminal-agentini yangi
+   *  sessiyaga qayta biriktiradi (dublikat yaratmaydi). Topsa — qayta
+   *  biriktirilgan agentni, aks holda null. */
   reassignForClear(newSessionId: string, cwd: string): AgentState | null {
     const dir = getSessionDir(cwd);
     const candidates = this.openBoundAgentsInDir(dir).filter((a) => a.sessionId !== newSessionId);
@@ -372,8 +380,8 @@ export class AgentManager {
     if (candidates.length === 1) {
       a = candidates[0];
     } else {
-      // Ko'p nomzod — /clear fokusланган terminalда bo'ladi, faol terminalга
-      // bog'langanини tanlaymiz; mos kelmasa noto'g'ri biriktirmaymiz.
+      // Ko'p nomzod — /clear fokuslangan terminalda bo'ladi, faol terminalga
+      // bog'langanini tanlaymiz; mos kelmasa noto'g'ri biriktirmaymiz.
       const active = vscode.window.activeTerminal;
       a = candidates.find((x) => this.terminals.get(x.id) === active);
       if (!a) return null;
@@ -384,7 +392,7 @@ export class AgentManager {
   }
 
   focusAgent(id: number): void {
-    // Bog'lanmagан bo'lса — hozir cwd bo'yicha kech-bog'lashга urinamiz.
+    // Bog'lanmagan bo'lsa — hozir cwd bo'yicha kech-bog'lashga urinamiz.
     if (!this.terminals.has(id)) {
       const a = this.store.values().find((x) => x.id === id);
       if (a) this.bindByCwd(a);

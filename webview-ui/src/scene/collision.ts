@@ -1,8 +1,8 @@
-import { SEATS } from "./roles";
+import { SEATS, seatFor } from "./roles";
 
 // ── To'qnashuv (AABB to'siqlar) ──────────────────────────────
 // Devor/oyna/mebel — to'rtburchak to'siqlar. Kamera ham personaj ham
-// bularга urиladi (arvohдек o'tmaydi). Tez: ~120 to'rtburchak, sof math.
+// bularga uriladi (arvohdek o'tmaydi). Tez: ~120 to'rtburchak, sof math.
 
 export interface Rect {
   x0: number;
@@ -23,7 +23,7 @@ r(-23, 23, 15.8, 16.2);
 r(-23.2, -22.8, -16, 16);
 r(22.8, 23.2, -16, 16);
 
-// ── Xona old devorlari (eshik teshigи bilan) + bo'luvchilar ──
+// ── Xona old devorlari (eshik teshigi bilan) + bo'luvchilar ──
 type Room = { x0: number; x1: number; cx: number; door: number };
 const top: Room[] = [
   { x0: -23, x1: -9, cx: -16, door: 2.6 },
@@ -52,11 +52,20 @@ for (const m of bot) {
 for (const x of [-11, -3, 7, 15]) r(x - T, x + T, 9.5, 16);
 
 // ── Mebel ──
-// Agent stollari — barcha SEATS (asosiy 6 + markazий 4 qo'shimcha).
-for (const s of SEATS) r(s.x - 0.45, s.x + 0.45, s.z - 0.78, s.z + 0.78);
+// Agent stollari — barcha SEATS (10) + overflow buffer (juda ko'p agent).
+// Stol 1.5×0.8; to'siq stol yo'nalishiga (ry) qarab aylanadi, shuning uchun
+// markaziy ustunlar (ry=±π/2) ham, overflow qatorlari (ry=π) ham to'g'ri
+// qamrab olinadi — 11+ agentda personajlar stoldan o'tib ketmaydi.
+const SEAT_RECT_COUNT = SEATS.length + 20; // ~30 agentgacha
+for (let i = 0; i < SEAT_RECT_COUNT; i++) {
+  const s = seatFor(i);
+  const hx = Math.abs(0.75 * Math.cos(s.ry)) + Math.abs(0.4 * Math.sin(s.ry)) + 0.05;
+  const hz = Math.abs(0.75 * Math.sin(s.ry)) + Math.abs(0.4 * Math.cos(s.ry)) + 0.05;
+  r(s.x - hx, s.x + hx, s.z - hz, s.z + hz);
+}
 // Reception
 r(-1.7, 1.7, 7.0, 8.0);
-// Server xonasi (rack qatorлари)
+// Server xonasi (rack qatorlari)
 r(-22, -10, -15.6, -14.4);
 r(-22, -10, -11.6, -10.4);
 // Oshxona
@@ -84,7 +93,7 @@ r(11.7, 13.3, 13.8, 15.2);
 // glassC stol
 r(18, 20, 12, 14);
 
-/** (x,z) nuqta radius r bilan biror to'siqга tegadimi? */
+/** (x,z) nuqta radius r bilan biror to'siqga tegadimi? */
 export function blocked(x: number, z: number, rad: number): boolean {
   for (const b of B) {
     if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;

@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { slide } from "./collision";
 
-// ── Ichkи "yurib kuzatish" (birinchi shaxs) + QATTIQ to'qnashuv ──
-// Sичqoncha bilan qarash (bosib lock), WASD yurish. Devor/oyna/mebeldan
+// ── Ichki "yurib kuzatish" (birinchi shaxs) + QATTIQ to'qnashuv ──
+// Sichqoncha bilan qarash (bosib lock), WASD yurish. Devor/oyna/mebeldan
 // o'tmaydi (AABB to'siqlar), devor bo'ylab sirg'anadi.
 
 const BOUND_X = 22.4;

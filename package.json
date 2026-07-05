@@ -42,7 +42,7 @@
       },
       {
         "command": "agent-office.showDiagnostics",
-        "title": "Agent Office: Diagnostikани ko'rsatish",
+        "title": "Agent Office: Diagnostikani ko'rsatish",
         "icon": "$(pulse)"
       }
     ],
@@ -84,17 +84,17 @@
         "agent-office.autoShowPanel": {
           "type": "boolean",
           "default": false,
-          "description": "VS Code ochilganda Agent Office panelини avtomatik ochish."
+          "description": "VS Code ochilganda Agent Office panelini avtomatik ochish."
         },
         "agent-office.autoSpawnAgent": {
           "type": "boolean",
           "default": false,
-          "description": "VS Code ochilganда, agar hech qanday agent ishlamayotgan bo'lsa, avtomatik bittasini ishga tushirish."
+          "description": "VS Code ochilganda, agar hech qanday agent ishlamayotgan bo'lsa, avtomatik bittasini ishga tushirish."
         },
         "agent-office.hooksEnabled": {
           "type": "boolean",
           "default": true,
-          "description": "Claude Code Hooks orqali ishonchli aniqlash (~/.claude/settings.json'ga hook qo'shadi). O'chirilsa faqat JSONL kuzatuvи ishlaydi."
+          "description": "Claude Code Hooks orqali ishonchli aniqlash (~/.claude/settings.json'ga hook qo'shadi). O'chirilsa faqat JSONL kuzatuvi ishlaydi."
         }
       }
     }

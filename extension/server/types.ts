@@ -4,18 +4,18 @@
 import { MAX_CONTEXT_TOKENS } from "../core/constants.js";
 
 export interface AgentState {
-  /** Monoton o'suvchi butun ID (webview personajи shu bilan kalitlanadi). */
+  /** Monoton o'suvchi butun ID (webview personaji shu bilan kalitlanadi). */
   id: number;
   /** Kuzatilayotgan .jsonl transcript fayl yo'li. */
   filePath: string;
-  /** Faylда o'qilgan bayt (keyingi polling shu yerdan davom etadi). */
+  /** Faylda o'qilgan bayt (keyingi polling shu yerdan davom etadi). */
   fileOffset: number;
-  /** Qism-qator buferi (bitta o'qishда yarim qator qolsa). */
+  /** Qism-qator buferi (bitta o'qishda yarim qator qolsa). */
   lineBuffer: string;
-  /** UTF-8 dekoder — chunk chegарасидаги tugamagан ko'p-baytли belgini saqlaydi
-   *  (64KB o'rtasида belgi buzilmasин). Offset qайта o'rnatilса tozalanadi. */
+  /** UTF-8 dekoder — chunk chegarasidagi tugamagan ko'p-baytli belgini saqlaydi
+   *  (64KB o'rtasida belgi buzilmasin). Offset qayta o'rnatilsa tozalanadi. */
   lineDecoder?: import("node:string_decoder").StringDecoder;
-  /** Claude sessiya ID (hook eventларини yo'naltirish uchun). */
+  /** Claude sessiya ID (hook eventlarini yo'naltirish uchun). */
   sessionId?: string;
   /** Loyiha papka nomi (ko'rsatish uchun). */
   folderName: string;
@@ -27,7 +27,7 @@ export interface AgentState {
   isExternal: boolean;
 
   // ── Faoliyat holati ──
-  /** Hozir navbatда tool ishlatilganmi (idle-heuristikaсi uchun). */
+  /** Hozir navbatda tool ishlatilganmi (idle-heuristikasi uchun). */
   hadToolsInTurn: boolean;
   /** Agent kutish holatidami ("Done"/"Waiting"). */
   isWaiting: boolean;
@@ -35,36 +35,36 @@ export interface AgentState {
   activeToolIds: Set<string>;
   /** Foydali toollar (sub-agent Task ID'lari). */
   subagentToolIds: Set<string>;
-  /** Joriy tool yorlig'i/nomi + ruxsat holati — webview qayta yuklanганда
-   *  holatни tiklash uchun saqlanadi. */
+  /** Joriy tool yorlig'i/nomi + ruxsat holati — webview qayta yuklanganda
+   *  holatni tiklash uchun saqlanadi. */
   currentToolLabel?: string;
   currentToolName?: string;
   permissionActive: boolean;
-  /** Xato yuz berди (tool is_error / api_error / PostToolUseFailure) va agent
-   *  hali tiklanmagан — "Bloklangan" (qizил) ko'rsatiladi. Yangi navbat yoki
-   *  muvaffaqiyatли tool bilan tozalanadi. */
+  /** Xato yuz berdi (tool is_error / api_error / PostToolUseFailure) va agent
+   *  hali tiklanmagan — "Bloklangan" (qizil) ko'rsatiladi. Yangi navbat yoki
+   *  muvaffaqiyatli tool bilan tozalanadi. */
   blocked: boolean;
   /** Sessiya ruxsat rejimi (transcript `permissionMode`): "default" |
-   *  "auto" | "bypassPermissions". Faqat "default"да tool ruxsat so'raydi —
-   *  boshqa rejimда heuristik permission-taymer ishlatilmaydi (false-positive
-   *  bo'lmasин). Ko'pchilik sessiya bypass/auto (ruxsat so'ramaydi). */
+   *  "auto" | "bypassPermissions". Faqat "default"da tool ruxsat so'raydi —
+   *  boshqa rejimda heuristik permission-taymer ishlatilmaydi (false-positive
+   *  bo'lmasin). Ko'pchilik sessiya bypass/auto (ruxsat so'ramaydi). */
   permissionMode: string;
 
   // ── Hook rejimi ──
-  /** Bu agentga hook eventи kelgan — JSONL heuristikasi o'chiriladi. */
+  /** Bu agentga hook eventi kelgan — JSONL heuristikasi o'chiriladi. */
   hookDelivered: boolean;
-  /** PreToolUse → PostToolUse mosligи. Hook payloadда tool_use_id YO'Q, shu
-   *  sababли tool imzosи (name + input) bo'yicha moslaymiz. Imzo → FIFO tool
-   *  ID'lari (bir xil imzoли parallel tool'lар uchun navbat). Parallel tool'лар
+  /** PreToolUse → PostToolUse mosligi. Hook payloadda tool_use_id YO'Q, shu
+   *  sababli tool imzosi (name + input) bo'yicha moslaymiz. Imzo → FIFO tool
+   *  ID'lari (bir xil imzoli parallel tool'lar uchun navbat). Parallel tool'lar
    *  endi to'g'ri yopiladi (biri ustiga biri yozib qo'ymaydi). */
   hookToolQueue: Map<string, string[]>;
-  /** Hook tool ID hisoblagichи. */
+  /** Hook tool ID hisoblagichi. */
   hookToolCounter: number;
 
   // ── Tokenlar ──
   inputTokens: number;
   outputTokens: number;
-  /** Sessiya modeli (transcript `message.model`дан). */
+  /** Sessiya modeli (transcript `message.model`dan). */
   model?: string;
   /** Shu model uchun kontekst oynasi (200k yoki 1M). */
   contextWindow: number;
@@ -96,7 +96,7 @@ export function createAgentState(
     subagentToolIds: new Set(),
     permissionActive: false,
     blocked: false,
-    permissionMode: "default", // mode satrи ko'rilгунча konservativ (heuristik yoqiq)
+    permissionMode: "default", // mode satri ko'rilguncha konservativ (heuristik yoqiq)
     hookDelivered: false,
     hookToolQueue: new Map(),
     hookToolCounter: 0,

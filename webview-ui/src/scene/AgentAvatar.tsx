@@ -9,9 +9,9 @@ import { nearestNode, pathBetween, randomNodeKey, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
 import { presetFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
-// ── Agent personaji (dunyo darajасида, navigatsiya bilan) ────
-// Ishlaganда stolда o'tiradi; bo'sh (idle) turганda ofis bo'ylab sayr
-// qiladi — eshiklardан xonаларга kiradi (Pixel Agents kabi).
+// ── Agent personaji (dunyo darajasida, navigatsiya bilan) ────
+// Ishlaganda stolda o'tiradi; bo'sh (idle) turganda ofis bo'ylab sayr
+// qiladi — eshiklardan xonalarga kiradi (Pixel Agents kabi).
 
 const SPEED = 1.7;
 
@@ -23,7 +23,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
   const color = STATUS_COLOR[agent.status];
   const tok = tokenBar(agent.inputTokens, agent.contextWindow);
 
-  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishга mos, collision chetда)
+  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
   const sit = useRef<WP>({ ...sitPoint(seat) });
 
   const group = useRef<THREE.Group>(null);
@@ -46,7 +46,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
     const desiredSit = statusRef.current !== "idle";
     const p = pos.current;
 
-    // Rejim o'zgarsa — joriy tugunга yetib qayta rejalaymiz (uzoq aylanmasin)
+    // Rejim o'zgarsa — joriy tugunga yetib qayta rejalaymiz (uzoq aylanmasin)
     if (desiredSit !== prevDesired.current) {
       prevDesired.current = desiredSit;
       if (path.current.length > 1) {
@@ -55,8 +55,8 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
       }
     }
 
-    // Yo'l tugagan — keyingi maqsad. HAR DOIM graf tuguniдан (curNode) yo'l
-    // olamiz → yo'llar faqat eshiklardан o'tadi, devor/mebeldan emas.
+    // Yo'l tugagan — keyingi maqsad. HAR DOIM graf tugunidan (curNode) yo'l
+    // olamiz → yo'llar faqat eshiklardan o'tadi, devor/mebeldan emas.
     if (path.current.length === 0) {
       const atSeat = Math.hypot(p.x - sit.current.x, p.z - sit.current.z) < 0.25;
       if (desiredSit) {
@@ -79,7 +79,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
       }
     }
 
-    // Harakat — faqat yo'l nuqtalari orasidа (graf qirralари devor kesmaydi)
+    // Harakat — faqat yo'l nuqtalari orasida (graf qirralari devor kesmaydi)
     let moving = false;
     if (path.current.length > 0) {
       seated.current = false;
@@ -106,7 +106,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
         p.z = res.z;
         moving = true;
         g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 10, dt);
-        // Tiqilib qolsa — bu nuqtани tashlab, qayta rejalaymiz
+        // Tiqilib qolsa — bu nuqtani tashlab, qayta rejalaymiz
         if (moved < SPEED * dt * 0.25) {
           stuck.current += dt;
           if (stuck.current > 0.8) {
@@ -138,7 +138,7 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
         getState={() => ({ sit: seated.current, moving: movingRef.current })}
       />
 
-      {/* Sub-agentlar — yonида kichik personaj */}
+      {/* Sub-agentlar — yonida kichik personaj */}
       {agent.subagents.map((key, i) => (
         <group key={key} position={[0.9 + (i % 2) * 0.7, 0, 0.4 - Math.floor(i / 2) * 0.7]} scale={0.55}>
           <PixelPerson skin={preset} status="working" pose="stand" />
@@ -151,11 +151,11 @@ export default function AgentAvatar({ agent }: { agent: AgentView }) {
       {/* Ruxsat pufagi */}
       {agent.permission && (
         <Html position={[0, 2.35, 0]} center style={{ pointerEvents: "none" }}>
-          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>🔔 Ruxsat so'ralди</div>
+          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>🔔 Ruxsat so'raldi</div>
         </Html>
       )}
 
-      {/* Yorliq — tanlanganда to'liq, aks holda IXCHAM (ko'p agentда ustma-ust
+      {/* Yorliq — tanlanganda to'liq, aks holda IXCHAM (ko'p agentda ustma-ust
           bo'lmasin: faqat nuqta + nom). */}
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
         {selected ? (

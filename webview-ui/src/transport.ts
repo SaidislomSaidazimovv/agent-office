@@ -1,7 +1,7 @@
 import type { ClientMessage, ServerMessage } from "./protocol";
 
 // ── Transport (VS Code webview postMessage) ──────────────────
-// Kelajakда standalone brauzer uchun WebSocketTransport qo'shsa bo'ladi.
+// Kelajakda standalone brauzer uchun WebSocketTransport qo'shsa bo'ladi.
 
 interface VsCodeApi {
   postMessage(msg: unknown): void;
@@ -26,5 +26,5 @@ export function onMessage(handler: (msg: ServerMessage) => void): () => void {
   return () => window.removeEventListener("message", listener);
 }
 
-/** Standalone (brauzer, VS Code emas) rejimда test uchun. */
+/** Standalone (brauzer, VS Code emas) rejimda test uchun. */
 export const isVsCode = !!vscode;

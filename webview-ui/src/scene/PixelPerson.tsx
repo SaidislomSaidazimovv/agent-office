@@ -6,15 +6,15 @@ import type { CharSkin, HairStyle } from "./roles";
 import { STATUS_COLOR } from "./roles";
 
 // ── Voxel chibi personaj: o'tirish / turish / yurish ─────────
-// pose="sit" — stolда o'tirib yozadi (working/thinking...).
-// pose="stand" + moving — tik turib yuradi (bo'sh turганда sayr).
+// pose="sit" — stolda o'tirib yozadi (working/thinking...).
+// pose="stand" + moving — tik turib yuradi (bo'sh turganda sayr).
 
 interface Props {
   skin: CharSkin;
   status: AgentStatus;
   pose?: "sit" | "stand";
   moving?: boolean;
-  /** Har freym o'qiladi (re-render'siz poza/harakatни yangilash uchun). */
+  /** Har freym o'qiladi (re-render'siz poza/harakatni yangilash uchun). */
   getState?: () => { sit: boolean; moving: boolean };
 }
 
@@ -95,7 +95,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.sin(tt * 8)) * 0.03 : 0);
     if (bodyRef.current) bodyRef.current.position.y = damp(bodyRef.current.position.y, pelvisY, 12, dt);
 
-    // Oyoqlar (o'tirganда son OLDINGA −z, boldir pastga; yurganда tebranish)
+    // Oyoqlar (o'tirganda son OLDINGA −z, boldir pastga; yurganda tebranish)
     const swing = walk ? Math.sin(tt * 8) * 0.6 : 0;
     if (hipL.current) hipL.current.rotation.x = damp(hipL.current.rotation.x, sit ? 1.5 : swing, 12, dt);
     if (hipR.current) hipR.current.rotation.x = damp(hipR.current.rotation.x, sit ? 1.5 : -swing, 12, dt);
@@ -106,7 +106,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     let lean = 0.03;
     if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
     else if (thinking) lean = -0.04;
-    else if (walk) lean = 0.11; // yurганда oldинга engashadi
+    else if (walk) lean = 0.11; // yurganda oldinga engashadi
     const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.014 : 0.024);
     if (upperRef.current) {
       upperRef.current.rotation.x = damp(upperRef.current.rotation.x, lean, 7, dt);
@@ -123,7 +123,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       headRef.current.rotation.z = damp(headRef.current.rotation.z, tilt, 6, dt);
     }
 
-    // Yelka/qo'l — o'tirганда OLDINGA (yozish), yurганда tebranish
+    // Yelka/qo'l — o'tirganda OLDINGA (yozish), yurganda tebranish
     const armSwing = walk ? Math.sin(tt * 8) * 0.5 : 0;
     const shTL = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11)) * 0.25 : 0.5) : -armSwing;
     const shTR = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0.5) : armSwing;
@@ -131,13 +131,13 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     if (shoR.current) shoR.current.rotation.x = damp(shoR.current.rotation.x, shTR, 10, dt);
 
     if (rootRef.current) {
-      // yurганда tabiiy yon-tebranish, turганда nozik chayqalish, blocked'да asabiy
+      // yurganda tabiiy yon-tebranish, turganda nozik chayqalish, blocked'da asabiy
       const sway = status === "blocked" ? Math.sin(tt * 20) * 0.02 : walk ? Math.sin(tt * 8) * 0.028 : Math.sin(tt * 0.7) * 0.01;
       rootRef.current.rotation.z = damp(rootRef.current.rotation.z, sway, walk ? 9 : 5, dt);
     }
   });
 
-  // Oyoq (son + tizza + boldir + poyabzal), hip pivotда
+  // Oyoq (son + tizza + boldir + poyabzal), hip pivotda
   const leg = (x: number, hipRef: React.RefObject<THREE.Group>, kneeRef: React.RefObject<THREE.Group>) => (
     <group ref={hipRef} position={[x, 0, 0]}>
       <mesh position={[0, -0.2, 0]} castShadow>
@@ -149,7 +149,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
           <boxGeometry args={[0.12, 0.42, 0.12]} />
           {cloth(s.bottom)}
         </mesh>
-        {/* poyabzal — tovoni orqада, tumshug'i OLDINGA (−z, yuz tomon) */}
+        {/* poyabzal — tovoni orqada, tumshug'i OLDINGA (−z, yuz tomon) */}
         <mesh position={[0, -0.42, -0.05]} castShadow>
           <boxGeometry args={[0.13, 0.1, 0.26]} />
           {cloth(s.shoes)}
@@ -184,7 +184,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
           <boxGeometry args={[0.34, 0.18, 0.26]} />
           {cloth(s.bottom)}
         </mesh>
-        {/* Oyoqlar (tos pastидан) */}
+        {/* Oyoqlar (tos pastidan) */}
         {leg(-0.09, hipL, kneeL)}
         {leg(0.09, hipR, kneeR)}
 

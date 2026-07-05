@@ -1,6 +1,6 @@
-// ── Rol presetlari + Pixel Agents personaj palitralarи ───────
-// Pixel Agents 6 personajини (JIK-A-4 Metro City) chuqur o'rganib,
-// har birини voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
+// ── Rol presetlari + Pixel Agents personaj palitralari ───────
+// Pixel Agents 6 personajini (JIK-A-4 Metro City) chuqur o'rganib,
+// har birini voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
 export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
 
@@ -14,7 +14,7 @@ export interface CharSkin {
   shoes: string;
 }
 
-// 6 pixel personaj → 6 rol. Ranglar sprite'lardан olingan.
+// 6 pixel personaj → 6 rol. Ranglar sprite'lardan olingan.
 export const ROLE_PRESETS: Record<string, CharSkin> = {
   // char_1 — sarg'ish uzun soch, qora libos
   research: { label: "Tadqiqot", skin: "#efc4a2", hair: "#d7a24c", hairStyle: "long", top: "#20222a", bottom: "#26282f", shoes: "#3a2c1e" },
@@ -41,7 +41,7 @@ export interface Seat { x: number; z: number; ry: number }
 
 // Ish joylari — hamma markazga qaraydi.
 //  • 1-6: asosiy ikki ustun (chap/o'ng, x=±5.5).
-//  • 7-10: markazдаги qo'shimcha stollar (x=±13) — ofis to'ladi (Variant B).
+//  • 7-10: markazdagi qo'shimcha stollar (x=±13) — ofis to'ladi (Variant B).
 export const SEATS: Seat[] = [
   { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
   { x: -5.5, z: 0, ry: -Math.PI / 2 },
@@ -49,7 +49,7 @@ export const SEATS: Seat[] = [
   { x: 5.5, z: -3.2, ry: Math.PI / 2 },
   { x: 5.5, z: 0, ry: Math.PI / 2 },
   { x: 5.5, z: 3.2, ry: Math.PI / 2 },
-  // Qo'shimcha stollar (avval "bo'sh stol" edi — endi overflow agentlar shu yerда)
+  // Qo'shimcha stollar (avval "bo'sh stol" edi — endi overflow agentlar shu yerda)
   { x: -13, z: -3, ry: -Math.PI / 2 },
   { x: -13, z: 3, ry: -Math.PI / 2 },
   { x: 13, z: -3, ry: Math.PI / 2 },
@@ -60,7 +60,7 @@ export const SEATS: Seat[] = [
 export const SEAT_COUNT = SEATS.length;
 
 /** Indeks bo'yicha o'rindiq. SEATS'dan tashqari (juda ko'p agent) — ustma-ust
- *  bo'lmasin uchun markazий ochiq maydonда neat qator generatsiya qilinadi. */
+ *  bo'lmasin uchun markaziy ochiq maydonda neat qator generatsiya qilinadi. */
 export function seatFor(index: number): Seat {
   if (index >= 0 && index < SEATS.length) return SEATS[index];
   const o = index - SEATS.length;
@@ -70,7 +70,7 @@ export function seatFor(index: number): Seat {
   return { x: -4.4 + col * 2.2, z: -5.2 - row * 2.0, ry: Math.PI };
 }
 
-/** Personaj o'tirish nuqtasi (stul markazi, yo'nalishга mos) — Workstation
+/** Personaj o'tirish nuqtasi (stul markazi, yo'nalishga mos) — Workstation
  *  stuli bilan bir xil formula: (0.72·sin(ry), 0.72·cos(ry)) siljish. */
 export function sitPoint(seat: Seat): { x: number; z: number } {
   return { x: seat.x + 0.72 * Math.sin(seat.ry), z: seat.z + 0.72 * Math.cos(seat.ry) };
@@ -101,5 +101,5 @@ export const STATUS_LABEL: Record<string, string> = {
   working: "Ishlamoqda",
   review: "Tasdiq kutmoqda",
   blocked: "Bloklangan",
-  collab: "Hamkorlikда",
+  collab: "Hamkorlikda",
 };

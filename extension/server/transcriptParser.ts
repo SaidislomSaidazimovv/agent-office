@@ -11,9 +11,9 @@ import { formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocke
 import type { AgentState } from "./types.js";
 
 // ── Transcript state machine (Pixel Agents §3a mantiqi) ──────
-// Bitta JSONL qatorini o'qib, agent holatини yangilaydi va webview'ga
-// mos ServerMessage'larни broadcast qiladi. Heuristik (JSONL) rejim.
-// Agar agentga hook eventи kelgan bo'lsa (hookDelivered) — faqat token
+// Bitta JSONL qatorini o'qib, agent holatini yangilaydi va webview'ga
+// mos ServerMessage'larni broadcast qiladi. Heuristik (JSONL) rejim.
+// Agar agentga hook eventi kelgan bo'lsa (hookDelivered) — faqat token
 // o'qiladi, qolgani hook rejimiga topshiriladi (ishonchliroq).
 
 interface ToolUseBlock {
@@ -40,7 +40,7 @@ function startPermissionTimer(store: AgentStateStore, agent: AgentState, delayMs
   }, delayMs);
 }
 
-/** Kutilayotган ruxsatни bekor qiladi (taymer + faol holat). */
+/** Kutilayotgan ruxsatni bekor qiladi (taymer + faol holat). */
 function clearPermission(store: AgentStateStore, agent: AgentState): void {
   if (agent.permissionTimer) {
     clearTimeout(agent.permissionTimer);
@@ -52,12 +52,12 @@ function clearPermission(store: AgentStateStore, agent: AgentState): void {
   }
 }
 
-/** assistant xabaridan token usage'ни o'qib broadcast qiladi. */
+/** assistant xabaridan token usage'ni o'qib broadcast qiladi. */
 function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<string, unknown>): void {
-  // Modelни aniqlab kontekst oynasini belgilaymiz (200k yoki 1M). Diqqat:
-  // transcript `message.model` 1M-rejimда ham ba'zан oddiy "claude-opus-4-8"
-  // beradi ([1m] belgisiсиз), shu sababли modelni faqat MINIMUM sifatida
-  // olamiz — asosiy ishonchli signal quyида: kuzatilган token 200kдан oshса,
+  // Modelni aniqlab kontekst oynasini belgilaymiz (200k yoki 1M). Diqqat:
+  // transcript `message.model` 1M-rejimda ham ba'zan oddiy "claude-opus-4-8"
+  // beradi ([1m] belgisisiz), shu sababli modelni faqat MINIMUM sifatida
+  // olamiz — asosiy ishonchli signal quyida: kuzatilgan token 200kdan oshsa,
   // bu aniq 1M-kontekst sessiya (avto-yuqorilaymiz).
   const model = message.model as string | undefined;
   if (model && model !== agent.model && model !== "<synthetic>") {
@@ -68,11 +68,11 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
     | { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
     | undefined;
   if (!usage) return;
-  // Kontekst hajmi = kesh-lanmagan + kesh-o'qilган + kesh-yaratilган (aks holda
+  // Kontekst hajmi = kesh-lanmagan + kesh-o'qilgan + kesh-yaratilgan (aks holda
   // faqat delta ~0 chiqadi va health-bar noto'g'ri bo'ladi).
   const ctx = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
   if (ctx > 0) agent.inputTokens = ctx;
-  // Avto-aniqlash: kontekst 200kдан oshди → 1M-rejim (model stringга ishonmaymiz).
+  // Avto-aniqlash: kontekst 200kdan oshdi → 1M-rejim (model stringga ishonmaymiz).
   if (ctx > MAX_CONTEXT_TOKENS && agent.contextWindow < CONTEXT_WINDOW_1M) {
     agent.contextWindow = CONTEXT_WINDOW_1M;
   }
@@ -102,16 +102,16 @@ export function processTranscriptLine(
   const type = o.type as string;
   const message = o.message as Record<string, unknown> | undefined;
 
-  // Ruxsat rejimini kuzatamiz (permission-mode satrи yoki user satrида keladi).
-  // default'дан boshqa (auto/bypassPermissions) — tool ruxsat so'ramaydi, shu
-  // sababли kutilayotган heuristik ruxsatни bekor qilamiz.
+  // Ruxsat rejimini kuzatamiz (permission-mode satri yoki user satrida keladi).
+  // default'dan boshqa (auto/bypassPermissions) — tool ruxsat so'ramaydi, shu
+  // sababli kutilayotgan heuristik ruxsatni bekor qilamiz.
   if (typeof o.permissionMode === "string") {
     agent.permissionMode = o.permissionMode;
     if (agent.permissionMode !== "default") clearPermission(store, agent);
   }
 
-  // Hook rejimi faol bo'lsa — JSONL'дан faqat tokenni o'qiymiz, qolgan
-  // holat/tool/ruxsat/navbat mantiqi hook'ларга topshiriladi (ishonchliroq).
+  // Hook rejimi faol bo'lsa — JSONL'dan faqat tokenni o'qiymiz, qolgan
+  // holat/tool/ruxsat/navbat mantiqi hook'larga topshiriladi (ishonchliroq).
   if (agent.hookDelivered) {
     if (type === "assistant" && message) emitTokens(store, agent, message);
     return;
@@ -167,7 +167,7 @@ export function processTranscriptLine(
             toolName: name,
             runInBackground,
           });
-          // Heuristik ruxsat-taymer — rejim + tool turиga qarab kechikish
+          // Heuristik ruxsat-taymer — rejim + tool turiga qarab kechikish
           // (default emas / exempt / read-only → null → taymer yo'q).
           const delay = permissionDelayFor(name, agent.permissionMode);
           if (delay != null) startPermissionTimer(store, agent, delay);
@@ -180,7 +180,7 @@ export function processTranscriptLine(
     if (hasThinking) {
       setActive(store, agent);
     }
-    // Faqat matn — navbat oxiriga yaqin: sukunat taymeri (idle heuristikaсi).
+    // Faqat matn — navbat oxiriga yaqin: sukunat taymeri (idle heuristikasi).
     if (hasText) {
       setActive(store, agent);
       if (!agent.hadToolsInTurn) startWaitingTimer(store, agent);
@@ -196,7 +196,7 @@ export function processTranscriptLine(
         (b: ToolUseBlock) => b && b.type === "tool_result",
       ) as Array<ToolUseBlock & { tool_use_id?: string; is_error?: boolean }>;
       if (toolResults.length > 0) {
-        // Tool natijasi keldi — kutilayotган ruxsatни bekor qilamiz
+        // Tool natijasi keldi — kutilayotgan ruxsatni bekor qilamiz
         clearPermission(store, agent);
         // Xato natija → bloklandi; toza natija → tiklandi.
         setBlocked(store, agent, toolResults.some((tr) => tr.is_error === true));
@@ -233,7 +233,7 @@ export function processTranscriptLine(
   }
 }
 
-/** Fayl boshidan birinchi foydalanuvchi so'rovини (vazifa yorlig'i) oladi. */
+/** Fayl boshidan birinchi foydalanuvchi so'rovini (vazifa yorlig'i) oladi. */
 export function extractFirstTask(headText: string): string {
   for (const line of headText.split("\n")) {
     if (!line) continue;

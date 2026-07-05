@@ -5,12 +5,14 @@ import * as path from "node:path";
 import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
+import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
-import { seatFor } from "../webview-ui/src/scene/roles.js";
+import { blocked } from "../webview-ui/src/scene/collision.js";
+import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
@@ -90,22 +92,22 @@ test("model id with [1m] sets 1M window immediately", () => {
   assert.equal(agent.contextWindow, 1000000);
 });
 
-test("bypassPermissions rejimда o'zgartiruvchi tool ruxsat-taymer QO'YMAYDI", () => {
+test("bypassPermissions rejimda o'zgartiruvchi tool ruxsat-taymer QO'YMAYDI", () => {
   const { store, agent } = setup();
   processTranscriptLine(store, agent, JSON.stringify({ type: "permission-mode", permissionMode: "bypassPermissions" }));
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "npm run build" } }] } }));
   assert.equal(agent.permissionMode, "bypassPermissions");
-  assert.equal(agent.permissionTimer, undefined, "bypass rejimда false-positive taymer bo'lmasligi kerak");
+  assert.equal(agent.permissionTimer, undefined, "bypass rejimda false-positive taymer bo'lmasligi kerak");
 });
 
-test("default rejimда o'zgartiruvchi tool ruxsat-taymer qo'yadi", () => {
+test("default rejimda o'zgartiruvchi tool ruxsat-taymer qo'yadi", () => {
   const { store, agent } = setup();
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Edit", input: { file_path: "a.ts" } }] } }));
-  assert.ok(agent.permissionTimer, "default rejimда Edit taymer qo'yishi kerak");
+  assert.ok(agent.permissionTimer, "default rejimda Edit taymer qo'yishi kerak");
   clearTimeout(agent.permissionTimer);
 });
 
-test("default rejimда read-only tool taymer QO'YMAYDI (exempt)", () => {
+test("default rejimda read-only tool taymer QO'YMAYDI (exempt)", () => {
   const { store, agent } = setup();
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] } }));
   assert.equal(agent.permissionTimer, undefined, "Read exempt — taymer bo'lmasligi kerak");
@@ -120,7 +122,7 @@ test("permissionDelayFor: Edit tez, Bash sekin, Read/bypass → null", () => {
   assert.equal(permissionDelayFor("Write", "auto"), null, "auto → taymer yo'q");
 });
 
-test("rejim default→auto o'zgarса faol ruxsat tozalanadi", () => {
+test("rejim default→auto o'zgarsa faol ruxsat tozalanadi", () => {
   const { store, agent, ev } = setup();
   agent.permissionActive = true;
   processTranscriptLine(store, agent, JSON.stringify({ type: "permission-mode", permissionMode: "auto" }));
@@ -175,7 +177,7 @@ test("noma'lum Notification → soxta permission YASAMAYDI", () => {
   assert.ok(!ev.some((e) => e.type === "agentToolPermission"), "noma'lum xabar permission bermasligi kerak");
 });
 
-test("hook: tool tugagach ruxsat pufagи tozalanadi", () => {
+test("hook: tool tugagach ruxsat pufagi tozalanadi", () => {
   const { store, agent, ev } = setup();
   handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "x" } });
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude needs your permission" });
@@ -183,6 +185,26 @@ test("hook: tool tugagach ruxsat pufagи tozalanadi", () => {
   handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "x" } });
   assert.equal(agent.permissionActive, false, "PostToolUse ruxsatni tozalashi kerak");
   assert.ok(ev.some((e) => e.type === "agentToolPermissionClear"), "clear broadcast");
+});
+
+test("JSONL tool boshlangach birinchi hook — eski tool osilmaydi (tozalanadi)", () => {
+  const { store, agent, ev } = setup();
+  // JSONL rejimida tool boshlanadi (hook hali yo'q)
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "sleep 100" } }] } }));
+  assert.equal(agent.activeToolIds.size, 1);
+  assert.equal(agent.hookDelivered, false);
+  // birinchi hook keladi (tool bilan bog'liq emas) — handoff eski toolni tozalashi kerak
+  handleHookEvent(store, agent, { hook_event_name: "UserPromptSubmit" });
+  assert.equal(agent.hookDelivered, true);
+  assert.equal(agent.activeToolIds.size, 0, "eski JSONL tool tozalanishi kerak (osilmasin)");
+  assert.ok(ev.some((e) => e.type === "agentToolsClear"), "agentToolsClear broadcast bo'lishi kerak");
+});
+
+test("handoff: JSONL permission taymeri hook rejimida false-positive bermaydi", () => {
+  const { store, agent } = setup();
+  agent.permissionActive = true;
+  handleHookEvent(store, agent, { hook_event_name: "Stop" });
+  assert.equal(agent.permissionActive, false, "JSONL permission handoff'da tozalanishi kerak");
 });
 
 test("hook PostToolUseFailure → blocked; PostToolUse → tozalanadi", () => {
@@ -195,12 +217,12 @@ test("hook PostToolUseFailure → blocked; PostToolUse → tozalanadi", () => {
 
 test("parallel tools: har biri to'g'ri yopiladi (biri qotib qolmaydi)", () => {
   const { store, agent } = setup();
-  // 3 ta tool parallel boshlanadi (PreToolUse x3 ketma-ket, PostToolUse'дан oldin)
+  // 3 ta tool parallel boshlanadi (PreToolUse x3 ketma-ket, PostToolUse'dan oldin)
   handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "a.ts" } });
   handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "b.ts" } });
   handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" } });
   assert.equal(agent.activeToolIds.size, 3, "3 tool faol bo'lishi kerak");
-  // Teskari tartibда tugaydi — imzo bo'yicha to'g'ri moslanadi
+  // Teskari tartibda tugaydi — imzo bo'yicha to'g'ri moslanadi
   handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "ls" } });
   handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "a.ts" } });
   handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: "b.ts" } });
@@ -233,22 +255,22 @@ function mgrSetup() {
   return { store, mgr };
 }
 
-test("cwd-mos terminal (nomi 'Claude Code' bo'lmasa ham) bog'lanadi → yopilса agent o'chadi", () => {
+test("cwd-mos terminal (nomi 'Claude Code' bo'lmasa ham) bog'lanadi → yopilsa agent o'chadi", () => {
   const { store, mgr } = mgrSetup();
   const t = makeTerminal({ name: "pwsh", cwd: WS });
   _state.activeTerminal = t;
   const a = mgr.ensureSessionAgent("sess-1", WS);
   assert.ok(store.has(a.id), "adopt bo'lmadi");
   fireClose(t);
-  assert.equal(store.has(a.id), false, "terminal yopilса agent o'chishi kerak");
+  assert.equal(store.has(a.id), false, "terminal yopilsa agent o'chishi kerak");
 });
 
-test("mos kelmaydigan terminal yopilса agent NOTO'G'RI o'chirilmaydi", () => {
+test("mos kelmaydigan terminal yopilsa agent NOTO'G'RI o'chirilmaydi", () => {
   const { store, mgr } = mgrSetup();
   const other = makeTerminal({ name: "pwsh", cwd: "C:\\butunlay\\boshqa" });
   const a = mgr.ensureSessionAgent("sess-2", WS);
   fireClose(other);
-  assert.equal(store.has(a.id), true, "boshqa papka terminalи agentга tegmasin");
+  assert.equal(store.has(a.id), true, "boshqa papka terminali agentga tegmasin");
 });
 
 test("cwd noma'lum faol terminal → fallback bog'lanadi", () => {
@@ -257,10 +279,10 @@ test("cwd noma'lum faol terminal → fallback bog'lanadi", () => {
   _state.activeTerminal = t;
   const a = mgr.ensureSessionAgent("sess-3", WS);
   fireClose(t);
-  assert.equal(store.has(a.id), false, "cwd noma'lum bo'lса faol terminalга bog'lanishi kerak");
+  assert.equal(store.has(a.id), false, "cwd noma'lum bo'lsa faol terminalga bog'lanishi kerak");
 });
 
-test("kech-bog'lash: terminal keyin ochilса focusAgent bog'laydi", () => {
+test("kech-bog'lash: terminal keyin ochilsa focusAgent bog'laydi", () => {
   const { store, mgr } = mgrSetup();
   const a = mgr.ensureSessionAgent("sess-4", WS); // terminal hali yo'q
   assert.ok(store.has(a.id));
@@ -270,8 +292,50 @@ test("kech-bog'lash: terminal keyin ochilса focusAgent bog'laydi", () => {
   assert.equal(store.has(a.id), false, "focusAgent kech-bog'lashi kerak");
 });
 
+console.log("Hook installer (settings.json xavfsizligi):");
+function tmpSettings(content?: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-set"));
+  const f = path.join(dir, "settings.json");
+  if (content !== undefined) fs.writeFileSync(f, content);
+  return f;
+}
+const SCRIPT = "/x/dist/hooks/claude-hook.js";
+
+test("BUZUQ settings.json → yozmaydi, foydalanuvchi ma'lumoti SAQLANADI", () => {
+  const corrupt = '{ "theme": "dark", "important": true,, }'; // buzuq JSON
+  const f = tmpSettings(corrupt);
+  const ok = installHooks(SCRIPT, f);
+  assert.equal(ok, false, "buzuq faylda false qaytishi kerak");
+  assert.equal(fs.readFileSync(f, "utf8"), corrupt, "fayl O'ZGARMASLIGI kerak (ma'lumot yo'qolmasin)");
+});
+
+test("yaroqli settings → hook qo'shiladi, mavjud kalitlar saqlanadi", () => {
+  const f = tmpSettings(JSON.stringify({ theme: "dark", editor: { fontSize: 14 } }));
+  assert.equal(installHooks(SCRIPT, f), true);
+  const s = JSON.parse(fs.readFileSync(f, "utf8"));
+  assert.equal(s.theme, "dark", "mavjud sozlama saqlanishi kerak");
+  assert.equal(s.editor.fontSize, 14, "ichki sozlama saqlanishi kerak");
+  assert.ok(s.hooks && s.hooks.PreToolUse, "hooks qo'shilishi kerak");
+  assert.equal(areHooksInstalled(SCRIPT, f), true);
+});
+
+test("bo'sh/mavjud bo'lmagan settings → yangi fayl yaratiladi", () => {
+  const f = tmpSettings(); // fayl yo'q
+  assert.equal(installHooks(SCRIPT, f), true);
+  assert.ok(JSON.parse(fs.readFileSync(f, "utf8")).hooks, "hooks bilan yaratilishi kerak");
+});
+
+test("uninstall faqat bizning hookni oladi, boshqasini saqlaydi", () => {
+  const f = tmpSettings(JSON.stringify({ hooks: { Stop: [{ matcher: "*", hooks: [{ type: "command", command: "node /boshqa/hook.js" }] }] } }));
+  installHooks(SCRIPT, f);
+  uninstallHooks(SCRIPT, f);
+  const s = JSON.parse(fs.readFileSync(f, "utf8"));
+  assert.ok(!areHooksInstalled(SCRIPT, f), "bizning hook o'chirilishi kerak");
+  assert.ok(s.hooks.Stop.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === "node /boshqa/hook.js")), "boshqa hook saqlanishi kerak");
+});
+
 console.log("Launch: 'claude' PATH-fail zombi tozalanadi:");
-test("transcript 20s'да paydo bo'lmasa agent olib tashlanadi", () => {
+test("transcript 20s'da paydo bo'lmasa agent olib tashlanadi", () => {
   const { store, mgr } = mgrSetup();
   mgr.launchAgent({});
   const agent = store.values()[0];
@@ -294,7 +358,7 @@ test("single-agent /clear → o'sha agent reassign bo'ladi (dublikat yo'q)", () 
   assert.equal(store.values().length, before, "yangi agent yaratilmasligi kerak (dublikat yo'q)");
 });
 
-test("ko'p agent /clear → faol terminalга bog'langan agent tanlanadi", () => {
+test("ko'p agent /clear → faol terminalga bog'langan agent tanlanadi", () => {
   const { mgr } = mgrSetup();
   const t1 = makeTerminal({ name: "pwsh", cwd: WS });
   _state.activeTerminal = t1;
@@ -302,9 +366,9 @@ test("ko'p agent /clear → faol terminalга bog'langan agent tanlanadi", () =>
   const t2 = makeTerminal({ name: "pwsh", cwd: WS });
   _state.activeTerminal = t2;
   const a2 = mgr.ensureSessionAgent("a-2", WS);
-  _state.activeTerminal = t1; // /clear t1'да bo'ldi
+  _state.activeTerminal = t1; // /clear t1'da bo'ldi
   const re = mgr.reassignForClear("a-3", WS);
-  assert.ok(re && re.id === a1.id, "faol terminal (t1) agentи tanlanishi kerak");
+  assert.ok(re && re.id === a1.id, "faol terminal (t1) agenti tanlanishi kerak");
   assert.equal(a2.sessionId, "a-2", "boshqa agent tegilmasligi kerak");
 });
 
@@ -329,21 +393,21 @@ test("11 agent → 11 xil o'rindiq (7-agent 0-o'ringa tushmaydi)", () => {
   const agents = Object.values(useOffice.getState().agents);
   assert.equal(agents.length, 11, "11 agent qo'shilishi kerak");
   const seats = agents.map((a) => a.seatIndex);
-  assert.equal(new Set(seats).size, 11, "har agentда UNIKAL o'rindiq indeksи bo'lishi kerak");
+  assert.equal(new Set(seats).size, 11, "har agentda UNIKAL o'rindiq indeksi bo'lishi kerak");
   // World-koordinatalar ham ustma-ust emas (generatsiya qilinganlar ham)
   const pts = agents.map((a) => { const s = seatFor(a.seatIndex); return `${s.x},${s.z}`; });
   assert.equal(new Set(pts).size, 11, "world pozitsiyalar ustma-ust bo'lmasligi kerak");
 });
 
-console.log("FileWatcher UTF-8 chegара:");
-test("64KB chegарада bo'linган ko'p-baytли belgi buzilmaydi (StringDecoder)", () => {
+console.log("FileWatcher UTF-8 chegara:");
+test("64KB chegarada bo'lingan ko'p-baytli belgi buzilmaydi (StringDecoder)", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-utf"));
   const file = path.join(dir, "sess.jsonl");
-  const mb = "ў"; // ў — UTF-8'да 2 bayt
+  const mb = "o‘"; // o‘ — UTF-8'da 2 bayt
   const head = `{"type":"assistant","message":{"pad":"`;
   const mid = `","content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"`;
-  // 'ў' belgisiнинг birinchi baytи aynan 65535-offsetда bo'lsin → 65536 chunk
-  // chegараси belgini ikkiga bo'ladi.
+  // 'o‘' belgisining birinchi bayti aynan 65535-offsetda bo'lsin → 65536 chunk
+  // chegarasi belgini ikkiga bo'ladi.
   const padLen = 65535 - Buffer.byteLength(head) - Buffer.byteLength(mid);
   assert.ok(padLen > 0, "pad musbat bo'lishi kerak");
   const line = head + "A".repeat(padLen) + mid + `${mb}x.ts"}}]}}`;
@@ -354,13 +418,13 @@ test("64KB chegарада bo'linган ko'p-baytли belgi buzilmaydi (StringDec
   const agent = createAgentState(1, file, "t");
   watcher.primeFromStart(agent);
 
-  assert.ok(agent.currentToolLabel?.includes(mb), "ko'p-baytли belgi butun qolishi kerak");
-  assert.ok(!agent.currentToolLabel?.includes("�"), "U+FFFD (buzilган belgi) bo'lmasligi kerak");
+  assert.ok(agent.currentToolLabel?.includes(mb), "ko'p-baytli belgi butun qolishi kerak");
+  assert.ok(!agent.currentToolLabel?.includes("�"), "U+FFFD (buzilgan belgi) bo'lmasligi kerak");
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 console.log("Adopt: tarix jimgina o'qiladi (flood yo'q):");
-test("primeFromStart broadcast QILMAYDI, holatни tiklaydi; emitSnapshot yakuniy holat", () => {
+test("primeFromStart broadcast QILMAYDI, holatni tiklaydi; emitSnapshot yakuniy holat", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-"));
   const file = path.join(dir, "sess.jsonl");
   const lines = [
@@ -377,8 +441,8 @@ test("primeFromStart broadcast QILMAYDI, holatни tiklaydi; emitSnapshot yakuni
   const agent = createAgentState(1, file, "t");
 
   watcher.primeFromStart(agent);
-  assert.equal(ev.length, 0, "prime davomида broadcast bo'lmasligi kerak (silent — flood yo'q)");
-  assert.equal(agent.inputTokens, 5010, "tokenlar tarixдан tiklanishi kerak");
+  assert.equal(ev.length, 0, "prime davomida broadcast bo'lmasligi kerak (silent — flood yo'q)");
+  assert.equal(agent.inputTokens, 5010, "tokenlar tarixdan tiklanishi kerak");
   assert.equal(agent.isWaiting, true, "turn_duration → waiting");
 
   watcher.emitSnapshot(agent);
@@ -388,15 +452,15 @@ test("primeFromStart broadcast QILMAYDI, holatни tiklaydi; emitSnapshot yakuni
 });
 
 console.log("Status hisoblash (collab ota-statusni bosmaydi):");
-test("ota kod yozayotган + subagent bor → 'working' (collab emas)", () => {
+test("ota kod yozayotgan + subagent bor → 'working' (collab emas)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 200, folderName: "par" });
   s.setActive(200, true);
   s.setTool(200, "Edit", "Edit a.ts");
   s.addSubagent(200, "sub-1");
-  assert.equal(useOffice.getState().agents[200].status, "working", "ota ishlаётганда working bo'lishi kerak");
+  assert.equal(useOffice.getState().agents[200].status, "working", "ota ishlayotganda working bo'lishi kerak");
 });
-test("ota bo'sh + subagent ishlаётган → 'collab'", () => {
+test("ota bo'sh + subagent ishlayotgan → 'collab'", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 201, folderName: "par2" });
   s.setActive(201, true);
@@ -411,7 +475,23 @@ test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   s.setBlocked(202, true);
   assert.equal(useOffice.getState().agents[202].status, "blocked", "blocked working'ni bosishi kerak");
   s.setBlocked(202, false);
-  assert.equal(useOffice.getState().agents[202].status, "working", "tozalanса asl status");
+  assert.equal(useOffice.getState().agents[202].status, "working", "tozalansa asl status");
+});
+
+console.log("Collision: overflow o'rindiqlar to'siqlangan:");
+test("overflow stol (>10) markazi bloklangan, sit nuqtasi ochiq", () => {
+  const s = seatFor(13); // overflow o'rindiq (SEATS'dan tashqari)
+  assert.ok(blocked(s.x, s.z, 0.16), "overflow stol markazi bloklangan bo'lishi kerak (o'tib ketmasin)");
+  const sit = sitPoint(s);
+  assert.ok(!blocked(sit.x, sit.z, 0.16), "sit nuqtasi ochiq — agent o'tira olishi kerak");
+});
+test("asosiy o'rindiq: stol bloklangan, sit ochiq (regressiya)", () => {
+  for (const i of [0, 5, 9]) {
+    const s = seatFor(i);
+    assert.ok(blocked(s.x, s.z, 0.16), `seat ${i} stol bloklangan`);
+    const sit = sitPoint(s);
+    assert.ok(!blocked(sit.x, sit.z, 0.16), `seat ${i} sit ochiq`);
+  }
 });
 
 console.log("Navigation:");
@@ -419,6 +499,15 @@ test("pathBetween reaches a room interior through its door", () => {
   const p = pathBetween(nearestNode(0, 0), "server_i");
   assert.ok(p.length >= 2, "path too short");
   assert.deepEqual(p[p.length - 1], NODES["server_i"], "path does not end at room");
+});
+
+test("hech bir xona ichki nuqtasi mebel ichida emas (agent titramaydi)", () => {
+  const rooms = ["server", "kitchen", "meeting", "bathroom", "glassA", "library", "focus", "lounge", "glassB", "glassC"];
+  for (const key of rooms) {
+    const n = NODES[`${key}_i`];
+    assert.ok(n, `${key}_i mavjud bo'lishi kerak`);
+    assert.ok(!blocked(n.x, n.z, 0.3), `${key} ichki nuqtasi (${n.x},${n.z}) mebeldan tashqarida bo'lishi kerak`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -12,8 +12,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const hookScript = vscode.Uri.joinPath(context.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
 
   context.subscriptions.push(
-    // retainContextWhenHidden: panel yashiринganда webview o'chmaydi —
-    // boshqa oynага o'tib qaytganда holat 0dan boshlanmaydi.
+    // retainContextWhenHidden: panel yashiringanda webview o'chmaydi —
+    // boshqa oynaga o'tib qaytganda holat 0dan boshlanmaydi.
     vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
       webviewOptions: { retainContextWhenHidden: true },
     }),

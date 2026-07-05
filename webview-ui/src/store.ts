@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
 
 // ── Sahna agent holati ───────────────────────────────────────
-// Server xabarlari flaglarни yangilaydi; `status` ular asosida hisoblanadi
-// va 3D personaj animatsiyasини boshqaradi.
+// Server xabarlari flaglarni yangilaydi; `status` ular asosida hisoblanadi
+// va 3D personaj animatsiyasini boshqaradi.
 
 export type AgentStatus =
   | "idle"
@@ -38,18 +38,18 @@ export interface AgentView {
   status: AgentStatus;
 }
 
-// Standart "reading" toollar — host `providerCapabilities` yuborса yangilanadi
+// Standart "reading" toollar — host `providerCapabilities` yuborsa yangilanadi
 // (bitta manba, takror emas).
 const DEFAULT_READING = ["Read", "Grep", "Glob", "LS", "NotebookRead", "WebFetch", "WebSearch"];
 
 function computeStatus(a: AgentView): AgentStatus {
   if (a.permission) return "review";
-  if (a.blocked) return "blocked"; // xato — e'tibor talab qiladi (qizил)
+  if (a.blocked) return "blocked"; // xato — e'tibor talab qiladi (qizil)
   if (!a.active && a.awaitingInput) return "review";
   if (!a.active) return "idle";
-  // Ota-agentнинг O'Z ishi ustuvor — subagent bo'lса ham kod yozayotган bo'lса
-  // "working" ko'rinsin (subagent personajlari baribir yonида ko'rinadi).
-  // "collab" faqat ota bo'sh (subagentларни kutаётган) holatда.
+  // Ota-agentning O'Z ishi ustuvor — subagent bo'lsa ham kod yozayotgan bo'lsa
+  // "working" ko'rinsin (subagent personajlari baribir yonida ko'rinadi).
+  // "collab" faqat ota bo'sh (subagentlarni kutayotgan) holatda.
   if (a.activeToolCount > 0) return a.reading ? "thinking" : "working";
   if (a.subagents.length > 0) return "collab";
   return "thinking";
@@ -108,7 +108,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   addAgent(meta) {
     set((s) => {
       if (s.agents[meta.id]) return s;
-      // Birinchi BO'SH o'rin indeksини topamiz (chegarasiz — hech qачон
+      // Birinchi BO'SH o'rin indeksini topamiz (chegarasiz — hech qachon
       // ustma-ust tushmaydi; SEATS tugasa seatFor() qo'shimcha joy beradi).
       const used = new Set(Object.values(s.agents).map((a) => a.seatIndex));
       let seat = 0;

@@ -2,7 +2,7 @@ import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { seatFor, STATUS_COLOR } from "./roles";
 
-// ── Agent ish joyi — MEBEL (personaj AgentAvatar'да, alohida) ──
+// ── Agent ish joyi — MEBEL (personaj AgentAvatar'da, alohida) ──
 
 const DESK_TOP = 0.72;
 const DESKTOP_C = "#f2efe9"; // oq stol usti
@@ -15,7 +15,7 @@ export default function Workstation({ agent }: { agent: AgentView }) {
 
   return (
     <group position={[seat.x, 0, seat.z]} rotation={[0, seat.ry, 0]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
-      {/* Stol usti — oq + qora akцент qirra */}
+      {/* Stol usti — oq + qora aksent qirra */}
       <mesh position={[0, DESK_TOP, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.5, 0.06, 0.8]} />
         <meshStandardMaterial color={DESKTOP_C} roughness={0.4} />

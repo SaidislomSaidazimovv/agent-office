@@ -6,7 +6,7 @@ import * as path from "node:path";
 
 // ── Lokal hook-server ────────────────────────────────────────
 // Claude Code hook-skripti POST qiladigan kichik HTTP server (Node http —
-// Fastify shart emas). 127.0.0.1'да tasodifiy portда, Bearer token bilan.
+// Fastify shart emas). 127.0.0.1'da tasodifiy portda, Bearer token bilan.
 // Kashfiyot: ~/.agent-office/server.json {port, pid, token}.
 
 export interface HookServerHandle {
@@ -25,16 +25,16 @@ export class HookServer {
   private ownsFile = false;
 
   async start(): Promise<HookServerHandle | null> {
-    // Boshqa VS Code oynasi hooks'ни egallab turган bo'lsa — biz raqobatlashmaymiz
-    // (server.json'ни bosib yozmaymiz). U oyna hook'larни oladi, biz JSONL'да qolamiz.
+    // Boshqa VS Code oynasi hooks'ni egallab turgan bo'lsa — biz raqobatlashmaymiz
+    // (server.json'ni bosib yozmaymiz). U oyna hook'larni oladi, biz JSONL'da qolamiz.
     const existing = this.readServerJson();
     if (existing && existing.pid !== process.pid && this.isAlive(existing.pid)) {
-      // PID tirik — lekin haqiqatан bizнинг server ishlayaptimi? (PID qайta
-      // ishlatilган bo'lishi mumkin). Port javob berса — egа tirik, chekinamiz.
+      // PID tirik — lekin haqiqatan bizning server ishlayaptimi? (PID qayta
+      // ishlatilgan bo'lishi mumkin). Port javob bersa — ega tirik, chekinamiz.
       if (!existing.port || (await this.probeAlive(existing.port))) {
         return null;
       }
-      // Port o'lik → stale/qайta-ishlatilган PID → biz egallaymiz.
+      // Port o'lik → stale/qayta-ishlatilgan PID → biz egallaymiz.
     }
     return new Promise((resolve) => {
       const server = http.createServer((req, res) => this.handle(req, res));
@@ -58,8 +58,8 @@ export class HookServer {
     }
   }
 
-  /** Berilган portда haqiqatан hook-server ishlayaptimi? PID qайта-ishlatilган
-   *  bo'lса (egа crash bo'lиб, PID boshqa jarayonга o'tган) — port javob bermaydi.
+  /** Berilgan portda haqiqatan hook-server ishlayaptimi? PID qayta-ishlatilgan
+   *  bo'lsa (ega crash bo'lib, PID boshqa jarayonga o'tgan) — port javob bermaydi.
    *  FAQAT aniq "ulanma rad etildi" (ECONNREFUSED) → o'lik; aks holda tirik deb
    *  hisoblaymiz (noto'g'ri egallab olmaslik uchun). */
   private probeAlive(port: number): Promise<boolean> {
@@ -70,7 +70,7 @@ export class HookServer {
       });
       req.on("timeout", () => {
         req.destroy();
-        resolve(true); // noaniq — xavfsiz tomonга (tirik deb hisoblaymiz)
+        resolve(true); // noaniq — xavfsiz tomonga (tirik deb hisoblaymiz)
       });
       req.on("error", (e) => {
         resolve((e as NodeJS.ErrnoException).code !== "ECONNREFUSED");
@@ -88,7 +88,7 @@ export class HookServer {
   }
 
   private handle(req: http.IncomingMessage, res: http.ServerResponse): void {
-    // Liveness probe — auth'сiz (faqat "shu server tirikmi" degani).
+    // Liveness probe — auth'siz (faqat "shu server tirikmi" degani).
     if (req.method === "GET" && req.url === "/api/health") {
       res.writeHead(200, { "content-type": "text/plain" });
       res.end("ok");
@@ -132,8 +132,8 @@ export class HookServer {
     try {
       const p = this.serverJsonPath();
       fs.mkdirSync(path.dirname(p), { recursive: true });
-      // ATOMIK: temp faylга yozib, so'ng rename — hook script hech qачон
-      // yarим-yozilган faylни o'qimaydi (event tushib qolmaydi).
+      // ATOMIK: temp faylga yozib, so'ng rename — hook script hech qachon
+      // yarim-yozilgan faylni o'qimaydi (event tushib qolmaydi).
       const tmp = `${p}.${process.pid}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify({ port, pid: process.pid, token: this.token }));
       fs.renameSync(tmp, p);
@@ -148,7 +148,7 @@ export class HookServer {
     } catch {
       /* ignore */
     }
-    // Faqat O'ZIMIZ yozган server.json'ни o'chiramiz (boshqa oynаникини emas)
+    // Faqat O'ZIMIZ yozgan server.json'ni o'chiramiz (boshqa oynanikini emas)
     if (this.ownsFile) {
       try {
         fs.rmSync(this.serverJsonPath(), { force: true });

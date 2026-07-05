@@ -1,7 +1,7 @@
 // ── Claude Code hook-skripti ─────────────────────────────────
-// Claude Code har hook eventида ishga tushiradi. stdin'дан JSON o'qib,
-// ~/.agent-office/server.json'дан port+token olib, lokal serverга POST qiladi.
-// HECH QACHON Claude'ни bloklamaydi (har doim exit 0).
+// Claude Code har hook eventida ishga tushiradi. stdin'dan JSON o'qib,
+// ~/.agent-office/server.json'dan port+token olib, lokal serverga POST qiladi.
+// HECH QACHON Claude'ni bloklamaydi (har doim exit 0).
 
 import * as fs from "node:fs";
 import * as http from "node:http";

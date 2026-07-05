@@ -10,13 +10,13 @@ export function claudeProjectsRoot(): string {
 }
 
 /** Ish papkasini Claude konvensiyasiga slug qiladi:
- *  har [a-zA-Z0-9-]дан tashqari belgi "-" ga. */
+ *  har [a-zA-Z0-9-]dan tashqari belgi "-" ga. */
 export function normalizeProjectPath(absPath: string): string {
   return absPath.replace(/[^a-zA-Z0-9-]/g, "-");
 }
 
 /** Berilgan ish papkasi uchun sessiya papkasini topadi.
- *  Windows'да katta-kichik harf farqли fallback bilan. */
+ *  Windows'da katta-kichik harf farqli fallback bilan. */
 export function getSessionDir(workspacePath: string): string {
   const root = claudeProjectsRoot();
   const dirName = normalizeProjectPath(workspacePath);

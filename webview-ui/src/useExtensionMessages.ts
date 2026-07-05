@@ -5,8 +5,8 @@ import { useOffice } from "./store";
 import { onMessage, send } from "./transport";
 
 // ── Xabar → holat ko'prigi ───────────────────────────────────
-// Server xabarlarини store amallariga tarjima qiladi. Mount bo'lганда
-// webviewReady yuboradi (extension boot ketma-ketligини boshlaydi).
+// Server xabarlarini store amallariga tarjima qiladi. Mount bo'lganda
+// webviewReady yuboradi (extension boot ketma-ketligini boshlaydi).
 
 export function useExtensionMessages(): void {
   useEffect(() => {
@@ -80,7 +80,7 @@ export function useExtensionMessages(): void {
       }
     });
 
-    // Ovozни birinchi bosishда ochamiz (autoplay siyosati)
+    // Ovozni birinchi bosishda ochamiz (autoplay siyosati)
     const unlock = () => {
       unlockAudio();
       window.removeEventListener("pointerdown", unlock);

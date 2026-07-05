@@ -1,14 +1,14 @@
 import type { CameraMode } from "../store";
 
-// ── Ofis xonasi — dollhouse (yopiq bino, iso'да near-devorlar yashirin) ──
+// ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
 export const ROOM = { W: 46, D: 32, WH: 3.4 };
 
 export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
   const fpv = mode === "fpv";
   const wallMat = "#dcd3c2";
-  // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'да yarim-shaffof
-  // (ichi ko'rinib tursin), FPV'да to'liq qattiq/зич.
+  // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'da yarim-shaffof
+  // (ichi ko'rinib tursin), FPV'da to'liq qattiq/zich.
   const nearOpacity = fpv ? 1 : 0.2;
   const nearTransparent = !fpv;
 
@@ -50,7 +50,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <boxGeometry args={[0.3, WH, D]} />
         <meshStandardMaterial color="#d2c9b7" roughness={1} />
       </mesh>
-      {/* Yaqin devorlar — 4 tomon BIR XIL balandlik. Iso'да yarim-shaffof. */}
+      {/* Yaqin devorlar — 4 tomon BIR XIL balandlik. Iso'da yarim-shaffof. */}
       <mesh position={[0, WH / 2, D / 2]} receiveShadow>
         <boxGeometry args={[W, WH, 0.3]} />
         <meshStandardMaterial color={wallMat} roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
@@ -60,7 +60,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <meshStandardMaterial color="#d2c9b7" roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
       </mesh>
 
-      {/* Shift — faqat FPV (ichkи ko'rinish yopiq bo'lsin) */}
+      {/* Shift — faqat FPV (ichki ko'rinish yopiq bo'lsin) */}
       <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]} visible={fpv}>
         <planeGeometry args={[W, D]} />
         <meshStandardMaterial color="#eae4d6" roughness={1} side={2} />

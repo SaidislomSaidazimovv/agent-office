@@ -16,7 +16,7 @@ export const VIEW_ID = "agent-office.panelView";
 const MAX_PENDING = 1000;
 
 // ── Webview view provider ────────────────────────────────────
-// Store hodisаларини webview'ga uzatadi. Webview React ilovаси
+// Store hodisalarini webview'ga uzatadi. Webview React ilovasi
 // tayyor bo'lguncha (webviewReady) xabarlar buferlanadi — aks holda
 // dastlabki hodisalar yo'qoladi.
 
@@ -61,7 +61,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  /** Muhim holat o'zgarishlarini logга yozadi (token spam'siz). */
+  /** Muhim holat o'zgarishlarini logga yozadi (token spam'siz). */
   private logBroadcast(msg: ServerMessage): void {
     switch (msg.type) {
       case "agentStatus":
@@ -84,14 +84,14 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.manager.start();
     this.logMsg(`Agent Office ${this.version} yoqildi. Ish papkalari: ${(vscode.workspace.workspaceFolders ?? []).map((f) => f.name).join(", ") || "(yo'q)"}`);
 
-    // Hook rejimi (ishonchli aniqlash) — sozlamада yoqilған bo'lsa.
+    // Hook rejimi (ishonchli aniqlash) — sozlamada yoqilg’an bo'lsa.
     const hooksEnabled = vscode.workspace
       .getConfiguration("agent-office")
       .get<boolean>("hooksEnabled", true);
     if (hooksEnabled) {
       void this.hookServer.start().then((handle) => {
         if (!handle) {
-          this.logMsg("⚠ Hook server ishga tushmadi (boshqa oyna egаллаган) — shu oynада faqat JSONL kuzatuvи.");
+          this.logMsg("⚠ Hook server ishga tushmadi (boshqa oyna egallagan) — shu oynada faqat JSONL kuzatuvi.");
           this.setHookActive(false);
           return;
         }
@@ -111,19 +111,19 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         }, 2000);
       }
     } else {
-      this.logMsg("Hook rejimi o'chirilган (agent-office.hooksEnabled=false) — faqat JSONL.");
+      this.logMsg("Hook rejimi o'chirilgan (agent-office.hooksEnabled=false) — faqat JSONL.");
       this.setHookActive(false);
     }
   }
 
-  /** Hook holатини saqlab webview'ga yuboradi (ko'rsatkich uchun). */
+  /** Hook holatini saqlab webview'ga yuboradi (ko'rsatkich uchun). */
   private setHookActive(active: boolean): void {
     this.hookActive = active;
     this.sendOrBuffer({ type: "hookStatus", active });
   }
 
-  /** Hook eventини agentга yo'naltiradi. Shu loyiha sessiyasi bo'lsa
-   *  agentни avto-yaratadi (+Agent shart emas). */
+  /** Hook eventini agentga yo'naltiradi. Shu loyiha sessiyasi bo'lsa
+   *  agentni avto-yaratadi (+Agent shart emas). */
   private onHookEvent(sessionId: string, raw: Record<string, unknown>): void {
     const event = raw.hook_event_name as string;
     this.logMsg(`[hook] ${event}  session=${sessionId.slice(0, 8)}${raw.tool_name ? "  tool=" + raw.tool_name : ""}`);
@@ -135,11 +135,11 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (!agent) {
       const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
       if (!cwd || !this.isInWorkspace(cwd)) {
-        this.logMsg(`[hook] o'tkazildi — sessiya bu loyihада emas (cwd=${cwd ?? "?"})`);
+        this.logMsg(`[hook] o'tkazildi — sessiya bu loyihada emas (cwd=${cwd ?? "?"})`);
         return;
       }
       // Yangi sessiya boshlandi — bu /clear yoki /resume bo'lishi mumkin:
-      // o'sha terminalning mavjud agentини qayta biriktiramiz (dublikatsiz).
+      // o'sha terminalning mavjud agentini qayta biriktiramiz (dublikatsiz).
       if (event === "SessionStart") {
         const re = this.manager.reassignForClear(sessionId, cwd);
         if (re) {
@@ -243,13 +243,13 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       folderNames: Object.fromEntries(agents.map((a) => [a.id, a.folderName])),
       roles: Object.fromEntries(agents.filter((a) => a.role).map((a) => [a.id, a.role!])),
     });
-    // 5) Har agentning JORIY holatини qayta yuboramiz (SNAPSHOT) — webview
-    //    qayta yuklanганда ish 0dan boshlanmasin, aynan turган joyида davom etsin.
+    // 5) Har agentning JORIY holatini qayta yuboramiz (SNAPSHOT) — webview
+    //    qayta yuklanganda ish 0dan boshlanmasin, aynan turgan joyida davom etsin.
     this.post({ type: "hookStatus", active: this.hookActive });
     for (const a of agents) {
       for (const msg of agentSnapshotMessages(a)) this.post(msg);
     }
-    // Snapshot joriy holatни to'liq tasvirlaydi — eski buferni tashlaymiz.
+    // Snapshot joriy holatni to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];
   }
 
@@ -263,12 +263,12 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       return `<html><body style="font-family:sans-serif;padding:20px;color:#ddd;background:#111">
         <h3>Agent Office</h3><p>Webview qurilmagan. <code>npm run build</code> ni ishga tushiring.</p></body></html>`;
     }
-    // Nisbiy asset URL'larини webview URI'larига aylantiramiz
+    // Nisbiy asset URL'larini webview URI'lariga aylantiramiz
     html = html.replace(/(href|src)="\.?\/([^"]+)"/g, (_m, attr, file) => {
       const uri = webview.asWebviewUri(vscode.Uri.joinPath(distPath, file));
       return `${attr}="${uri}"`;
     });
-    // Runtime asset bazasi (GLB/tekstura three.js yuklashи uchun) — webview URI
+    // Runtime asset bazasi (GLB/tekstura three.js yuklashi uchun) — webview URI
     const baseUri = webview.asWebviewUri(distPath).toString().replace(/\/$/, "");
     html = html.replace(
       /<head>/i,
