@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import type { AgentStatus } from "../store";
-import type { CharSkin, HairStyle } from "./roles";
+import type { Accessory as AccessoryType, CharSkin, HairStyle } from "./roles";
 import { STATUS_COLOR } from "./roles";
 
 // ── Voxel chibi personaj: o'tirish / turish / yurish ─────────
@@ -20,6 +20,39 @@ interface Props {
 
 function damp(c: number, t: number, l: number, dt: number): number {
   return THREE.MathUtils.lerp(c, t, 1 - Math.exp(-l * dt));
+}
+
+// Bosh aksessuari — per-agent xilma-xillik (bosh markazida, old = -z).
+function Accessory({ type }: { type: AccessoryType }) {
+  if (type === "glasses") {
+    const f = () => <meshStandardMaterial color="#15181d" roughness={0.4} metalness={0.3} />;
+    return (
+      <group position={[0, 0.025, -0.152]}>
+        {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.043, 0.008, 6, 14]} />{f()}</mesh>)}
+        <mesh><boxGeometry args={[0.055, 0.008, 0.008]} />{f()}</mesh>
+        {[-0.11, 0.11].map((x) => <mesh key={x} position={[x, 0, 0.09]}><boxGeometry args={[0.008, 0.008, 0.18]} />{f()}</mesh>)}
+      </group>
+    );
+  }
+  if (type === "headphones") {
+    const m = () => <meshStandardMaterial color="#23262b" roughness={0.5} />;
+    return (
+      <group>
+        <mesh position={[0, 0.02, 0]} rotation={[0, 0, 0]}><torusGeometry args={[0.175, 0.022, 8, 16, Math.PI]} />{m()}</mesh>
+        {[-0.162, 0.162].map((x) => <mesh key={x} position={[x, 0.0, 0]} castShadow><boxGeometry args={[0.05, 0.13, 0.13]} />{m()}</mesh>)}
+      </group>
+    );
+  }
+  if (type === "cap") {
+    const m = () => <meshStandardMaterial color="#2f6bd6" roughness={0.8} />;
+    return (
+      <group position={[0, 0.155, 0]}>
+        <mesh castShadow><boxGeometry args={[0.335, 0.11, 0.335]} />{m()}</mesh>
+        <mesh position={[0, -0.045, -0.22]} castShadow><boxGeometry args={[0.3, 0.03, 0.16]} />{m()}</mesh>
+      </group>
+    );
+  }
+  return null;
 }
 
 function Hair({ style, color }: { style: HairStyle; color: string }) {
@@ -217,6 +250,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
             {/* quloqlar */}
             {[-0.157, 0.157].map((x) => <mesh key={x} position={[x, 0.0, 0.01]} castShadow><boxGeometry args={[0.03, 0.08, 0.08]} />{skinMat}</mesh>)}
             <Hair style={s.hairStyle} color={s.hair} />
+            {s.accessory && <Accessory type={s.accessory} />}
           </group>
         </group>
       </group>

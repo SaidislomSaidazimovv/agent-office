@@ -7,7 +7,7 @@ import { useOffice } from "../store";
 import { slide } from "./collision";
 import { nearestNode, pathBetween, randomNodeKey, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
-import { presetFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
+import { characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
 // ── Agent personaji (dunyo darajasida, navigatsiya bilan) ────
 // Ishlaganda stolda o'tiradi; bo'sh (idle) turganda ofis bo'ylab sayr
@@ -17,7 +17,7 @@ const SPEED = 1.7;
 
 function AgentAvatar({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
-  const preset = presetFor(agent.role, agent.seatIndex);
+  const preset = characterFor(agent.role, agent.seatIndex, agent.id);
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];

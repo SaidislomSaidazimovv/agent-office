@@ -3,6 +3,7 @@
 // har birini voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
 export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
+export type Accessory = "glasses" | "headphones" | "cap" | null;
 
 export interface CharSkin {
   label: string;
@@ -12,6 +13,8 @@ export interface CharSkin {
   top: string;
   bottom: string;
   shoes: string;
+  /** Aksessuar (per-agent xilma-xillik uchun) — ko'zoynak/naushnik/shляпа. */
+  accessory?: Accessory;
 }
 
 // 6 pixel personaj → 6 rol. Ranglar sprite'lardan olingan.
@@ -35,6 +38,33 @@ const PALETTE = Object.values(ROLE_PRESETS);
 export function presetFor(role: string | undefined, seatIndex: number): CharSkin {
   if (role && ROLE_PRESETS[role]) return ROLE_PRESETS[role];
   return PALETTE[seatIndex % PALETTE.length];
+}
+
+// Har agentga (id bo'yicha) noyob ko'rinish — bir xil rolli agentlar ham
+// farqlansin: aksessuar + soch rangi/kiyim soyasида nozik variatsiya.
+const ACCESSORIES: Accessory[] = [null, null, "glasses", "headphones", null, "cap", "glasses", null];
+
+/** Kichik rang siljishi (och/to'q) — bir xil rolli agentlarni ajratish uchun. */
+function shade(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const cl = (v: number) => Math.max(0, Math.min(255, v));
+  const r = cl(((n >> 16) & 255) + amt);
+  const g = cl(((n >> 8) & 255) + amt);
+  const b = cl((n & 255) + amt);
+  return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
+/** Agent uchun personaj ko'rinishi (rol preseti + id bo'yicha variatsiya). */
+export function characterFor(role: string | undefined, seatIndex: number, id: number): CharSkin {
+  const base = presetFor(role, seatIndex);
+  const accessory = ACCESSORIES[id % ACCESSORIES.length];
+  const d = ((id * 37) % 5) - 2; // -2..+2
+  return {
+    ...base,
+    accessory,
+    hair: shade(base.hair, d * 8),
+    top: shade(base.top, d * 6),
+  };
 }
 
 export interface Seat { x: number; z: number; ry: number }
