@@ -24,9 +24,20 @@ export interface LayoutSnapshot {
   floorColor: string | null;
 }
 
+// ── Ofis mavzulari (pol + devor palitrasi) ───────────────────
+export interface Theme { key: string; label: string; floor: string; wall: string }
+export const THEMES: Theme[] = [
+  { key: "warm", label: "Iliq", floor: "#d8c7a8", wall: "#dcd3c2" }, // standart
+  { key: "cool", label: "Salqin", floor: "#c4cfd8", wall: "#d4d9df" },
+  { key: "slate", label: "Tungi", floor: "#40454e", wall: "#4c525b" },
+  { key: "forest", label: "O'rmon", floor: "#bcc6ac", wall: "#ced4c3" },
+  { key: "rose", label: "Pushti", floor: "#e1cec9", wall: "#e7dad5" },
+];
+
 interface LayoutState {
   items: PlacedItem[];
   floorColor: string | null;
+  wallColor: string | null;
   packs: PackItem[];
   editMode: boolean;
   selectedId: string | null;
@@ -44,12 +55,14 @@ interface LayoutState {
   rotate(id: string): void;
   remove(id: string): void;
   setFloorColor(c: string | null): void;
+  setWallColor(c: string | null): void;
+  applyTheme(key: string): void;
   addPack(json: string): number;
   removePack(type: string): void;
   beginDrag(id: string): void;
   dragTo(x: number, z: number): void;
   endDrag(): void;
-  loadLayout(snap: { items?: PlacedItem[]; floorColor?: string | null; packs?: PackItem[] }): void;
+  loadLayout(snap: { items?: PlacedItem[]; floorColor?: string | null; wallColor?: string | null; packs?: PackItem[] }): void;
   exportJSON(): string;
   importJSON(text: string): boolean;
   clearAll(): void;
@@ -58,7 +71,7 @@ interface LayoutState {
 }
 
 export const useLayout = create<LayoutState>((set, get) => {
-  const save = () => send({ type: "saveLayout", items: get().items, floorColor: get().floorColor, packs: get().packs });
+  const save = () => send({ type: "saveLayout", items: get().items, floorColor: get().floorColor, wallColor: get().wallColor, packs: get().packs });
   // O'zgarishdan oldin tarixni saqlaydi, kelajakni tozalaydi, host'ga yuboradi.
   const commit = (items: PlacedItem[]) => {
     const prev = get().items;
@@ -69,6 +82,7 @@ export const useLayout = create<LayoutState>((set, get) => {
   return {
     items: [],
     floorColor: null,
+    wallColor: null,
     packs: [],
     editMode: false,
     selectedId: null,
@@ -106,6 +120,16 @@ export const useLayout = create<LayoutState>((set, get) => {
     },
     setFloorColor(c) {
       set({ floorColor: c });
+      save();
+    },
+    setWallColor(c) {
+      set({ wallColor: c });
+      save();
+    },
+    applyTheme(key) {
+      const th = THEMES.find((t) => t.key === key);
+      if (!th) return;
+      set({ floorColor: th.floor, wallColor: th.wall });
       save();
     },
 
@@ -153,13 +177,14 @@ export const useLayout = create<LayoutState>((set, get) => {
       set({
         items: Array.isArray(sn.items) ? sn.items : [],
         floorColor: typeof sn.floorColor === "string" ? sn.floorColor : null,
+        wallColor: typeof sn.wallColor === "string" ? sn.wallColor : null,
         packs,
         past: [],
         future: [],
       });
     },
     exportJSON() {
-      return JSON.stringify({ items: get().items, floorColor: get().floorColor }, null, 2);
+      return JSON.stringify({ items: get().items, floorColor: get().floorColor, wallColor: get().wallColor }, null, 2);
     },
     importJSON(text) {
       try {
@@ -171,7 +196,9 @@ export const useLayout = create<LayoutState>((set, get) => {
           .filter((it: PlacedItem) => it && typeof it.type === "string" && typeof it.x === "number" && typeof it.z === "number")
           .map((it: PlacedItem) => ({ id: it.id || newId(), type: it.type, x: it.x, z: it.z, ry: Number(it.ry) || 0 }));
         commit(clean);
-        if (typeof o?.floorColor === "string") get().setFloorColor(o.floorColor);
+        if (typeof o?.floorColor === "string") set({ floorColor: o.floorColor });
+        if (typeof o?.wallColor === "string") set({ wallColor: o.wallColor });
+        get().setFloorColor(get().floorColor); // saqlash (wallColor bilan birga)
         return true;
       } catch {
         return false;

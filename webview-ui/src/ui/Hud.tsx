@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLayout } from "../layoutStore";
+import { THEMES, useLayout } from "../layoutStore";
 import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
@@ -475,6 +475,9 @@ function LayoutEditor() {
   const count = useLayout((s) => s.items.length);
   const floorColor = useLayout((s) => s.floorColor);
   const setFloorColor = useLayout((s) => s.setFloorColor);
+  const wallColor = useLayout((s) => s.wallColor);
+  const setWallColor = useLayout((s) => s.setWallColor);
+  const applyTheme = useLayout((s) => s.applyTheme);
   const exportJSON = useLayout((s) => s.exportJSON);
   const importJSON = useLayout((s) => s.importJSON);
   const packs = useLayout((s) => s.packs);
@@ -523,6 +526,26 @@ function LayoutEditor() {
           <input type="color" value={floorColor ?? "#d8c7a8"} onChange={(e) => setFloorColor(e.target.value)} style={{ position: "absolute", inset: -4, width: 40, height: 40, border: "none", padding: 0, cursor: "pointer" }} />
         </label>
         <button title="Pol rangini tiklash" onClick={() => floorColor && setFloorColor(null)} style={{ ...pill(false, !floorColor), fontSize: 11, minWidth: 0 }}>↺</button>
+        {/* Devor rangi */}
+        <label title="Devor rangi" style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
+          <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, pointerEvents: "none", opacity: 0.5 }}>▢</span>
+          <input type="color" value={wallColor ?? "#dcd3c2"} onChange={(e) => setWallColor(e.target.value)} style={{ position: "absolute", inset: -4, width: 40, height: 40, border: "none", padding: 0, cursor: "pointer", opacity: 0.85 }} />
+        </label>
+        <button title="Devor rangini tiklash" onClick={() => wallColor && setWallColor(null)} style={{ ...pill(false, !wallColor), fontSize: 11, minWidth: 0 }}>↺</button>
+        <div style={sep} />
+        {/* Mavzular (pol + devor palitrasi) */}
+        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 1 }}>Mavzu:</span>
+        {THEMES.map((th) => {
+          const active = floorColor === th.floor && wallColor === th.wall;
+          return (
+            <button key={th.key} title={th.label} onClick={() => applyTheme(th.key)} style={{ ...pill(active), padding: 0, overflow: "hidden", minWidth: 30 }}>
+              <span style={{ display: "flex", width: "100%", height: "100%" }}>
+                <span style={{ flex: 1, background: th.floor }} />
+                <span style={{ flex: 1, background: th.wall }} />
+              </span>
+            </button>
+          );
+        })}
         <div style={sep} />
         <button title="Orqaga (undo)" onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
         <button title="Oldinga (redo)" onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>

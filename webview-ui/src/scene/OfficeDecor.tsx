@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
+import { useLayout } from "../layoutStore";
 
 // ── Katta ko'p-xonali ofis (server/xojatxona/kutubxona/shisha) ──
 // Hammasi qutı/silindr/konus — yengil. Xona: x[-23,23], z[-16,16].
@@ -42,11 +43,12 @@ function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: 
 function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
   const cx = (x0 + x1) / 2;
   const seg = Math.max(0.01, (x1 - x0 - door) / 2);
+  const wc = useLayout((s) => s.wallColor) ?? WALL_C; // mavzu devor rangi
   return (
     <group>
-      <Box p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
-      <Box p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={WALL_C} />
-      <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={WALL_C} />
+      <Box p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={wc} />
+      <Box p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={wc} />
+      <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={wc} />
       <Box p={[cx - door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
       <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
       <group position={[cx - door / 2, (WALL_H - 0.3) / 2, z]} rotation={[0, -1.25, 0]}>
@@ -71,7 +73,8 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
 
 // Bo'luvchi devor (X qat'iy, eshiksiz)
 function DividerZ({ x, z0, z1 }: { x: number; z0: number; z1: number }) {
-  return <Box p={[x, WALL_H / 2, (z0 + z1) / 2]} s={[WALL_T, WALL_H, z1 - z0]} c={WALL_C} />;
+  const wc = useLayout((s) => s.wallColor) ?? WALL_C;
+  return <Box p={[x, WALL_H / 2, (z0 + z1) / 2]} s={[WALL_T, WALL_H, z1 - z0]} c={wc} />;
 }
 
 // Shisha devor (X bo'ylab, eshik teshigi bilan)

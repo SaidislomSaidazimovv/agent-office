@@ -4,11 +4,22 @@ import type { CameraMode } from "../store";
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
 export const ROOM = { W: 46, D: 32, WH: 3.4 };
 
+// Rangni och/to'q qilish (mavzu devorlari uchun).
+function shade(hex: string, amt: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const cl = (v: number) => Math.max(0, Math.min(255, v));
+  const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
+  return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
 export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
   const fpv = mode === "fpv";
-  const wallMat = "#dcd3c2";
   const floorColor = useLayout((s) => s.floorColor);
+  const wallColor = useLayout((s) => s.wallColor);
+  const wallMat = wallColor ?? "#dcd3c2";
+  // Yon devorlar biroz to'qroq (chuqurlik hissi) — mavzu rangidan hosila.
+  const sideWall = wallColor ? shade(wallColor, -10) : "#d2c9b7";
   // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'da yarim-shaffof
   // (ichi ko'rinib tursin), FPV'da to'liq qattiq/zich.
   const nearOpacity = fpv ? 1 : 0.2;
@@ -51,7 +62,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
       </mesh>
       <mesh position={[-W / 2, WH / 2, 0]} receiveShadow>
         <boxGeometry args={[0.3, WH, D]} />
-        <meshStandardMaterial color="#d2c9b7" roughness={1} />
+        <meshStandardMaterial color={sideWall} roughness={1} />
       </mesh>
       {/* Yaqin devorlar — 4 tomon BIR XIL balandlik. Iso'da yarim-shaffof. */}
       <mesh position={[0, WH / 2, D / 2]} receiveShadow>
@@ -60,7 +71,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
       </mesh>
       <mesh position={[W / 2, WH / 2, 0]} receiveShadow>
         <boxGeometry args={[0.3, WH, D]} />
-        <meshStandardMaterial color="#d2c9b7" roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
+        <meshStandardMaterial color={sideWall} roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
       </mesh>
 
       {/* Shift — faqat FPV (ichki ko'rinish yopiq bo'lsin) */}

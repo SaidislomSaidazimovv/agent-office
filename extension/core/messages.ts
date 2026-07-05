@@ -154,6 +154,7 @@ export interface LayoutLoaded {
   type: "layoutLoaded";
   items: LayoutItem[];
   floorColor?: string | null;
+  wallColor?: string | null;
   packs?: unknown[];
 }
 
@@ -182,5 +183,6 @@ export interface SaveLayout {
   type: "saveLayout";
   items: LayoutItem[];
   floorColor?: string | null;
+  wallColor?: string | null;
   packs?: unknown[];
 }

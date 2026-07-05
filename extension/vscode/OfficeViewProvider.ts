@@ -212,7 +212,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         this.soundEnabled = msg.enabled;
         break;
       case "saveLayout":
-        this.saveLayout(msg.items, msg.floorColor ?? null, msg.packs ?? []);
+        this.saveLayout(msg.items, msg.floorColor ?? null, msg.wallColor ?? null, msg.packs ?? []);
         break;
     }
   }
@@ -222,28 +222,29 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   }
 
   /** Foydalanuvchi ofis layout'ini atomik saqlaydi. */
-  private saveLayout(items: unknown[], floorColor: string | null, packs: unknown[]): void {
+  private saveLayout(items: unknown[], floorColor: string | null, wallColor: string | null, packs: unknown[]): void {
     try {
       const p = this.layoutPath();
       fs.mkdirSync(path.dirname(p), { recursive: true });
       const tmp = `${p}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify({ items, floorColor, packs }));
+      fs.writeFileSync(tmp, JSON.stringify({ items, floorColor, wallColor, packs }));
       fs.renameSync(tmp, p);
     } catch {
       /* saqlab bo'lmasa — jim (layout ixtiyoriy) */
     }
   }
 
-  private loadLayout(): { items: unknown[]; floorColor: string | null; packs: unknown[] } {
+  private loadLayout(): { items: unknown[]; floorColor: string | null; wallColor: string | null; packs: unknown[] } {
     try {
       const o = JSON.parse(fs.readFileSync(this.layoutPath(), "utf8"));
       return {
         items: Array.isArray(o?.items) ? o.items : [],
         floorColor: typeof o?.floorColor === "string" ? o.floorColor : null,
+        wallColor: typeof o?.wallColor === "string" ? o.wallColor : null,
         packs: Array.isArray(o?.packs) ? o.packs : [],
       };
     } catch {
-      return { items: [], floorColor: null, packs: [] };
+      return { items: [], floorColor: null, wallColor: null, packs: [] };
     }
   }
 
@@ -266,7 +267,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     // 2b) Saqlangan ofis layout'i
     {
       const lay = this.loadLayout();
-      this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, packs: lay.packs });
+      this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, wallColor: lay.wallColor, packs: lay.packs });
     }
     // 3) Ish papkalari
     this.post({
