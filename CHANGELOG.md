@@ -3,40 +3,56 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.1.0] — 2026-07-04
+## [0.1.1] — 2026-07-05
 
-The first release. 🎉
+The first public release. 🎉 A living 3D office that watches your Claude Code
+sessions — no API key, no configuration, purely local.
 
 ### Added
 
-- **Live 3D office** — a React + three.js webview panel that renders your
-  Claude Code sessions as animated voxel characters in an isometric office.
-- **Agent characters** — one character per session; they sit and type while
-  working, and stand up and wander the office (through doors, into rooms)
-  when idle, returning to their desk when given a task.
-- **Multi-room office** — a large company floor with a server room, kitchen,
-  meeting rooms, a library, a bathroom, a lounge, glass-walled rooms and an
-  open central work area, each with walls, doors and its own floor colour.
-- **Two camera modes** — an isometric observer (dollhouse cutaway) and a
-  first-person walk-around mode (`WASD` + mouse look, `Esc` to exit).
-- **Status & activity** — floating labels with the current tool and file,
-  a colour-coded context/token health-bar, permission bubbles and per-turn
-  "Done" / "Waiting for input" states.
-- **Agent inspector** — click a character for its task, tokens and role,
-  with **Terminal** (focus) and **Close** actions.
-- **Sub-agents** — `Task`/`Agent` sub-agents appear as their own small
-  characters beside the parent.
-- **Sound notifications** — chimes on turn-done and permission requests, with a mute toggle.
-- **Layout editor** — place, drag, rotate and delete furniture on a grid, recolour the floor, undo/redo, and export/import the layout as JSON; persisted to `~/.agent-office/layout.json`.
-- **Standalone browser viewer** — `npx agent-office` serves the same 3D office over HTTP + WebSocket at `localhost:3100`, reusing the detection pipeline and shared layout.
-- **Detection** — two paths that run together: Claude Code **Hooks** (a
-  local hook server + installer) for reliable, precise detection, and a
-  **JSONL transcript** watcher as a fallback and for token usage.
-- **`+ Agent`** — spawns a new Claude Code terminal; workspace sessions are
-  also auto-detected. Closing the terminal (or the inspector's Close button)
-  removes the agent.
-- **State retention** — the office keeps its state when the panel is hidden
-  and re-synchronises on reload, so agents don't reset when you switch away.
-- Packaged as a compact `.vsix` (~360 KB).
+- **Live 3D office** — a React + three.js panel that renders each Claude Code
+  session as an animated voxel character in an isometric, multi-room office
+  (server room, kitchen, meeting rooms, library, bathroom, lounge, glass rooms).
+- **Agent characters** — they sit and type while working, stand up and wander
+  the office through doors when idle, and return to their desk on a new task.
+  Solid collision keeps characters and the camera out of walls and furniture.
+- **Two camera modes** — an isometric observer and a first-person walk-around
+  (`WASD` + mouse, `Esc` to exit).
+- **Rich status** — six live states colour-coded on each character and its
+  monitor: **working**, **thinking**, **collab** (sub-agents), **review**
+  (permission / awaiting input), **blocked** (errors), **idle**. Floating
+  labels show the current tool and file; unselected agents stay compact.
+- **Model-aware context meter** — the token gauge sizes to the session's real
+  context window, so 1M-context sessions read correctly.
+- **Agent inspector** — task, tokens, role, and **Terminal** / **Move** /
+  **Close** actions; move an agent to another desk (swap if occupied).
+- **Sub-agents** — `Task`/`Agent` sub-agents appear as small characters beside
+  the parent.
+- **Layout editor** — place, drag, rotate and delete furniture on a grid,
+  recolour the floor, undo/redo, export/import the layout as JSON, and load
+  **external furniture packs** described in JSON (box/cylinder/cone/sphere).
+  Saved to `~/.agent-office/layout.json`.
+- **Standalone browser viewer** — `npx agent-office` (or `node dist/cli.js`)
+  serves the same office over HTTP + WebSocket at `localhost:3100`, reusing the
+  detection pipeline and the shared layout.
+- **Two detection paths** — Claude Code **Hooks** (a local `127.0.0.1` hook
+  server + installer) for reliable detection, and a **JSONL transcript** watcher
+  as a fallback and for token usage. A top-bar badge shows which is live.
+- **Sound notifications** with a mute toggle; **multi-root** folder picker and
+  role presets on `+ Agent`; state retained across panel hide/reload.
 
-[0.1.0]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.0
+### Security & privacy
+
+- **Local only.** The extension never sees your Claude API key. It reads local
+  transcripts under `~/.claude/projects` and, optionally, receives Claude Code
+  hooks — nothing is sent anywhere.
+- **Loopback-bound.** The hook server and the standalone viewer bind to
+  `127.0.0.1` only and are never exposed to the network; the hook endpoint uses
+  a random per-session bearer token.
+- **No code execution of session data.** Asset packs and layouts are parsed as
+  plain JSON (no `eval`); the extension runs no `child_process`.
+- **Safe settings writes.** Hook installation into `~/.claude/settings.json`
+  bails out (never overwrites) if the file can't be parsed, and writes
+  atomically; stale prior-version hook entries are cleaned up on install.
+
+[0.1.1]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.1

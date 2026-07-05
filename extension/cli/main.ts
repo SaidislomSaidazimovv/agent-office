@@ -236,7 +236,8 @@ function sendSnapshot(send: (m: ServerMessage) => void): void {
   for (const a of agents) for (const m of agentSnapshotMessages(a)) send(m);
 }
 
-server.listen(port, () => {
+// Faqat 127.0.0.1 — tarmoqqa OCHILMAYDI (sessiya faoliyati boshqalarga ko'rinmasin).
+server.listen(port, "127.0.0.1", () => {
   const url = `http://localhost:${port}`;
   console.log(`\n  🏢 Agent Office — ${url}`);
   console.log(`  Kuzatilayotgan: ${paths.join(", ")}`);

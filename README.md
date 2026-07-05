@@ -8,6 +8,7 @@
     <img alt="React" src="https://img.shields.io/badge/React-20232a?style=for-the-badge&logo=react&logoColor=61dafb"/>
     <img alt="three.js" src="https://img.shields.io/badge/three.js-000000?style=for-the-badge&logo=three.js&logoColor=white"/>
     <img alt="License" src="https://img.shields.io/badge/License-MIT-249847?style=for-the-badge"/>
+    <a href="https://marketplace.visualstudio.com/items?itemName=thomasarisu.agent-office"><img alt="Marketplace" src="https://img.shields.io/visual-studio-marketplace/v/thomasarisu.agent-office?style=for-the-badge&label=Marketplace&color=1f6feb"/></a>
 </div>
 
 <br/>
@@ -91,10 +92,12 @@ The extension **does not run** Claude — it only watches. When Hooks are delive
 
 ## Install
 
-**From the packaged `.vsix`:**
+**From the Marketplace:** open **Extensions** in VS Code and search **“Agent Office 3D”**, or install [`thomasarisu.agent-office`](https://marketplace.visualstudio.com/items?itemName=thomasarisu.agent-office).
+
+**From a packaged `.vsix`:**
 
 ```bash
-code --install-extension agent-office-0.1.0.vsix
+code --install-extension agent-office-0.1.1.vsix
 ```
 
 …or in VS Code: **Extensions** → `⋯` → **Install from VSIX…**
@@ -153,6 +156,23 @@ It runs the same JSONL/hook detection and reads the layout you edited in the ext
 
 - More character variety and animations
 - Marketplace & Open VSX distribution
+
+## Security & Privacy
+
+Agent Office is **observation-only and fully local**:
+
+- It **never sees your Claude API key** and sends **no data anywhere** — it reads
+  your local transcripts under `~/.claude/projects` and, if enabled, receives
+  Claude Code hooks.
+- The hook server and the standalone viewer bind to **`127.0.0.1` only** (never
+  exposed to the network); the hook endpoint uses a random per-session token.
+- Asset packs and layouts are parsed as **plain JSON** (no `eval`), and the
+  extension runs **no `child_process`**.
+- Hook installation into `~/.claude/settings.json` **never overwrites** an
+  unreadable file and writes atomically.
+
+Found a security issue? Please open a private report via
+[GitHub Security Advisories](https://github.com/SaidislomSaidazimovv/agent-office/security/advisories/new).
 
 ## License
 
