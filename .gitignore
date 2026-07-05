@@ -31,6 +31,9 @@ scratchpad/
 # TS build info
 *.tsbuildinfo
 
+# Ichki sinov qo'llanmasi (githubda ko'rinmasin)
+TESTING.md
+
 # Packaged extension (regenerable, large)
 *.vsix
 

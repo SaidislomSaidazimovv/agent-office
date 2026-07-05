@@ -60,3 +60,22 @@ Run the build before moving any task to AWAITING REVIEW. (No dedicated test suit
 
 Full coordination protocol: load the `multi-agent-coordination` skill or read its references directly (`lock-protocol.md`, `approval-gate.md`, `git-workflow-variants.md`, `troubleshooting.md`).
 <!--MAC-BLOCK:END-->
+
+## 🔒 Security policy (this repo is public — enforce strictly)
+
+This extension is **observation-only and fully local**. Every change MUST preserve that. Before every commit and release:
+
+1. **No secrets in the repo, ever.** Never commit API keys, tokens, credentials, `.env` files, `~/.agent-office/server.json`, personal emails, or absolute paths containing a username (`C:\Users\<name>`, `/home/<name>`). Auth tokens must be generated at runtime (`crypto.randomBytes`), never hardcoded.
+2. **Local only.** The extension must never read the user's Claude API key and never send data off the machine. It only reads `~/.claude/projects` transcripts and receives local hooks.
+3. **Loopback-bound servers.** Any HTTP/WebSocket/hook server MUST bind `127.0.0.1` explicitly (never `0.0.0.0` / no host argument). The standalone CLI and the hook server both bind loopback only.
+4. **No code execution of session/user data.** Parse asset packs, layouts, and transcripts with `JSON.parse` only — no `eval` / `new Function`. Do not spawn `child_process` on session data.
+5. **Safe writes to user files.** Writing `~/.claude/settings.json` or `~/.agent-office/*` must bail out (never overwrite) if the existing file can't be parsed, and must write atomically (temp + rename).
+6. **Keep private/build files out of Git.** `TESTING.md`, `*.tsbuildinfo`, `dist/`, `scratchpad/`, `_shot*.cjs`, `.vsix`, `active_*.md` are gitignored. `icon.png` stays tracked — it is required by `vsce package` and is already public on the Marketplace.
+
+**Release security gate.** Before tagging a release, run and confirm CLEAN:
+```bash
+# secrets / personal data in tracked files
+git grep -nIiE "secret|password|api[_-]?key|-----BEGIN|ghp_|sk-|C:\\\\Users|/home/|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}" -- . ':(exclude)*lock.json'
+# servers must bind loopback
+git grep -nE "\.listen\(" -- '*.ts'   # every listen() must pass "127.0.0.1"
+```
