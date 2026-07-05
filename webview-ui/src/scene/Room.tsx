@@ -14,30 +14,31 @@ export default function Room({ mode }: { mode: CameraMode }) {
 
   return (
     <group>
-      {/* Yorug'lik */}
-      <ambientLight intensity={0.85} />
-      <hemisphereLight args={["#ffffff", "#c9c2b2", 0.6]} />
+      {/* Yorug'lik — biroz kamroq ambient (kontrast/soya seziladi), soya-kamerasi
+          butun xonani qamraydi (x=±23, z=±16 dan tashqaridagi mebel ham soya beradi). */}
+      <ambientLight intensity={0.72} />
+      <hemisphereLight args={["#ffffff", "#c9c2b2", 0.55]} />
       <directionalLight
-        position={[12, 18, 8]}
-        intensity={0.8}
+        position={[12, 20, 8]}
+        intensity={0.9}
         color="#fff3e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
+        shadow-camera-left={-24}
+        shadow-camera-right={24}
         shadow-camera-top={18}
         shadow-camera-bottom={-18}
         shadow-bias={-0.0005}
       />
 
-      {/* Pol */}
+      {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[W, D]} />
         <meshStandardMaterial color="#e9e2d2" roughness={1} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
         <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color="#d8c7a8" roughness={1} />
+        <meshStandardMaterial color="#d8c7a8" roughness={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
       {/* ── Perimetr devorlar (yopiq bino) ── */}

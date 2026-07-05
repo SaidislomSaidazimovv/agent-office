@@ -144,17 +144,21 @@ export default function Hud() {
         </button>
       </div>
 
-      {/* FPV maslahati */}
-      {cameraMode === "fpv" && (
-        <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.9)", color: "#e8ecf2", fontSize: 12, whiteSpace: "nowrap" }}>
-          🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish
-        </div>
-      )}
+      {/* Kamera maslahati (rejimga qarab) */}
+      <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
+        {cameraMode === "fpv" ? (
+          <>🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish</>
+        ) : (
+          <>🖱 Aylantirish uchun torting · <b>g'ildirak</b> masshtab · personajni bosing</>
+        )}
+      </div>
 
       {/* +Agent */}
       <div ref={menuRef} style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
         <button
           onClick={() => setMenu((m) => !m)}
+          title="Yangi Claude Code agenti qo'shish"
+          aria-label="Yangi agent qo'shish"
           style={{
             padding: "7px 14px", borderRadius: 9, cursor: "pointer",
             border: "1px solid rgba(94,155,255,0.5)", background: "rgba(94,155,255,0.18)",
@@ -263,7 +267,9 @@ export default function Hud() {
             <div style={{ fontWeight: 700, fontSize: 15 }}>{sel.folderName}</div>
             <button
               onClick={() => select(null)}
-              style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}
+              title="Yopish"
+              aria-label="Inspektorni yopish"
+              style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 6px", borderRadius: 6 }}
             >
               ×
             </button>
@@ -283,11 +289,13 @@ export default function Hud() {
             const win = sel.contextWindow || MAX_CONTEXT_TOKENS;
             const bar = tokenBar(sel.inputTokens, win);
             const winLabel = win >= 1000000 ? "1M" : `${Math.round(win / 1000)}k`;
+            // <1k → butun son, aks holda "N.Xk" (juda katta bo'lsa butun "Nk")
+            const kfmt = (n: number) => (n < 1000 ? `${n}` : n < 100000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n / 1000)}k`);
             return (
               <div style={{ marginTop: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 3 }}>
                   <span>Kontekst · {winLabel}</span>
-                  <span>{Math.round(bar.pct * 100)}% · {(sel.inputTokens / 1000).toFixed(0)}k / {(sel.outputTokens / 1000).toFixed(1)}k chiqish</span>
+                  <span>{Math.round(bar.pct * 100)}% · {kfmt(sel.inputTokens)} / {kfmt(sel.outputTokens)} chiqish</span>
                 </div>
                 <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
                   <div style={{ width: `${Math.max(3, bar.pct * 100)}%`, height: "100%", background: bar.color }} />

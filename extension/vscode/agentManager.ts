@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { CLAUDE_TERMINAL_NAME_PREFIX, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
+import { CLAUDE_TERMINAL_NAME_PREFIX, MAX_CONTEXT_TOKENS, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
 import { getSessionDir } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
@@ -22,6 +22,7 @@ export class AgentManager {
   private terminals = new Map<number, vscode.Terminal>();
   private scanTimer?: ReturnType<typeof setInterval>;
   private disposables: vscode.Disposable[] = [];
+  private pendingTimers = new Set<ReturnType<typeof setTimeout>>(); // dispose'da tozalanadi
   private terminalCounter = 0;
   private startupTime = 0;
   /** /clear yoki /resume'dan keyin tashlab ketilgan eski transcript fayllari —
@@ -274,7 +275,11 @@ export class AgentManager {
 
     // 20s'da transcript paydo bo'lmasa — 'claude' PATH'da bo'lmasligi mumkin →
     // zombi agentni olib tashlaymiz (terminal xatosi ko'rinsin uchun terminal saqlanadi).
-    setTimeout(() => this.checkLaunchStalled(id, expectedFile), 20_000);
+    const timer = setTimeout(() => {
+      this.pendingTimers.delete(timer);
+      this.checkLaunchStalled(id, expectedFile);
+    }, 20_000);
+    this.pendingTimers.add(timer);
   }
 
   /** +Agent'dan 20s o'tdi — transcript hali yo'q. 'claude' PATH'da yo'q yoki
@@ -327,6 +332,8 @@ export class AgentManager {
     a.subagentToolIds.clear();
     a.inputTokens = 0; // yangi sessiya — kontekst 0dan (birinchi xabar to'g'rilaydi)
     a.outputTokens = 0;
+    a.model = undefined; // yangi sessiya modelini qaytadan aniqlaymiz
+    a.contextWindow = MAX_CONTEXT_TOKENS; // 1M→200k downgrade'da o'lchagich to'g'ri bo'lsin
     this.watcher.primeFromStart(a);
     this.watcher.emitSnapshot(a);
   }
@@ -406,6 +413,8 @@ export class AgentManager {
 
   dispose(): void {
     if (this.scanTimer) clearInterval(this.scanTimer);
+    for (const t of this.pendingTimers) clearTimeout(t);
+    this.pendingTimers.clear();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
   }

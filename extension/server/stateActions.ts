@@ -50,11 +50,16 @@ export function permissionDelayFor(name: string, mode: string): number | null {
 /** tool_use input'dan inson-o'qiydigan status yasaydi ("Read foo.ts"). */
 export function formatToolStatus(name: string, input?: Record<string, unknown>): string {
   const i = input || {};
-  const raw =
-    (i.file_path as string) || (i.path as string) || (i.pattern as string) ||
-    (i.command as string) || (i.url as string) || "";
-  const base = typeof raw === "string" && raw ? raw.split(/[\\/]/).pop() || "" : "";
-  const target = base ? " " + base.slice(0, 40) : "";
+  // Yo'l (file_path/path) → faqat fayl nomini olamiz. Buyruq/pattern/url → to'liq
+  // (basename QILMAYMIZ — "git commit -m ..." yoki "cd src/app" buzilib qolmasin).
+  const p = (i.file_path as string) || (i.path as string);
+  let target = "";
+  if (typeof p === "string" && p) {
+    target = " " + (p.split(/[\\/]/).pop() || "").slice(0, 40);
+  } else {
+    const other = (i.command as string) || (i.pattern as string) || (i.url as string) || "";
+    if (typeof other === "string" && other) target = " " + other.replace(/\s+/g, " ").trim().slice(0, 40);
+  }
   return (name + target).trim();
 }
 

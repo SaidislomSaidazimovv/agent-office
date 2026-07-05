@@ -71,10 +71,11 @@ export class FileWatcher {
     }
     if (stat.size <= agent.fileOffset) {
       if (stat.size < agent.fileOffset) {
-        // Fayl qisqargan (masalan /clear) — qaytadan boshlaymiz
-        agent.fileOffset = 0;
-        agent.lineBuffer = "";
-        agent.lineDecoder = undefined;
+        // Fayl qisqargan/almashgan (in-place truncate) — holatni JIMGINA qaytadan
+        // tiklaymiz (butun tarix broadcast bo'lib flood qilmasin), so'ng snapshot.
+        agent.outputTokens = 0; // qayta o'qishda output takror hisoblanmasin
+        this.primeFromStart(agent);
+        this.emitSnapshot(agent);
       }
       return false;
     }

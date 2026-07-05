@@ -76,6 +76,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const kneeR = useRef<THREE.Group>(null);
   const shoL = useRef<THREE.Group>(null);
   const shoR = useRef<THREE.Group>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(Math.random() * 10);
 
   const cloth = (c: string) => <meshStandardMaterial color={c} roughness={0.85} />;
@@ -94,6 +95,8 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     // Tos balandligi
     const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.sin(tt * 8)) * 0.03 : 0);
     if (bodyRef.current) bodyRef.current.position.y = damp(bodyRef.current.position.y, pelvisY, 12, dt);
+    // Status halqasi — o'tirganda bosh pastga tushadi, halqa ham unga ergashadi.
+    if (ringRef.current) ringRef.current.position.y = damp(ringRef.current.position.y, sit ? 1.42 : 1.75, 12, dt);
 
     // Oyoqlar (o'tirganda son OLDINGA −z, boldir pastga; yurganda tebranish)
     const swing = walk ? Math.sin(tt * 8) * 0.6 : 0;
@@ -219,7 +222,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       </group>
 
       {/* Holat halqasi */}
-      <mesh position={[0, 1.75, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh ref={ringRef} position={[0, 1.75, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.06, 0.1, 18]} />
         <meshBasicMaterial color={STATUS_COLOR[status]} transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>

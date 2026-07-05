@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { seatFor, STATUS_COLOR } from "./roles";
@@ -8,7 +9,7 @@ const DESK_TOP = 0.72;
 const DESKTOP_C = "#f2efe9"; // oq stol usti
 const STEEL = "#8b929c"; // chrome oyoq
 
-export default function Workstation({ agent }: { agent: AgentView }) {
+function Workstation({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
   const select = useOffice((s) => s.select);
   const color = STATUS_COLOR[agent.status];
@@ -86,3 +87,6 @@ export default function Workstation({ agent }: { agent: AgentView }) {
     </group>
   );
 }
+
+// memo — o'zgarmagan agentda qayta render bo'lmaydi (perf).
+export default memo(Workstation);

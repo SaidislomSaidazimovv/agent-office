@@ -27,6 +27,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private manager = new AgentManager(this.store, this.watcher, (m) => this.logMsg(m));
   private hookServer = new HookServer((sessionId, raw) => this.onHookEvent(sessionId, raw));
   private hookActive = false;
+  private autoSpawnTimer?: ReturnType<typeof setTimeout>;
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
@@ -103,7 +104,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
 
       const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
       if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
-        setTimeout(() => {
+        this.autoSpawnTimer = setTimeout(() => {
+          this.autoSpawnTimer = undefined;
           if (this.store.size === 0) {
             this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
             this.manager.launchAgent();
@@ -278,6 +280,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   }
 
   dispose(): void {
+    if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     this.watcher.stop();
     this.manager.dispose();
     this.hookServer.stop();

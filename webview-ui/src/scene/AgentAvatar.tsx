@@ -1,6 +1,6 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
@@ -15,7 +15,7 @@ import { presetFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } fr
 
 const SPEED = 1.7;
 
-export default function AgentAvatar({ agent }: { agent: AgentView }) {
+function AgentAvatar({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
   const preset = presetFor(agent.role, agent.seatIndex);
   const select = useOffice((s) => s.select);
@@ -185,3 +185,7 @@ function dampAngle(cur: number, target: number, l: number, dt: number): number {
   while (d < -Math.PI) d += Math.PI * 2;
   return cur + d * (1 - Math.exp(-l * dt));
 }
+
+// memo — store o'zgarmagan agent obyekt ref'ini saqlaydi, shuning uchun boshqa
+// agent yangilanganda bu personaj qayta render bo'lmaydi (ko'p agentda muhim).
+export default memo(AgentAvatar);
