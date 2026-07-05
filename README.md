@@ -152,8 +152,6 @@ It runs the same JSONL/hook detection and reads the layout you edited in the ext
 ## Roadmap
 
 - More character variety and animations
-- Seat reassignment (click a character, then a desk)
-- External/community furniture packs
 - Marketplace & Open VSX distribution
 
 ## License
