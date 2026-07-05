@@ -120,7 +120,11 @@ export default function Hud() {
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
       {/* Klaviatura fokusi — barcha interaktiv elementlarda ko'rinadigan halqa. */}
-      <style>{`button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-visible { outline: 2px solid #5e9bff; outline-offset: 2px; border-radius: 6px; }`}</style>
+      <style>{`
+        button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-visible { outline: 2px solid #5e9bff; outline-offset: 2px; border-radius: 6px; }
+        button { transition: background 120ms ease, border-color 120ms ease, transform 80ms ease; }
+        button:active { transform: translateY(1px); }
+      `}</style>
       {/* Yuqori panel */}
       <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
