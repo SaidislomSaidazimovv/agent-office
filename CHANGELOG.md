@@ -26,7 +26,9 @@ The first release. 🎉
   with **Terminal** (focus) and **Close** actions.
 - **Sub-agents** — `Task`/`Agent` sub-agents appear as their own small
   characters beside the parent.
-- **Sound notifications** — chimes on turn-done and permission requests.
+- **Sound notifications** — chimes on turn-done and permission requests, with a mute toggle.
+- **Layout editor** — place, drag, rotate and delete furniture on a grid, recolour the floor, undo/redo, and export/import the layout as JSON; persisted to `~/.agent-office/layout.json`.
+- **Standalone browser viewer** — `npx agent-office` serves the same 3D office over HTTP + WebSocket at `localhost:3100`, reusing the detection pipeline and shared layout.
 - **Detection** — two paths that run together: Claude Code **Hooks** (a
   local hook server + installer) for reliable, precise detection, and a
   **JSONL transcript** watcher as a fallback and for token usage.

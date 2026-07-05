@@ -45,6 +45,8 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
 - 🧩 **Sub-agents** — when an agent spawns a `Task`/`Agent` sub-agent, it appears as its own small character beside the parent.
 - 🔔 **Sound + notifications** — subtle chimes when a turn finishes or a permission is requested, with a one-click mute toggle.
 - 🔌 **Two detection paths, clearly labelled** — reliable **Claude Code Hooks** plus a **JSONL transcript** fallback. A badge in the top bar shows whether this window has the live **🔗 Hook** stream or is on the **📄 JSONL** fallback.
+- 🪑 **Layout editor** — an ✏️ edit mode to place, drag, rotate and delete furniture on a grid, recolour the floor, undo/redo, and export/import the layout as JSON. Layouts persist to `~/.agent-office/layout.json` and are shared with the standalone viewer.
+- 🌐 **Standalone browser viewer** — run `npx agent-office` (or `node dist/cli.js`) to watch the same 3D office in any browser at `http://localhost:3100`, no VS Code required. It reuses the hook/JSONL detection and the shared layout.
 
 ### Status at a glance
 
@@ -135,11 +137,24 @@ npm run package       # produce the .vsix
 
 Press **F5** to launch an Extension Development Host for debugging.
 
+## Standalone viewer (CLI)
+
+Watch the office in a plain browser — handy for a second monitor or when you're not in VS Code:
+
+```bash
+npx agent-office                 # watch the current folder at http://localhost:3100
+npx agent-office ../my-project   # watch a specific project
+npx agent-office --port 4000     # custom port
+```
+
+It runs the same JSONL/hook detection and reads the layout you edited in the extension. (Observation only — the `+ Agent` terminal features are VS-Code specific.)
+
 ## Roadmap
 
-- Layout editor & persistence
 - More character variety and animations
-- Standalone CLI to view the office in a browser at `localhost`
+- Seat reassignment (click a character, then a desk)
+- External/community furniture packs
+- Marketplace & Open VSX distribution
 
 ## License
 

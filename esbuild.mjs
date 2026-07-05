@@ -30,13 +30,24 @@ const hookCtx = await esbuild.context({
   banner: { js: "#!/usr/bin/env node" },
 });
 
+// 3) Standalone CLI → dist/cli.js (`npx agent-office`, brauzerda kuzatish)
+const cliCtx = await esbuild.context({
+  ...common,
+  entryPoints: ["extension/cli/main.ts"],
+  outfile: "dist/cli.js",
+  banner: { js: "#!/usr/bin/env node" },
+});
+
 if (watch) {
   await extCtx.watch();
   await hookCtx.watch();
-  console.log("esbuild: watching extension host + hook script...");
+  await cliCtx.watch();
+  console.log("esbuild: watching extension host + hook script + cli...");
 } else {
   await extCtx.rebuild();
   await hookCtx.rebuild();
+  await cliCtx.rebuild();
   await extCtx.dispose();
   await hookCtx.dispose();
+  await cliCtx.dispose();
 }
