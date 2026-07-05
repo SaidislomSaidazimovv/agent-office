@@ -111,6 +111,8 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const shoR = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(Math.random() * 10);
+  const stretchLeft = useRef(0); // cho'zilish davomi (s)
+  const stretchCd = useRef(6 + Math.random() * 10); // keyingi cho'zilishgacha
 
   const cloth = (c: string) => <meshStandardMaterial color={c} roughness={0.85} />;
   const skinMat = <meshStandardMaterial color={s.skin} roughness={0.6} />;
@@ -124,6 +126,20 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const working = sit && (status === "working" || status === "collab");
     const thinking = sit && status === "thinking";
     const walk = !sit && st.moving;
+
+    // Vaqti-vaqti bilan cho'zilish — faqat tik turib bo'sh kutganda (idle).
+    const standingIdle = !sit && !st.moving;
+    if (standingIdle) {
+      if (stretchLeft.current <= 0) {
+        stretchCd.current -= dt;
+        if (stretchCd.current <= 0) { stretchLeft.current = 1.7; stretchCd.current = 10 + Math.random() * 14; }
+      } else {
+        stretchLeft.current -= dt;
+      }
+    } else {
+      stretchLeft.current = 0;
+    }
+    const stretching = stretchLeft.current > 0;
 
     // Tos balandligi
     const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.sin(tt * 8)) * 0.03 : 0);
@@ -140,7 +156,8 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
 
     // Yuqori tana engashishi + NAFAS OLISH (ko'krak ko'tarilib-tushadi)
     let lean = 0.03;
-    if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
+    if (stretching) lean = -0.22; // orqaga cho'zilish
+    else if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
     else if (thinking) lean = -0.04;
     else if (walk) lean = 0.11; // yurganda oldinga engashadi
     const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.014 : 0.024);
@@ -151,7 +168,8 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
 
     // Bosh
     let nod = 0, tilt = 0;
-    if (thinking) { tilt = 0.2; nod = -0.06; }
+    if (stretching) nod = -0.3; // yuqoriga qaraydi
+    else if (thinking) { tilt = 0.2; nod = -0.06; }
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
     if (headRef.current) {
@@ -159,10 +177,20 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       headRef.current.rotation.z = damp(headRef.current.rotation.z, tilt, 6, dt);
     }
 
-    // Yelka/qo'l — o'tirganda OLDINGA (yozish), yurganda tebranish
+    // Yelka/qo'l — o'tirganda OLDINGA (yozish), o'ylashda qo'l iyakka,
+    // cho'zilishda ikki qo'l tepaga, yurganda tebranish.
     const armSwing = walk ? Math.sin(tt * 8) * 0.5 : 0;
-    const shTL = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11)) * 0.25 : 0.5) : -armSwing;
-    const shTR = sit ? (working ? 0.95 + Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0.5) : armSwing;
+    let shTL: number, shTR: number;
+    if (stretching) {
+      shTL = -2.6; shTR = -2.7; // qo'llar bosh uzra
+    } else if (sit && thinking) {
+      shTL = 0.5; shTR = 2.0 + Math.sin(tt * 1.4) * 0.05; // o'ng qo'l iyakka
+    } else if (sit) {
+      shTL = working ? 0.95 + Math.max(0, Math.sin(tt * 11)) * 0.25 : 0.5;
+      shTR = working ? 0.95 + Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0.5;
+    } else {
+      shTL = -armSwing; shTR = armSwing;
+    }
     if (shoL.current) shoL.current.rotation.x = damp(shoL.current.rotation.x, shTL, 10, dt);
     if (shoR.current) shoR.current.rotation.x = damp(shoR.current.rotation.x, shTR, 10, dt);
 
