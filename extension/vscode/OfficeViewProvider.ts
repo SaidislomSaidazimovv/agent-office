@@ -60,6 +60,36 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.store.on("broadcast", (msg: ServerMessage) => {
       this.logBroadcast(msg);
       this.sendOrBuffer(msg);
+      this.maybeNotify(msg);
+    });
+  }
+
+  /** Ruxsat/blok holatlarida VS Code toast bildirishnomasi (sozlanadi,
+   *  agent bo'yicha throttle — spam bo'lmasin). "Ko'rsatish" tugmasi
+   *  agent terminaliga o'tkazadi. */
+  private lastNotify = new Map<number, number>();
+  private maybeNotify(msg: ServerMessage): void {
+    let id: number, text: string;
+    if (msg.type === "agentToolPermission") {
+      id = msg.id;
+      text = "ruxsat so'radi 🔔";
+    } else if (msg.type === "agentBlocked" && msg.blocked) {
+      id = msg.id;
+      text = "bloklandi (xato) ⛔";
+    } else {
+      return;
+    }
+    const enabled = vscode.workspace.getConfiguration("agent-office").get<boolean>("notifications", true);
+    if (!enabled) return;
+    // Panel ko'rinib turgan bo'lsa — toast shart emas (ofisda ko'rinadi).
+    if (this.view?.visible) return;
+    const now = Date.now();
+    const prev = this.lastNotify.get(id) ?? 0;
+    if (now - prev < 4000) return; // throttle
+    this.lastNotify.set(id, now);
+    const name = this.store.get(id)?.folderName ?? `Agent #${id}`;
+    void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, "Ko'rsatish").then((pick) => {
+      if (pick === "Ko'rsatish") this.manager.focusAgent(id);
     });
   }
 

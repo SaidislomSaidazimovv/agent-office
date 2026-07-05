@@ -119,6 +119,11 @@
           "type": "boolean",
           "default": true,
           "description": "Claude Code Hooks orqali ishonchli aniqlash (~/.claude/settings.json'ga hook qo'shadi). O'chirilsa faqat JSONL kuzatuvi ishlaydi."
+        },
+        "agent-office.notifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Agent ruxsat so'raganda yoki bloklanganda (xato) VS Code bildirishnomasini ko'rsatish."
         }
       }
     }
