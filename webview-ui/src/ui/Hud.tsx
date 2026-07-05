@@ -366,6 +366,12 @@ function LayoutEditor() {
   const canUndo = useLayout((s) => s.past.length > 0);
   const canRedo = useLayout((s) => s.future.length > 0);
   const count = useLayout((s) => s.items.length);
+  const floorColor = useLayout((s) => s.floorColor);
+  const setFloorColor = useLayout((s) => s.setFloorColor);
+  const exportJSON = useLayout((s) => s.exportJSON);
+  const importJSON = useLayout((s) => s.importJSON);
+  const [json, setJson] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
 
   const pill = (active: boolean, disabled = false): React.CSSProperties => ({
     display: "flex", alignItems: "center", justifyContent: "center", minWidth: 30, height: 30, padding: "0 8px",
@@ -376,24 +382,56 @@ function LayoutEditor() {
   const sep: React.CSSProperties = { width: 1, height: 22, background: "rgba(255,255,255,0.14)", margin: "0 3px" };
 
   return (
-    <div style={{ position: "absolute", bottom: 54, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderRadius: 12, background: "rgba(16,20,27,0.96)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxWidth: "90vw", flexWrap: "wrap", fontFamily: "system-ui" }}>
-      <span style={{ fontSize: 11, opacity: 0.6, marginRight: 2 }}>Qo'yish:</span>
-      {CATALOG.map((d) => (
-        <button key={d.type} title={d.label} onClick={() => setPalette(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
-          {d.emoji}
-        </button>
-      ))}
-      {selectedId && (
-        <>
-          <div style={sep} />
-          <button title="Aylantirish" onClick={() => rotate(selectedId)} style={pill(false)}>🔄</button>
-          <button title="O'chirish" onClick={() => remove(selectedId)} style={{ ...pill(false), color: "#ff6b6b" }}>🗑️</button>
-        </>
+    <>
+      <div style={{ position: "absolute", bottom: 54, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderRadius: 12, background: "rgba(16,20,27,0.96)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxWidth: "92vw", flexWrap: "wrap", fontFamily: "system-ui" }}>
+        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 2 }}>Qo'yish:</span>
+        {CATALOG.map((d) => (
+          <button key={d.type} title={d.label} onClick={() => setPalette(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
+            {d.emoji}
+          </button>
+        ))}
+        {selectedId && (
+          <>
+            <div style={sep} />
+            <button title="Aylantirish" onClick={() => rotate(selectedId)} style={pill(false)}>🔄</button>
+            <button title="O'chirish" onClick={() => remove(selectedId)} style={{ ...pill(false), color: "#ff6b6b" }}>🗑️</button>
+          </>
+        )}
+        <div style={sep} />
+        {/* Pol rangi */}
+        <label title="Pol rangi" style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
+          <input type="color" value={floorColor ?? "#d8c7a8"} onChange={(e) => setFloorColor(e.target.value)} style={{ position: "absolute", inset: -4, width: 40, height: 40, border: "none", padding: 0, cursor: "pointer" }} />
+        </label>
+        <button title="Pol rangini tiklash" onClick={() => floorColor && setFloorColor(null)} style={{ ...pill(false, !floorColor), fontSize: 11, minWidth: 0 }}>↺</button>
+        <div style={sep} />
+        <button title="Orqaga (undo)" onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
+        <button title="Oldinga (redo)" onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>
+        <button title="JSON eksport/import" onClick={() => { setErr(false); setJson(exportJSON()); }} style={{ ...pill(false), fontSize: 12, minWidth: 0 }}>⇄ JSON</button>
+        <button title="Hammasini tozalash" onClick={() => count && clearAll()} style={{ ...pill(false, !count), fontSize: 12, minWidth: 0 }}>Tozalash</button>
+      </div>
+
+      {/* JSON eksport/import paneli */}
+      {json !== null && (
+        <div style={{ position: "absolute", bottom: 108, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 380, padding: 12, borderRadius: 12, background: "rgba(16,20,27,0.98)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 10px 28px rgba(0,0,0,0.6)", fontFamily: "system-ui" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Layout JSON</span>
+            <button onClick={() => setJson(null)} title="Yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
+          </div>
+          <textarea
+            value={json}
+            onChange={(e) => { setJson(e.target.value); setErr(false); }}
+            spellCheck={false}
+            style={{ width: "100%", height: 150, resize: "vertical", boxSizing: "border-box", fontFamily: "ui-monospace, monospace", fontSize: 11, borderRadius: 8, padding: 8, background: "rgba(0,0,0,0.35)", color: "#dfe6ee", border: `1px solid ${err ? "#ff6b6b" : "rgba(255,255,255,0.14)"}` }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 10, opacity: 0.6 }}>
+            <span>Nusxalash uchun tanlang · yoki JSON joylab "Qo'llash"</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button onClick={() => { if (importJSON(json)) setJson(null); else setErr(true); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>Qo'llash (import)</button>
+            <button onClick={() => setJson(null)} style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>Bekor</button>
+          </div>
+        </div>
       )}
-      <div style={sep} />
-      <button title="Orqaga (undo)" onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
-      <button title="Oldinga (redo)" onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>
-      <button title="Hammasini tozalash" onClick={() => count && clearAll()} style={{ ...pill(false, !count), fontSize: 12, minWidth: 0 }}>Tozalash</button>
-    </div>
+    </>
   );
 }

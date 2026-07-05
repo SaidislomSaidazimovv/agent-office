@@ -212,7 +212,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         this.soundEnabled = msg.enabled;
         break;
       case "saveLayout":
-        this.saveLayout(msg.items);
+        this.saveLayout(msg.items, msg.floorColor ?? null);
         break;
     }
   }
@@ -222,24 +222,24 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   }
 
   /** Foydalanuvchi ofis layout'ini atomik saqlaydi. */
-  private saveLayout(items: unknown[]): void {
+  private saveLayout(items: unknown[], floorColor: string | null): void {
     try {
       const p = this.layoutPath();
       fs.mkdirSync(path.dirname(p), { recursive: true });
       const tmp = `${p}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify({ items }));
+      fs.writeFileSync(tmp, JSON.stringify({ items, floorColor }));
       fs.renameSync(tmp, p);
     } catch {
       /* saqlab bo'lmasa — jim (layout ixtiyoriy) */
     }
   }
 
-  private loadLayout(): { id: string; type: string; x: number; z: number; ry: number }[] {
+  private loadLayout(): { items: unknown[]; floorColor: string | null } {
     try {
       const o = JSON.parse(fs.readFileSync(this.layoutPath(), "utf8"));
-      return Array.isArray(o?.items) ? o.items : [];
+      return { items: Array.isArray(o?.items) ? o.items : [], floorColor: typeof o?.floorColor === "string" ? o.floorColor : null };
     } catch {
-      return [];
+      return { items: [], floorColor: null };
     }
   }
 
@@ -260,7 +260,10 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       extensionVersion: this.version,
     });
     // 2b) Saqlangan ofis layout'i
-    this.post({ type: "layoutLoaded", items: this.loadLayout() });
+    {
+      const lay = this.loadLayout();
+      this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor });
+    }
     // 3) Ish papkalari
     this.post({
       type: "workspaceFolders",

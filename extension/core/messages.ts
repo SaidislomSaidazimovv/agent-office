@@ -153,6 +153,7 @@ export interface LayoutItem {
 export interface LayoutLoaded {
   type: "layoutLoaded";
   items: LayoutItem[];
+  floorColor?: string | null;
 }
 
 export interface WebviewReady {
@@ -179,4 +180,5 @@ export interface SetSoundEnabled {
 export interface SaveLayout {
   type: "saveLayout";
   items: LayoutItem[];
+  floorColor?: string | null;
 }

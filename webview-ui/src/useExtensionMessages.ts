@@ -77,7 +77,7 @@ export function useExtensionMessages(): void {
           store.setHookActive(msg.active);
           break;
         case "layoutLoaded":
-          useLayout.getState().loadItems(msg.items);
+          useLayout.getState().loadLayout({ items: msg.items, floorColor: msg.floorColor });
           break;
         case "providerCapabilities":
           store.setCapabilities(msg.readingTools);

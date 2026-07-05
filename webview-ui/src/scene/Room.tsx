@@ -1,3 +1,4 @@
+import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
@@ -7,6 +8,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
   const fpv = mode === "fpv";
   const wallMat = "#dcd3c2";
+  const floorColor = useLayout((s) => s.floorColor);
   // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'da yarim-shaffof
   // (ichi ko'rinib tursin), FPV'da to'liq qattiq/zich.
   const nearOpacity = fpv ? 1 : 0.2;
@@ -38,7 +40,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
         <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color="#d8c7a8" roughness={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
       {/* ── Perimetr devorlar (yopiq bino) ── */}

@@ -71,6 +71,7 @@ export default function App() {
 
   // Joylashtirilgan mebel collision'i (personaj/kamera ular orqali o'tmasin).
   const placed = useLayout((s) => s.items);
+  const dragging = useLayout((s) => s.draggingId);
   useEffect(() => {
     setPlacedRects(placed.map((it) => {
       const f = footprint(it.type, it.ry);
@@ -93,7 +94,7 @@ export default function App() {
         {cameraMode === "iso" ? (
           <>
             <OrthographicCamera makeDefault position={[34, 27, 34]} zoom={20} near={-300} far={800} />
-            <OrbitControls target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
+            <OrbitControls enabled={!dragging} target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
           </>
         ) : (
           <FirstPersonView />

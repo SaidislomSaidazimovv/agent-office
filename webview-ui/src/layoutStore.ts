@@ -18,11 +18,19 @@ const snap = (v: number) => Math.round(v / GRID) * GRID;
 let idc = 0;
 const newId = () => `it${Date.now().toString(36)}${(idc++).toString(36)}`;
 
+export interface LayoutSnapshot {
+  items: PlacedItem[];
+  floorColor: string | null;
+}
+
 interface LayoutState {
   items: PlacedItem[];
+  floorColor: string | null;
   editMode: boolean;
   selectedId: string | null;
   paletteType: string | null;
+  draggingId: string | null;
+  dragStart: PlacedItem[] | null;
   past: PlacedItem[][];
   future: PlacedItem[][];
 
@@ -33,29 +41,35 @@ interface LayoutState {
   move(id: string, x: number, z: number): void;
   rotate(id: string): void;
   remove(id: string): void;
-  loadItems(items: PlacedItem[]): void;
+  setFloorColor(c: string | null): void;
+  beginDrag(id: string): void;
+  dragTo(x: number, z: number): void;
+  endDrag(): void;
+  loadLayout(snap: { items?: PlacedItem[]; floorColor?: string | null }): void;
+  exportJSON(): string;
+  importJSON(text: string): boolean;
   clearAll(): void;
   undo(): void;
   redo(): void;
 }
 
-function persist(items: PlacedItem[]): void {
-  send({ type: "saveLayout", items });
-}
-
 export const useLayout = create<LayoutState>((set, get) => {
+  const save = () => send({ type: "saveLayout", items: get().items, floorColor: get().floorColor });
   // O'zgarishdan oldin tarixni saqlaydi, kelajakni tozalaydi, host'ga yuboradi.
   const commit = (items: PlacedItem[]) => {
     const prev = get().items;
     set((s) => ({ items, past: [...s.past, prev].slice(-50), future: [] }));
-    persist(items);
+    save();
   };
 
   return {
     items: [],
+    floorColor: null,
     editMode: false,
     selectedId: null,
     paletteType: null,
+    draggingId: null,
+    dragStart: null,
     past: [],
     future: [],
 
@@ -85,9 +99,58 @@ export const useLayout = create<LayoutState>((set, get) => {
       commit(get().items.filter((it) => it.id !== id));
       set((s) => ({ selectedId: s.selectedId === id ? null : s.selectedId }));
     },
-    loadItems(items) {
-      // Persistensiyadan yuklash — tarixsiz, saqlashsiz.
-      set({ items: Array.isArray(items) ? items : [], past: [], future: [] });
+    setFloorColor(c) {
+      set({ floorColor: c });
+      save();
+    },
+
+    // ── Sudrab ko'chirish (drag) — harakat davomida tarixsiz, oxirida commit ──
+    beginDrag(id) {
+      set({ draggingId: id, selectedId: id, dragStart: get().items });
+    },
+    dragTo(x, z) {
+      const id = get().draggingId;
+      if (!id) return;
+      set({ items: get().items.map((it) => (it.id === id ? { ...it, x: snap(x), z: snap(z) } : it)) });
+    },
+    endDrag() {
+      const { draggingId, dragStart, items } = get();
+      set({ draggingId: null, dragStart: null });
+      if (!draggingId || !dragStart) return;
+      const before = dragStart.find((it) => it.id === draggingId);
+      const after = items.find((it) => it.id === draggingId);
+      if (before && after && (before.x !== after.x || before.z !== after.z)) {
+        set((s) => ({ past: [...s.past, dragStart].slice(-50), future: [] }));
+        save();
+      }
+    },
+
+    loadLayout(sn) {
+      set({
+        items: Array.isArray(sn.items) ? sn.items : [],
+        floorColor: typeof sn.floorColor === "string" ? sn.floorColor : null,
+        past: [],
+        future: [],
+      });
+    },
+    exportJSON() {
+      return JSON.stringify({ items: get().items, floorColor: get().floorColor }, null, 2);
+    },
+    importJSON(text) {
+      try {
+        const o = JSON.parse(text);
+        const items = Array.isArray(o?.items) ? o.items : Array.isArray(o) ? o : null;
+        if (!items) return false;
+        // Minimal tekshiruv
+        const clean: PlacedItem[] = items
+          .filter((it: PlacedItem) => it && typeof it.type === "string" && typeof it.x === "number" && typeof it.z === "number")
+          .map((it: PlacedItem) => ({ id: it.id || newId(), type: it.type, x: it.x, z: it.z, ry: Number(it.ry) || 0 }));
+        commit(clean);
+        if (typeof o?.floorColor === "string") get().setFloorColor(o.floorColor);
+        return true;
+      } catch {
+        return false;
+      }
     },
     clearAll() {
       commit([]);
@@ -98,14 +161,14 @@ export const useLayout = create<LayoutState>((set, get) => {
       if (!past.length) return;
       const prev = past[past.length - 1];
       set({ items: prev, past: past.slice(0, -1), future: [items, ...future].slice(0, 50), selectedId: null });
-      persist(prev);
+      save();
     },
     redo() {
       const { future, items, past } = get();
       if (!future.length) return;
       const next = future[0];
       set({ items: next, future: future.slice(1), past: [...past, items].slice(-50), selectedId: null });
-      persist(next);
+      save();
     },
   };
 });
