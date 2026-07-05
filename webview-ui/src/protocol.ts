@@ -23,7 +23,7 @@ export type ServerMessage =
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
   | { type: "hookStatus"; active: boolean }
-  | { type: "layoutLoaded"; items: LayoutItem[]; floorColor?: string | null };
+  | { type: "layoutLoaded"; items: LayoutItem[]; floorColor?: string | null; packs?: unknown[] };
 
 export interface LayoutItem {
   id: string;
@@ -39,4 +39,4 @@ export type ClientMessage =
   | { type: "focusAgent"; id: number }
   | { type: "closeAgent"; id: number }
   | { type: "setSoundEnabled"; enabled: boolean }
-  | { type: "saveLayout"; items: LayoutItem[]; floorColor?: string | null };
+  | { type: "saveLayout"; items: LayoutItem[]; floorColor?: string | null; packs?: unknown[] };

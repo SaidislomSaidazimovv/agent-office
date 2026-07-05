@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { type PackItem, parsePack, registerPacks } from "./scene/furniture";
 import { send } from "./transport";
 
 // ── Layout editor holati ─────────────────────────────────────
@@ -26,6 +27,7 @@ export interface LayoutSnapshot {
 interface LayoutState {
   items: PlacedItem[];
   floorColor: string | null;
+  packs: PackItem[];
   editMode: boolean;
   selectedId: string | null;
   paletteType: string | null;
@@ -42,10 +44,12 @@ interface LayoutState {
   rotate(id: string): void;
   remove(id: string): void;
   setFloorColor(c: string | null): void;
+  addPack(json: string): number;
+  removePack(type: string): void;
   beginDrag(id: string): void;
   dragTo(x: number, z: number): void;
   endDrag(): void;
-  loadLayout(snap: { items?: PlacedItem[]; floorColor?: string | null }): void;
+  loadLayout(snap: { items?: PlacedItem[]; floorColor?: string | null; packs?: PackItem[] }): void;
   exportJSON(): string;
   importJSON(text: string): boolean;
   clearAll(): void;
@@ -54,7 +58,7 @@ interface LayoutState {
 }
 
 export const useLayout = create<LayoutState>((set, get) => {
-  const save = () => send({ type: "saveLayout", items: get().items, floorColor: get().floorColor });
+  const save = () => send({ type: "saveLayout", items: get().items, floorColor: get().floorColor, packs: get().packs });
   // O'zgarishdan oldin tarixni saqlaydi, kelajakni tozalaydi, host'ga yuboradi.
   const commit = (items: PlacedItem[]) => {
     const prev = get().items;
@@ -65,6 +69,7 @@ export const useLayout = create<LayoutState>((set, get) => {
   return {
     items: [],
     floorColor: null,
+    packs: [],
     editMode: false,
     selectedId: null,
     paletteType: null,
@@ -104,6 +109,23 @@ export const useLayout = create<LayoutState>((set, get) => {
       save();
     },
 
+    // ── Tashqi asset paketlari ──
+    addPack(json) {
+      const items = parsePack(json);
+      if (!items) return 0;
+      registerPacks(items); // renderer ro'yxatiga
+      // Bir xil type'larni almashtiramiz (yangilash)
+      const byType = new Map(get().packs.map((p) => [p.type, p]));
+      for (const it of items) byType.set(it.type, it);
+      set({ packs: [...byType.values()] });
+      save();
+      return items.length;
+    },
+    removePack(type) {
+      set({ packs: get().packs.filter((p) => p.type !== type) });
+      save();
+    },
+
     // ── Sudrab ko'chirish (drag) — harakat davomida tarixsiz, oxirida commit ──
     beginDrag(id) {
       set({ draggingId: id, selectedId: id, dragStart: get().items });
@@ -126,9 +148,12 @@ export const useLayout = create<LayoutState>((set, get) => {
     },
 
     loadLayout(sn) {
+      const packs = Array.isArray(sn.packs) ? sn.packs : [];
+      if (packs.length) registerPacks(packs); // saqlangan paketlarni renderer'ga tiklaymiz
       set({
         items: Array.isArray(sn.items) ? sn.items : [],
         floorColor: typeof sn.floorColor === "string" ? sn.floorColor : null,
+        packs,
         past: [],
         future: [],
       });

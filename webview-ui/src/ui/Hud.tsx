@@ -390,8 +390,15 @@ function LayoutEditor() {
   const setFloorColor = useLayout((s) => s.setFloorColor);
   const exportJSON = useLayout((s) => s.exportJSON);
   const importJSON = useLayout((s) => s.importJSON);
+  const packs = useLayout((s) => s.packs);
+  const setPalette2 = useLayout((s) => s.setPalette);
+  const addPack = useLayout((s) => s.addPack);
+  const removePack = useLayout((s) => s.removePack);
   const [json, setJson] = useState<string | null>(null);
   const [err, setErr] = useState(false);
+  const [assets, setAssets] = useState(false);
+  const [packText, setPackText] = useState("");
+  const [packMsg, setPackMsg] = useState("");
 
   const pill = (active: boolean, disabled = false): React.CSSProperties => ({
     display: "flex", alignItems: "center", justifyContent: "center", minWidth: 30, height: 30, padding: "0 8px",
@@ -410,6 +417,12 @@ function LayoutEditor() {
             {d.emoji}
           </button>
         ))}
+        {packs.map((d) => (
+          <button key={d.type} title={`${d.label} (paket)`} onClick={() => setPalette2(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
+            {d.emoji}
+          </button>
+        ))}
+        <button title="Asset paket qo'shish (JSON)" onClick={() => { setAssets(true); setPackMsg(""); }} style={{ ...pill(assets), fontSize: 15 }}>📦</button>
         {selectedId && (
           <>
             <div style={sep} />
@@ -449,6 +462,46 @@ function LayoutEditor() {
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={() => { if (importJSON(json)) setJson(null); else setErr(true); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>Qo'llash (import)</button>
             <button onClick={() => setJson(null)} style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>Bekor</button>
+          </div>
+        </div>
+      )}
+
+      {/* Asset paket paneli */}
+      {assets && (
+        <div style={{ position: "absolute", bottom: 108, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 400, padding: 12, borderRadius: 12, background: "rgba(16,20,27,0.98)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 10px 28px rgba(0,0,0,0.6)", fontFamily: "system-ui" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>📦 Asset paketlari</span>
+            <button onClick={() => setAssets(false)} title="Yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
+          </div>
+          {packs.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+              {packs.map((d) => (
+                <span key={d.type} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 6px", borderRadius: 8, background: "rgba(30,35,44,0.9)", border: "1px solid rgba(255,255,255,0.12)", fontSize: 11 }}>
+                  {d.emoji} {d.label}
+                  <button onClick={() => removePack(d.type)} title="O'chirish" style={{ border: "none", background: "transparent", color: "#ff6b6b", cursor: "pointer", fontSize: 12, padding: 0 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <textarea
+            value={packText}
+            onChange={(e) => { setPackText(e.target.value); setPackMsg(""); }}
+            spellCheck={false}
+            placeholder={'{ "items": [ { "type": "myLamp", "label": "Lampa", "emoji": "🏮", "hx": 0.3, "hz": 0.3, "parts": [ { "shape":"cylinder","size":[0.05,1.4],"pos":[0,0.7,0],"color":"#888" }, { "shape":"sphere","size":[0.25],"pos":[0,1.5,0],"color":"#ffcc66","emissive":"#ffaa33" } ] } ] }'}
+            style={{ width: "100%", height: 130, resize: "vertical", boxSizing: "border-box", fontFamily: "ui-monospace, monospace", fontSize: 10.5, borderRadius: 8, padding: 8, background: "rgba(0,0,0,0.35)", color: "#dfe6ee", border: "1px solid rgba(255,255,255,0.14)" }}
+          />
+          <div style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>
+            Primitivlardan mebel: <b>box</b>[w,h,d] · <b>cylinder</b>/<b>cone</b>[r,h] · <b>sphere</b>[r]. {packMsg && <span style={{ color: packMsg.startsWith("✓") ? "#30d158" : "#ff6b6b" }}>{packMsg}</span>}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <label style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>
+              📂 Fayl
+              <input type="file" accept=".json,application/json" style={{ display: "none" }} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                f.text().then((t) => { const n = addPack(t); setPackMsg(n ? `✓ ${n} ta jihoz qo'shildi` : "✗ Yaroqsiz JSON"); if (n) setPackText(""); });
+              }} />
+            </label>
+            <button onClick={() => { const n = addPack(packText); setPackMsg(n ? `✓ ${n} ta jihoz qo'shildi` : "✗ Yaroqsiz JSON"); if (n) setPackText(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>Yuklash</button>
           </div>
         </div>
       )}

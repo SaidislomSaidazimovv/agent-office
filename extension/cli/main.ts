@@ -127,20 +127,24 @@ void hookServer.start().then((h) => {
 function layoutPath(): string {
   return path.join(os.homedir(), ".agent-office", "layout.json");
 }
-function loadLayout(): { items: unknown[]; floorColor: string | null } {
+function loadLayout(): { items: unknown[]; floorColor: string | null; packs: unknown[] } {
   try {
     const o = JSON.parse(fs.readFileSync(layoutPath(), "utf8"));
-    return { items: Array.isArray(o?.items) ? o.items : [], floorColor: typeof o?.floorColor === "string" ? o.floorColor : null };
+    return {
+      items: Array.isArray(o?.items) ? o.items : [],
+      floorColor: typeof o?.floorColor === "string" ? o.floorColor : null,
+      packs: Array.isArray(o?.packs) ? o.packs : [],
+    };
   } catch {
-    return { items: [], floorColor: null };
+    return { items: [], floorColor: null, packs: [] };
   }
 }
-function saveLayout(items: unknown[], floorColor: string | null): void {
+function saveLayout(items: unknown[], floorColor: string | null, packs: unknown[]): void {
   try {
     const p = layoutPath();
     fs.mkdirSync(path.dirname(p), { recursive: true });
     const tmp = `${p}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ items, floorColor }));
+    fs.writeFileSync(tmp, JSON.stringify({ items, floorColor, packs }));
     fs.renameSync(tmp, p);
   } catch {
     /* ignore */
@@ -206,7 +210,7 @@ function handleClient(msg: ClientMessage, ws: import("ws").WebSocket): void {
       sendSnapshot(send);
       break;
     case "saveLayout":
-      saveLayout(msg.items, msg.floorColor ?? null);
+      saveLayout(msg.items, msg.floorColor ?? null, msg.packs ?? []);
       break;
     case "closeAgent":
       store.remove(msg.id);
@@ -221,7 +225,7 @@ function sendSnapshot(send: (m: ServerMessage) => void): void {
   send({ type: "workspaceFolders", folders: paths.map((p) => ({ name: path.basename(p), path: p })) });
   send({ type: "hookStatus", active: hookActive });
   const lay = loadLayout();
-  send({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor });
+  send({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, packs: lay.packs });
   const agents = store.values();
   send({
     type: "existingAgents",

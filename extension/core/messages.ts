@@ -154,6 +154,7 @@ export interface LayoutLoaded {
   type: "layoutLoaded";
   items: LayoutItem[];
   floorColor?: string | null;
+  packs?: unknown[];
 }
 
 export interface WebviewReady {
@@ -181,4 +182,5 @@ export interface SaveLayout {
   type: "saveLayout";
   items: LayoutItem[];
   floorColor?: string | null;
+  packs?: unknown[];
 }
