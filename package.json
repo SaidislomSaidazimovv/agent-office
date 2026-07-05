@@ -47,12 +47,6 @@
   "bin": {
     "agent-office": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md"
-  ],
   "contributes": {
     "commands": [
       {

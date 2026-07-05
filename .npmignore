@@ -1,0 +1,15 @@
+# npm publish (CLI) — faqat dist + metadata. (vsce .vscodeignore'dan foydalanadi.)
+extension/
+webview-ui/
+test/
+media/
+scratchpad/
+.multi-agent/
+.github/
+*.vsix
+esbuild.mjs
+tsconfig.json
+.vscodeignore
+active_*.md
+**/*.map
+**/*.ts
