@@ -83,6 +83,26 @@ export default function Hud() {
     const t = setInterval(() => force((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, [sel?.id, sel?.activeSince]);
+
+  // Klaviatura: ←/→ agentlar orasида o'tish, Esc — tanlovni bekor qilish.
+  // Matn kiritish (input/textarea)da ishlamaydi.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "Escape" && selectedId != null) { select(null); return; }
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && order.length > 0) {
+        e.preventDefault();
+        const idx = selectedId == null ? -1 : order.indexOf(selectedId);
+        const dir = e.key === "ArrowRight" ? 1 : -1;
+        const next = order[(idx + dir + order.length) % order.length];
+        select(next);
+        send({ type: "focusAgent", id: next });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [order, selectedId, select]);
   const multiRoot = folders.length > 1;
   const activeFolder = folderPath ?? folders[0]?.path;
 
@@ -99,6 +119,8 @@ export default function Hud() {
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
+      {/* Klaviatura fokusi — barcha interaktiv elementlarda ko'rinadigan halqa. */}
+      <style>{`button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-visible { outline: 2px solid #5e9bff; outline-offset: 2px; border-radius: 6px; }`}</style>
       {/* Yuqori panel */}
       <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
@@ -119,6 +141,8 @@ export default function Hud() {
         {/* Ovoz toggle */}
         <button
           onClick={toggleSound}
+          aria-label={soundEnabled ? "Ovozni o'chirish" : "Ovozni yoqish"}
+          aria-pressed={soundEnabled}
           title={soundEnabled ? "Ovoz yoqiq (bosib o'chiring)" : "Ovoz o'chiq (bosib yoqing)"}
           style={{
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
@@ -131,6 +155,8 @@ export default function Hud() {
         {/* Faoliyat tasmasi toggle */}
         <button
           onClick={() => setFeed((f) => !f)}
+          aria-label="Faoliyat tasmasi"
+          aria-pressed={feed}
           title="Faoliyat tasmasi (so'nggi hodisalar)"
           style={{
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
@@ -157,7 +183,7 @@ export default function Hud() {
             <span style={{ fontSize: 12, fontWeight: 700 }}>📜 Faoliyat</span>
             <button onClick={() => setFeed(false)} aria-label="Tasmani yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
           </div>
-          <div style={{ overflowY: "auto", padding: "4px 0" }}>
+          <div role="log" aria-label="Faoliyat tasmasi" aria-live="polite" style={{ overflowY: "auto", padding: "4px 0" }}>
             {events.length === 0 ? (
               <div style={{ padding: "14px 12px", fontSize: 12, opacity: 0.55, textAlign: "center" }}>Hozircha hodisa yo'q</div>
             ) : (
@@ -213,6 +239,7 @@ export default function Hud() {
       <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
         <button
           onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
+          aria-label={cameraMode === "iso" ? "Ichki (birinchi shaxs) rejimga o'tish" : "Yuqori (izometrik) rejimga o'tish"}
           title={cameraMode === "iso" ? "Ichkidan yurib kuzatish" : "Yuqoridan (izometrik)"}
           style={{
             padding: "7px 12px", borderRadius: 9, cursor: "pointer",
@@ -229,6 +256,8 @@ export default function Hud() {
         <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
           <button
             onClick={() => setEditMode(!editMode)}
+            aria-label={editMode ? "Tahrirlashni yakunlash" : "Ofisni tahrirlash"}
+            aria-pressed={editMode}
             title="Ofis jihozlarini tahrirlash"
             style={{
               padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600,
@@ -249,7 +278,7 @@ export default function Hud() {
         {cameraMode === "fpv" ? (
           <>🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish</>
         ) : (
-          <>🖱 Aylantirish uchun torting · <b>g'ildirak</b> masshtab · personajni bosing</>
+          <>🖱 Aylantirish uchun torting · <b>g'ildirak</b> masshtab · <b>←/→</b> agent tanlash</>
         )}
       </div>
 
