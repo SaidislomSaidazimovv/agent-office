@@ -15,6 +15,8 @@ export default function Hud() {
   const selectedId = useOffice((s) => s.selectedId);
   const agents = useOffice((s) => s.agents);
   const select = useOffice((s) => s.select);
+  const movingId = useOffice((s) => s.movingId);
+  const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
   const setCameraMode = useOffice((s) => s.setCameraMode);
   const folders = useOffice((s) => s.folders);
@@ -338,6 +340,16 @@ export default function Hud() {
               💻 Terminal
             </button>
             <button
+              onClick={() => setMoving(sel.id)}
+              title="Boshqa stolga ko'chirish"
+              style={{
+                flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                border: "1px solid rgba(255,255,255,0.2)", background: "rgba(30,35,44,0.9)", color: "#fff",
+              }}
+            >
+              🪑 Ko'chirish
+            </button>
+            <button
               onClick={() => { send({ type: "closeAgent", id: sel.id }); select(null); }}
               style={{
                 flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
@@ -347,6 +359,14 @@ export default function Hud() {
               ✕ Yopish
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Ko'chirish maslahati */}
+      {movingId != null && (
+        <div style={{ position: "absolute", top: 52, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", padding: "6px 14px", borderRadius: 10, background: "rgba(48,209,88,0.18)", border: "1px solid rgba(48,209,88,0.5)", color: "#8ff0b0", fontSize: 12, fontWeight: 600, display: "flex", gap: 10, alignItems: "center" }}>
+          🪑 Yangi stolni tanlang (🟢 bo'sh · 🟠 almashtirish)
+          <button onClick={() => setMoving(null)} style={{ border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#e8ecf2", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>Bekor</button>
         </div>
       )}
     </div>

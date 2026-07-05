@@ -61,6 +61,7 @@ interface OfficeState {
   agents: Record<number, AgentView>;
   order: number[];
   selectedId: number | null;
+  movingId: number | null;
   seatCount: number;
   soundEnabled: boolean;
   hookActive: boolean;
@@ -84,6 +85,8 @@ interface OfficeState {
   setFolders(folders: { name: string; path: string }[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
+  setMoving(id: number | null): void;
+  reassignSeat(id: number, seatIndex: number): void;
   setSound(on: boolean): void;
 }
 
@@ -95,6 +98,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   agents: {},
   order: [],
   selectedId: null,
+  movingId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,
   hookActive: false,
@@ -242,6 +246,23 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   select(id) {
     set({ selectedId: id });
+  },
+
+  setMoving(id) {
+    set({ movingId: id });
+  },
+
+  reassignSeat(id, seatIndex) {
+    const a = get().agents[id];
+    if (!a) return;
+    set((s) => {
+      const agents = { ...s.agents };
+      // O'sha o'rindiqda boshqa agent bo'lsa — joylarni almashtiramiz (swap).
+      const occupant = Object.values(agents).find((x) => x.seatIndex === seatIndex && x.id !== id);
+      if (occupant) agents[occupant.id] = { ...occupant, seatIndex: a.seatIndex };
+      agents[id] = { ...a, seatIndex };
+      return { agents, movingId: null };
+    });
   },
 
   setSound(on) {

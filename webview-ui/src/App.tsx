@@ -9,6 +9,7 @@ import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
 import PlacedFurniture from "./scene/PlacedFurniture";
+import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
 import { ROLE_PRESETS } from "./scene/roles";
@@ -59,6 +60,7 @@ export default function App() {
   const order = useOffice((s) => s.order);
   const agents = useOffice((s) => s.agents);
   const select = useOffice((s) => s.select);
+  const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
 
   // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
@@ -87,7 +89,7 @@ export default function App() {
         shadows
         dpr={[1, 1.25]}
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
-        onPointerMissed={() => select(null)}
+        onPointerMissed={() => { select(null); setMoving(null); }}
       >
         <color attach="background" args={["#11151c"]} />
 
@@ -103,6 +105,7 @@ export default function App() {
         <Room mode={cameraMode} />
         <OfficeDecor />
         <PlacedFurniture />
+        <SeatMarkers />
         {order.map((id) => {
           const a = agents[id];
           return a ? <Workstation key={id} agent={a} /> : null;
