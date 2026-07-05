@@ -23,7 +23,8 @@ export type ServerMessage =
   | AgentTokenUsage
   | WorkspaceFolders
   | SettingsLoaded
-  | HookStatus;
+  | HookStatus
+  | LayoutLoaded;
 
 // ── Webview → extension ──────────────────────────────────────
 export type ClientMessage =
@@ -31,7 +32,8 @@ export type ClientMessage =
   | LaunchAgent
   | FocusAgent
   | CloseAgent
-  | SetSoundEnabled;
+  | SetSoundEnabled
+  | SaveLayout;
 
 export type AgentActivityStatus = "active" | "waiting";
 
@@ -141,6 +143,17 @@ export interface HookStatus {
   /** Shu oynada jonli hook oqimi bormi (true) yoki faqat JSONL zaxira (false). */
   active: boolean;
 }
+export interface LayoutItem {
+  id: string;
+  type: string;
+  x: number;
+  z: number;
+  ry: number;
+}
+export interface LayoutLoaded {
+  type: "layoutLoaded";
+  items: LayoutItem[];
+}
 
 export interface WebviewReady {
   type: "webviewReady";
@@ -162,4 +175,8 @@ export interface CloseAgent {
 export interface SetSoundEnabled {
   type: "setSoundEnabled";
   enabled: boolean;
+}
+export interface SaveLayout {
+  type: "saveLayout";
+  items: LayoutItem[];
 }

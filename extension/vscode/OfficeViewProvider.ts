@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
@@ -210,6 +211,35 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "setSoundEnabled":
         this.soundEnabled = msg.enabled;
         break;
+      case "saveLayout":
+        this.saveLayout(msg.items);
+        break;
+    }
+  }
+
+  private layoutPath(): string {
+    return path.join(os.homedir(), ".agent-office", "layout.json");
+  }
+
+  /** Foydalanuvchi ofis layout'ini atomik saqlaydi. */
+  private saveLayout(items: unknown[]): void {
+    try {
+      const p = this.layoutPath();
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      const tmp = `${p}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify({ items }));
+      fs.renameSync(tmp, p);
+    } catch {
+      /* saqlab bo'lmasa — jim (layout ixtiyoriy) */
+    }
+  }
+
+  private loadLayout(): { id: string; type: string; x: number; z: number; ry: number }[] {
+    try {
+      const o = JSON.parse(fs.readFileSync(this.layoutPath(), "utf8"));
+      return Array.isArray(o?.items) ? o.items : [];
+    } catch {
+      return [];
     }
   }
 
@@ -229,6 +259,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       soundEnabled: this.soundEnabled,
       extensionVersion: this.version,
     });
+    // 2b) Saqlangan ofis layout'i
+    this.post({ type: "layoutLoaded", items: this.loadLayout() });
     // 3) Ish papkalari
     this.post({
       type: "workspaceFolders",

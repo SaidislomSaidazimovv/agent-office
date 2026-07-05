@@ -55,6 +55,12 @@ for (const x of [-11, -3, 7, 15]) r(x - T, x + T, 9.5, 16);
 // Stol collision'i faqat renderlangan (band) stollar uchun bo'ladi. Aks holda
 // bo'sh overflow o'rindiqlari markaziy yo'lakda "fantom devor" hosil qilardi.
 // Stol 1.5×0.8; to'siq stol yo'nalishiga (ry) qarab aylanadi.
+// Foydalanuvchi joylashtirgan mebel to'siqlari (Layout editor) — dinamik.
+let placedRects: Rect[] = [];
+export function setPlacedRects(rects: Rect[]): void {
+  placedRects = rects;
+}
+
 let seatRects: Rect[] = [];
 export function setActiveSeats(seatIndexes: number[]): void {
   seatRects = seatIndexes.map((i) => {
@@ -102,6 +108,9 @@ export function blocked(x: number, z: number, rad: number): boolean {
     if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;
   }
   for (const b of seatRects) {
+    if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;
+  }
+  for (const b of placedRects) {
     if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return true;
   }
   return false;

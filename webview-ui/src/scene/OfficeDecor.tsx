@@ -98,7 +98,7 @@ function GlassWallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number
 }
 
 // ── Jihozlar ──
-function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
+export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow><cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />{M("#b5643c")}</mesh>
@@ -110,7 +110,7 @@ function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
     </group>
   );
 }
-function Sofa({ p, ry = 0, c = "#3d4756" }: { p: V3; ry?: number; c?: string }) {
+export function Sofa({ p, ry = 0, c = "#3d4756" }: { p: V3; ry?: number; c?: string }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
       {/* pastki blok + yumshoq yostiqlar */}
@@ -127,7 +127,7 @@ function Sofa({ p, ry = 0, c = "#3d4756" }: { p: V3; ry?: number; c?: string }) 
     </group>
   );
 }
-function CoffeeTable({ p }: { p: V3 }) {
+export function CoffeeTable({ p }: { p: V3 }) {
   return (
     <group position={p}>
       {/* shisha usti + chrome ramka */}
@@ -137,7 +137,7 @@ function CoffeeTable({ p }: { p: V3 }) {
     </group>
   );
 }
-function MeetingTable({ p, r = 1.1 }: { p: V3; r?: number }) {
+export function MeetingTable({ p, r = 1.1 }: { p: V3; r?: number }) {
   return (
     <group position={p}>
       {/* oq yaltiroq usti + chrome ustun-oyoq */}
@@ -163,7 +163,7 @@ function ModChair({ c = "#2c313a" }: { c?: string }) {
     </group>
   );
 }
-function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
+export function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   const books = useMemo(() => {
     const cols = ["#c0392b", "#2980b9", "#27ae60", "#e67e22", "#8e44ad", "#16a085", "#c99a2e"];
     const rows: JSX.Element[] = [];
@@ -215,7 +215,7 @@ function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
     </group>
   );
 }
-function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
+export function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
       {/* oq usti + qora aksent qirra */}
@@ -237,13 +237,13 @@ function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
 function ModChairAt({ p, ry = 0 }: { p: V3; ry?: number }) {
   return <group position={p} rotation={[0, ry, 0]}><ModChair /></group>;
 }
-function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
+export function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} /><mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh></group>;
 }
-function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
+export function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} /><mesh position={[0, 0, 0.05]}><planeGeometry args={[1.85, 1.0]} /><meshBasicMaterial color="#1b3a5c" /></mesh></group>;
 }
-function StandingLamp({ p }: { p: V3 }) {
+export function StandingLamp({ p }: { p: V3 }) {
   return <group position={p}><mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh><mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh><mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={0.5} side={2} /></mesh></group>;
 }
 

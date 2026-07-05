@@ -2,10 +2,13 @@ import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useEffect } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
-import { setActiveSeats } from "./scene/collision";
+import { setActiveSeats, setPlacedRects } from "./scene/collision";
 import FirstPersonView from "./scene/FirstPersonView";
+import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
+import PlacedFurniture from "./scene/PlacedFurniture";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
 import { ROLE_PRESETS } from "./scene/roles";
@@ -66,6 +69,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seatKey]);
 
+  // Joylashtirilgan mebel collision'i (personaj/kamera ular orqali o'tmasin).
+  const placed = useLayout((s) => s.items);
+  useEffect(() => {
+    setPlacedRects(placed.map((it) => {
+      const f = footprint(it.type, it.ry);
+      return { x0: it.x - f.hx, x1: it.x + f.hx, z0: it.z - f.hz, z1: it.z + f.hz };
+    }));
+  }, [placed]);
+
   if (GALLERY) return <Gallery />;
 
   return (
@@ -89,6 +101,7 @@ export default function App() {
 
         <Room mode={cameraMode} />
         <OfficeDecor />
+        <PlacedFurniture />
         {order.map((id) => {
           const a = agents[id];
           return a ? <Workstation key={id} agent={a} /> : null;

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useLayout } from "../layoutStore";
 import { unlockAudio } from "../notificationSound";
+import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
 import { useOffice } from "../store";
 import { send } from "../transport";
@@ -19,6 +21,8 @@ export default function Hud() {
   const hookActive = useOffice((s) => s.hookActive);
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
+  const editMode = useLayout((s) => s.editMode);
+  const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
   const [bypass, setBypass] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -143,6 +147,26 @@ export default function Hud() {
           {cameraMode === "iso" ? "🚶 Ichki" : "🔭 Yuqori"}
         </button>
       </div>
+
+      {/* Tahrirlash (Layout editor) toggle — faqat iso rejimda */}
+      {cameraMode === "iso" && (
+        <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
+          <button
+            onClick={() => setEditMode(!editMode)}
+            title="Ofis jihozlarini tahrirlash"
+            style={{
+              padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600,
+              border: `1px solid ${editMode ? "rgba(76,139,245,0.7)" : "rgba(255,255,255,0.2)"}`,
+              background: editMode ? "rgba(76,139,245,0.25)" : "rgba(20,24,32,0.85)", color: "#fff",
+            }}
+          >
+            {editMode ? "✓ Tayyor" : "✏️ Tahrir"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Layout editor paneli ── */}
+      {editMode && cameraMode === "iso" && <LayoutEditor />}
 
       {/* Kamera maslahati (rejimga qarab) */}
       <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
@@ -325,6 +349,51 @@ export default function Hud() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Layout editor paneli (jihoz palitrasi + boshqaruv) ──
+function LayoutEditor() {
+  const paletteType = useLayout((s) => s.paletteType);
+  const setPalette = useLayout((s) => s.setPalette);
+  const selectedId = useLayout((s) => s.selectedId);
+  const rotate = useLayout((s) => s.rotate);
+  const remove = useLayout((s) => s.remove);
+  const undo = useLayout((s) => s.undo);
+  const redo = useLayout((s) => s.redo);
+  const clearAll = useLayout((s) => s.clearAll);
+  const canUndo = useLayout((s) => s.past.length > 0);
+  const canRedo = useLayout((s) => s.future.length > 0);
+  const count = useLayout((s) => s.items.length);
+
+  const pill = (active: boolean, disabled = false): React.CSSProperties => ({
+    display: "flex", alignItems: "center", justifyContent: "center", minWidth: 30, height: 30, padding: "0 8px",
+    borderRadius: 8, cursor: disabled ? "default" : "pointer", fontSize: 15, opacity: disabled ? 0.35 : 1,
+    border: `1px solid ${active ? "#4c8bf5" : "rgba(255,255,255,0.14)"}`,
+    background: active ? "rgba(76,139,245,0.3)" : "rgba(30,35,44,0.9)", color: "#e8ecf2",
+  });
+  const sep: React.CSSProperties = { width: 1, height: 22, background: "rgba(255,255,255,0.14)", margin: "0 3px" };
+
+  return (
+    <div style={{ position: "absolute", bottom: 54, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderRadius: 12, background: "rgba(16,20,27,0.96)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxWidth: "90vw", flexWrap: "wrap", fontFamily: "system-ui" }}>
+      <span style={{ fontSize: 11, opacity: 0.6, marginRight: 2 }}>Qo'yish:</span>
+      {CATALOG.map((d) => (
+        <button key={d.type} title={d.label} onClick={() => setPalette(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
+          {d.emoji}
+        </button>
+      ))}
+      {selectedId && (
+        <>
+          <div style={sep} />
+          <button title="Aylantirish" onClick={() => rotate(selectedId)} style={pill(false)}>🔄</button>
+          <button title="O'chirish" onClick={() => remove(selectedId)} style={{ ...pill(false), color: "#ff6b6b" }}>🗑️</button>
+        </>
+      )}
+      <div style={sep} />
+      <button title="Orqaga (undo)" onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
+      <button title="Oldinga (redo)" onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>
+      <button title="Hammasini tozalash" onClick={() => count && clearAll()} style={{ ...pill(false, !count), fontSize: 12, minWidth: 0 }}>Tozalash</button>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLayout } from "./layoutStore";
 import { playDone, playPermission, unlockAudio } from "./notificationSound";
 import type { ServerMessage } from "./protocol";
 import { useOffice } from "./store";
@@ -74,6 +75,9 @@ export function useExtensionMessages(): void {
           break;
         case "hookStatus":
           store.setHookActive(msg.active);
+          break;
+        case "layoutLoaded":
+          useLayout.getState().loadItems(msg.items);
           break;
         case "providerCapabilities":
           store.setCapabilities(msg.readingTools);

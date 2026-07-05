@@ -22,11 +22,21 @@ export type ServerMessage =
   | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number }
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
-  | { type: "hookStatus"; active: boolean };
+  | { type: "hookStatus"; active: boolean }
+  | { type: "layoutLoaded"; items: LayoutItem[] };
+
+export interface LayoutItem {
+  id: string;
+  type: string;
+  x: number;
+  z: number;
+  ry: number;
+}
 
 export type ClientMessage =
   | { type: "webviewReady" }
   | { type: "launchAgent"; folderPath?: string; role?: string; bypassPermissions?: boolean }
   | { type: "focusAgent"; id: number }
   | { type: "closeAgent"; id: number }
-  | { type: "setSoundEnabled"; enabled: boolean };
+  | { type: "setSoundEnabled"; enabled: boolean }
+  | { type: "saveLayout"; items: LayoutItem[] };
