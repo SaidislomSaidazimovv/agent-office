@@ -27,14 +27,16 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const [hiring, setHiring] = useState(false);
   const prevSubs = useRef(agent.subagents.length);
   useEffect(() => {
-    if (agent.subagents.length > prevSubs.current) {
-      setHiring(true);
-      prevSubs.current = agent.subagents.length;
-      const t = setTimeout(() => setHiring(false), 3500);
-      return () => clearTimeout(t);
-    }
+    const inc = agent.subagents.length > prevSubs.current;
     prevSubs.current = agent.subagents.length;
+    if (inc) setHiring(true);
   }, [agent.subagents.length]);
+  // Yashirish taymeri — `hiring`ga bog'liq (soni o'zgarsa ham qotib qolmaydi).
+  useEffect(() => {
+    if (!hiring) return;
+    const t = setTimeout(() => setHiring(false), 3500);
+    return () => clearTimeout(t);
+  }, [hiring]);
 
   // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
   const sit = useRef<WP>({ ...sitPoint(seat) });

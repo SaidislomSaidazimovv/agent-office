@@ -127,8 +127,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const thinking = sit && status === "thinking";
     const walk = !sit && st.moving;
 
-    // Vaqti-vaqti bilan cho'zilish — faqat tik turib bo'sh kutganda (idle).
-    const standingIdle = !sit && !st.moving;
+    // Vaqti-vaqti bilan cho'zilish — faqat HAQIQIY bo'sh (idle) turganда
+    // (ishlayotgan yordamchi subagentlar cho'zilmasin).
+    const standingIdle = !sit && !st.moving && status === "idle";
     if (standingIdle) {
       if (stretchLeft.current <= 0) {
         stretchCd.current -= dt;

@@ -58,6 +58,13 @@ export interface OfficeEvent {
 let evSeq = 0;
 const MAX_EVENTS = 60;
 
+// Sub-agent minimal ko'rinish vaqti — background (async) subagentlar ota
+// transkriptida ~0.5s'da yopiladi. Ular ko'zga ilinishi uchun kamida shuncha
+// vaqt ko'rinib tursin (qachon qo'shilgani → key bo'yicha).
+const SUBAGENT_MIN_MS = 6000;
+const subAddedAt = new Map<string, number>();
+const subKey = (id: number, key: string) => `${id}:${key}`;
+
 // Standart "reading" toollar — host `providerCapabilities` yuborsa yangilanadi
 // (bitta manba, takror emas).
 const DEFAULT_READING = ["Read", "Grep", "Glob", "LS", "NotebookRead", "WebFetch", "WebSearch"];
@@ -282,18 +289,28 @@ export const useOffice = create<OfficeState>((set, get) => ({
   addSubagent(id, key) {
     const a = get().agents[id];
     if (!a || a.subagents.includes(key)) return;
+    subAddedAt.set(subKey(id, key), Date.now());
     set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, active: true, subagents: [...a.subagents, key] }) },
+      agents: { ...s.agents, [id]: recompute({ ...a, active: true, ...touchActive(a, true, Date.now()), subagents: [...a.subagents, key] }) },
       events: pushEvent(s.events, a.folderName, "sub-agent yolladi 🔧", "#ffd60a"),
     }));
   },
 
   clearSubagent(id, key) {
     const a = get().agents[id];
-    if (!a) return;
-    set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, subagents: a.subagents.filter((k) => k !== key) }) },
-    }));
+    if (!a || !a.subagents.includes(key)) return;
+    // Minimal ko'rinish vaqti — juda tez yopilsa (background), qolgan vaqtga
+    // qadar kechiktiramiz (flash bo'lmasin, foydalanuvchi ko'rib ulgursin).
+    const k = subKey(id, key);
+    const elapsed = Date.now() - (subAddedAt.get(k) ?? 0);
+    const remove = () => {
+      subAddedAt.delete(k);
+      const cur = get().agents[id];
+      if (!cur || !cur.subagents.includes(key)) return;
+      set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x !== key) }) } }));
+    };
+    if (elapsed >= SUBAGENT_MIN_MS) remove();
+    else setTimeout(remove, SUBAGENT_MIN_MS - elapsed);
   },
 
   setTokens(id, input, output, contextWindow) {
