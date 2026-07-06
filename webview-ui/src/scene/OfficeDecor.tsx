@@ -39,30 +39,35 @@ function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: 
   );
 }
 
-// Devor (X bo'ylab) — eshik + ramka + tavaqa
+// Devor (X bo'ylab) — eshik + ramka + tavaqa.
+// Eshik HAR DOIM markaziy yo'lak (tashqi) tomonga ochiladi: yo'nalish z'dan
+// hisoblanadi — yuqori xonalar (z<0) +z ga, pastki xonalar (z>0) −z ga.
 function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
   const cx = (x0 + x1) / 2;
   const seg = Math.max(0.01, (x1 - x0 - door) / 2);
   const wc = useLayout((s) => s.wallColor) ?? WALL_C; // mavzu devor rangi
+  const swing = z < 0 ? 1 : -1; // markazga (yo'lakka) ochilsin
+  const W = door * 0.94; // tavaqa eni — teshik enига mos (deyarli to'ldiradi)
+  const openH = WALL_H - 0.3; // teshik balandligi (pol → lintel)
   return (
     <group>
       <Box p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={wc} />
       <Box p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, WALL_T]} c={wc} />
       <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={wc} />
-      <Box p={[cx - door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
-      <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, WALL_T + 0.06]} c={FRAME} />
-      <group position={[cx - door / 2, (WALL_H - 0.3) / 2, z]} rotation={[0, -1.25, 0]}>
-        <mesh position={[door * 0.42, 0, 0]} castShadow>
-          <boxGeometry args={[door * 0.82, WALL_H - 0.36, 0.05]} />
+      <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
+      <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
+      <group position={[cx - door / 2, openH / 2, z]} rotation={[0, -1.25 * swing, 0]}>
+        <mesh position={[W / 2, 0, 0]} castShadow>
+          <boxGeometry args={[W, openH - 0.04, 0.05]} />
           <meshStandardMaterial color={DOORW} roughness={0.5} metalness={0.2} />
         </mesh>
         {/* shisha chizig'i */}
-        <mesh position={[door * 0.42, 0.1, 0.02]}>
+        <mesh position={[W / 2, 0.1, 0.02 * swing]}>
           <boxGeometry args={[door * 0.16, WALL_H - 0.9, 0.04]} />
           <meshStandardMaterial color="#bfe0ff" transparent opacity={0.35} roughness={0.1} metalness={0.1} />
         </mesh>
-        {/* zamonaviy uzun tutqich */}
-        <mesh position={[door * 0.72, -0.05, 0.05]}>
+        {/* zamonaviy uzun tutqich (erkin chetда) */}
+        <mesh position={[W - 0.12, -0.05, 0.05 * swing]}>
           <boxGeometry args={[0.04, 0.4, 0.04]} />
           {MM("#c8ccd2")}
         </mesh>
@@ -164,7 +169,8 @@ export function MeetingTable({ p, r = 1.1 }: { p: V3; r?: number }) {
       <mesh position={[0, 0.03, 0]}><cylinderGeometry args={[0.42, 0.42, 0.05, 20]} />{MM("#5a6068")}</mesh>
       {[0, 1, 2, 3, 4, 5].map((i) => {
         const a = (i / 6) * Math.PI * 2;
-        return <group key={i} position={[Math.cos(a) * (r + 0.4), 0, Math.sin(a) * (r + 0.4)]} rotation={[0, -a + Math.PI / 2, 0]}><ModChair /></group>;
+        // Stul stol markaziga QARASHI kerak (ModChair +z ga qaraydi) → -a - π/2.
+        return <group key={i} position={[Math.cos(a) * (r + 0.4), 0, Math.sin(a) * (r + 0.4)]} rotation={[0, -a - Math.PI / 2, 0]}><ModChair /></group>;
       })}
     </group>
   );
@@ -247,7 +253,8 @@ export function EmptyDesk({ p, ry = 0 }: { p: V3; ry?: number }) {
       <Box p={[0, 0.76, -0.22]} s={[0.24, 0.02, 0.14]} c="#2a2e35" />
       {/* klaviatura */}
       <Box p={[0, 0.76, 0.12]} s={[0.44, 0.02, 0.15]} c="#e2e2e0" />
-      <ModChairAt p={[0, 0, 0.58]} />
+      {/* stul stolga (monitorga, -z) qarasin */}
+      <ModChairAt p={[0, 0, 0.58]} ry={Math.PI} />
     </group>
   );
 }
