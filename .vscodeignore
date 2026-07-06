@@ -27,4 +27,8 @@ esbuild.mjs
 **/*.map
 **/*.ts
 
+# Ildizdagi begona rasm/qoralamalar paketga kirmasin (faqat icon.png kiradi)
+/*.png
+!icon.png
+
 # Faqat quyidagilar kiradi: dist/, package.json, README.md, icon.png, LICENSE

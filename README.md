@@ -39,12 +39,16 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
 ## Highlights
 
 - 🧑‍💻 **Live agent characters** — one voxel character per Claude Code session. They sit and type while working, stand up and **wander the office** (through doors, into rooms) when idle, and return to their desk when you give them a task. Solid collision: characters and the camera never pass through walls, glass or furniture.
+- 🧑‍🎨 **Distinct, lively agents** — same-role agents look different (accessories + subtle colour shifts), idle agents head to **role-fitting rooms** (research → library, backend → server room, everyone → the kitchen for a break), stretch now and then, and their monitors glow in their status colour.
 - 🏢 **A whole company floor** — a large, fully-enclosed multi-room office with **modern furniture**: a server room, kitchen, meeting rooms, a library, a bathroom, a lounge, glass-walled rooms and an open work area — each a real room with walls, doors and its own floor.
 - 🎥 **Two camera modes** — an **isometric** observer view (near walls turn translucent so you can see in) and a **first-person** walk-around mode (`WASD` + mouse) to explore the office from inside.
 - 📊 **Rich status at a glance** — floating labels show the current tool and file (`Edit App.tsx`, `Read db.ts`, …), a colour-coded **context/token health-bar**, permission "🔔" bubbles, and a per-agent inspector. Labels stay compact for unselected agents so a crowded office never turns into a wall of text.
 - 🎯 **Model-aware context meter** — the token gauge sizes itself to the session's real context window, so **1M-context** sessions read correctly instead of pegging at 100%.
-- 🧩 **Sub-agents** — when an agent spawns a `Task`/`Agent` sub-agent, it appears as its own small character beside the parent.
-- 🔔 **Sound + notifications** — subtle chimes when a turn finishes or a permission is requested, with a one-click mute toggle.
+- 🧩 **Sub-agents** — when an agent spawns a `Task`/`Agent` sub-agent, a "hiring" bubble pops up and a smaller helper character appears beside the parent (and the hire is logged in the activity feed).
+- 📊 **Session stats & activity feed** — the inspector tracks each agent's **turns, tool calls and active time**, and a 📜 feed logs recent events (tool runs, permission prompts, blocks, sub-agent hires, join/leave).
+- 🎨 **Office themes** — five one-click palettes (Warm, Cool, Night, Forest, Rose) recolour the floor and walls, alongside the per-item furniture and floor/wall colour pickers.
+- ♿ **Keyboard & accessibility** — arrow keys cycle the selected agent (Esc deselects), controls show a focus outline, and buttons carry ARIA labels.
+- 🔔 **Sound + native notifications** — subtle chimes when a turn finishes or a permission is requested (with a one-click mute), plus VS Code toasts when an agent needs you while the panel is hidden.
 - 🔌 **Two detection paths, clearly labelled** — reliable **Claude Code Hooks** plus a **JSONL transcript** fallback. A badge in the top bar shows whether this window has the live **🔗 Hook** stream or is on the **📄 JSONL** fallback.
 - 🪑 **Layout editor** — an ✏️ edit mode to place, drag, rotate and delete furniture on a grid, recolour the floor, undo/redo, and export/import the layout as JSON. Layouts persist to `~/.agent-office/layout.json` and are shared with the standalone viewer.
 - 🌐 **Standalone browser viewer** — run `npx agent-office` (or `node dist/cli.js`) to watch the same 3D office in any browser at `http://localhost:3100`, no VS Code required. It reuses the hook/JSONL detection and the shared layout.
@@ -97,7 +101,7 @@ The extension **does not run** Claude — it only watches. When Hooks are delive
 **From a packaged `.vsix`:**
 
 ```bash
-code --install-extension agent-office-0.1.2.vsix
+code --install-extension agent-office-0.1.3.vsix
 ```
 
 …or in VS Code: **Extensions** → `⋯` → **Install from VSIX…**
@@ -118,6 +122,7 @@ Then reload the window (`Ctrl+Shift+P` → *Developer: Reload Window*).
 | Setting | Default | Description |
 | ------- | ------- | ----------- |
 | `agent-office.hooksEnabled` | `true` | Use Claude Code Hooks for reliable detection (writes a hook into `~/.claude/settings.json`). |
+| `agent-office.notifications` | `true` | Show a VS Code toast when an agent needs permission or is blocked while the panel is hidden. |
 | `agent-office.autoShowPanel` | `false` | Open the panel automatically on startup. |
 | `agent-office.autoSpawnAgent` | `false` | Spawn one agent on startup if none are running. |
 
@@ -154,8 +159,9 @@ It runs the same JSONL/hook detection and reads the layout you edited in the ext
 
 ## Roadmap
 
-- More character variety and animations
-- Marketplace & Open VSX distribution
+- Layout presets and more office themes
+- Open VSX distribution
+- Richer sub-agent choreography
 
 ## Security & Privacy
 

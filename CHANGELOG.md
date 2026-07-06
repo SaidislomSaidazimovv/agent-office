@@ -3,6 +3,53 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.3] — 2026-07-06
+
+A "livelier office" release — more characters, more life, more insight, and a
+brand-new icon. 🎨
+
+### Added
+
+- **Character variety** — same-role agents now look distinct: each gets a
+  deterministic accessory (glasses, headphones, or a cap) and a subtle per-agent
+  hair/clothing colour shift.
+- **Smart idle** — idle agents no longer loiter in walkways; they head into
+  rooms that fit their role (research → library, backend → server room, everyone
+  → kitchen/lounge), and take a coffee break the first trip after finishing work.
+- **Animation polish** — standing-idle agents periodically stretch, and thinking
+  agents rest a hand near the chin.
+- **Visual effects** — agent monitors cast a soft status-coloured glow, and
+  potted plants sway gently.
+- **Session stats** — the inspector shows per-agent **turns**, **tool calls**
+  and **active time** (ticking live).
+- **Activity feed** — a 📜 panel logs recent events: tool runs, permission
+  prompts, blocks, sub-agent hires, and agents joining/leaving.
+- **Native notifications** — when the panel is hidden, permission requests and
+  errors raise a VS Code toast with a **Show** action (setting:
+  `agent-office.notifications`).
+- **Office themes** — five one-click palettes (Warm, Cool, Night, Forest, Rose)
+  recolour the floor and all walls; a standalone wall-colour picker is included,
+  and `wallColor` persists with the layout.
+- **Accessibility** — arrow keys cycle the selected agent (Esc deselects),
+  a focus-visible outline is shown on all controls, emoji-only buttons get ARIA
+  labels, and the activity feed is a polite live region.
+- **New icon.** 🎨
+
+### Changed
+
+- **Sub-agent visualization** — spawning a `Task`/`Agent` sub-agent now shows a
+  "hiring" bubble over the agent and logs it in the feed; helpers pop in as
+  smaller "Yordamchi" characters and stay visible at least 6 s so fast
+  (background) sub-agents no longer flash by unseen.
+
+### Fixed
+
+- Meeting-table and desk chairs faced away from their table/monitor — they now
+  face inward.
+- Room doors could open inward; every door now swings toward the central hallway
+  and its leaf fits the opening.
+- The sub-agent "hiring" bubble could stick on screen indefinitely.
+
 ## [0.1.2] — 2026-07-05
 
 ### Fixed
@@ -65,5 +112,6 @@ sessions — no API key, no configuration, purely local.
   bails out (never overwrites) if the file can't be parsed, and writes
   atomically; stale prior-version hook entries are cleaned up on install.
 
+[0.1.3]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.3
 [0.1.2]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.2
 [0.1.1]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.1
