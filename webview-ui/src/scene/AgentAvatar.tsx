@@ -1,13 +1,13 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { memo, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { slide } from "./collision";
 import { breakRoom, idleDestination, nearestNode, pathBetween, type WP } from "./nav";
 import PixelPerson from "./PixelPerson";
-import { characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
+import { type CharSkin, characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
 // ── Agent personaji (dunyo darajasida, navigatsiya bilan) ────
 // Ishlaganda stolda o'tiradi; bo'sh (idle) turganda ofis bo'ylab sayr
@@ -22,6 +22,19 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];
   const tok = tokenBar(agent.inputTokens, agent.contextWindow);
+
+  // Sub-agent "yollash" pufagi — subagentlar soni oshganda qisqa vaqt ko'rinadi.
+  const [hiring, setHiring] = useState(false);
+  const prevSubs = useRef(agent.subagents.length);
+  useEffect(() => {
+    if (agent.subagents.length > prevSubs.current) {
+      setHiring(true);
+      prevSubs.current = agent.subagents.length;
+      const t = setTimeout(() => setHiring(false), 3500);
+      return () => clearTimeout(t);
+    }
+    prevSubs.current = agent.subagents.length;
+  }, [agent.subagents.length]);
 
   // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
   const sit = useRef<WP>({ ...sitPoint(seat) });
@@ -141,15 +154,17 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         getState={() => ({ sit: seated.current, moving: movingRef.current })}
       />
 
-      {/* Sub-agentlar — yonida kichik personaj */}
+      {/* Sub-agentlar — yonida KICHIK yordamchi personaj (paydo bo'lish pop'i bilan) */}
       {agent.subagents.map((key, i) => (
-        <group key={key} position={[0.9 + (i % 2) * 0.7, 0, 0.4 - Math.floor(i / 2) * 0.7]} scale={0.55}>
-          <PixelPerson skin={preset} status="working" pose="stand" />
-          <Html position={[0, 1.9, 0]} center style={{ pointerEvents: "none" }}>
-            <div style={{ padding: "2px 6px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>🔧 Sub</div>
-          </Html>
-        </group>
+        <SubAgent key={key} skin={preset} index={i} />
       ))}
+
+      {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
+      {hiring && (
+        <Html position={[0, 2.62, 0]} center style={{ pointerEvents: "none" }}>
+          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ffd60a", color: "#1a1500", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>🔧 Sub-agent yolladi</div>
+        </Html>
+      )}
 
       {/* Ruxsat pufagi */}
       {agent.permission && (
@@ -177,6 +192,31 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
             {agent.folderName}
           </div>
         )}
+      </Html>
+    </group>
+  );
+}
+
+// Sub-agent — parent yonidagi KICHIK yordamchi personaj. Paydo bo'lganda
+// noldan "pop" (ozgina overshoot) bilan kattalashadi — yollangani seziladi.
+function SubAgent({ skin, index }: { skin: CharSkin; index: number }) {
+  const g = useRef<THREE.Group>(null);
+  const t = useRef(0);
+  const TARGET = 0.5;
+  const px = 0.9 + (index % 2) * 0.62;
+  const pz = 0.45 - Math.floor(index / 2) * 0.62;
+  useFrame((_, delta) => {
+    if (!g.current || t.current >= 1) return;
+    t.current = Math.min(1, t.current + delta * 3.2); // ~0.3s
+    const x = t.current, c1 = 1.70158, c3 = c1 + 1;
+    const e = 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); // easeOutBack
+    g.current.scale.setScalar(TARGET * e);
+  });
+  return (
+    <group ref={g} position={[px, 0, pz]} scale={0.001}>
+      <PixelPerson skin={skin} status="working" pose="stand" />
+      <Html position={[0, 1.95, 0]} center style={{ pointerEvents: "none" }}>
+        <div style={{ padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>🔧 Yordamchi</div>
       </Html>
     </group>
   );

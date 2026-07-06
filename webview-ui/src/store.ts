@@ -284,6 +284,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a || a.subagents.includes(key)) return;
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, active: true, subagents: [...a.subagents, key] }) },
+      events: pushEvent(s.events, a.folderName, "sub-agent yolladi 🔧", "#ffd60a"),
     }));
   },
 
