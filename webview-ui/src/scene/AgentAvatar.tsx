@@ -8,6 +8,7 @@ import { slide } from "./collision";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
+import { contactShadowMat, SHADOW_PLANE } from "./resources";
 import { type CharSkin, characterFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 
@@ -294,6 +295,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 
   return (
     <group ref={group} position={[sit.current.x, 0, sit.current.z]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
+      {/* Yumshoq contact-shadow — agentni yerga bog'laydi (yassi, radial) */}
+      <mesh geometry={SHADOW_PLANE} material={contactShadowMat()} position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.92, 0.92, 1]} />
       <PixelPerson
         skin={preset}
         status={agent.status}

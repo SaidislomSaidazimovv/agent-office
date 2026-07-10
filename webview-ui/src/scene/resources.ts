@@ -10,6 +10,25 @@ import * as THREE from "three";
 /** Birlik kub (1×1×1) — mesh.scale bilan istalgan o'lchamga. Barcha qutilar shu. */
 export const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
 
+/** Contact-shadow tekislik + yumshoq radial material (agent ostidа yerga bog'lash
+ *  soyasi). Material LAZY yaratiladi (canvas faqat brauzerда, birinchi chaqiruvда). */
+export const SHADOW_PLANE = new THREE.PlaneGeometry(1, 1);
+let _shadowMat: THREE.MeshBasicMaterial | null = null;
+export function contactShadowMat(): THREE.MeshBasicMaterial {
+  if (_shadowMat) return _shadowMat;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 64;
+  const ctx = cv.getContext("2d")!;
+  const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 32);
+  g.addColorStop(0, "rgba(0,0,0,0.4)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.2)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  _shadowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false });
+  return _shadowMat;
+}
+
 const stdCache = new Map<string, THREE.MeshStandardMaterial>();
 const basicCache = new Map<string, THREE.MeshBasicMaterial>();
 const cylCache = new Map<string, THREE.CylinderGeometry>();
