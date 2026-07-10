@@ -38,6 +38,17 @@ function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: 
   );
 }
 
+// Dekorativ gilam — poldan ozgina baland (z-fight yo'q), ikki qatlamli (chegara
+// + ichki rang). Yassi, shu bois agentlar ustidan bemalol yuradi (collision yo'q).
+function Rug({ p, w, d, c = "#9c4a38", accent = "#c1735c" }: { p: V3; w: number; d: number; c?: string; accent?: string }) {
+  return (
+    <group position={[p[0], 0.028, p[2]]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[w, d]} />{M(c, 1)}</mesh>
+      <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[w - 0.45, d - 0.45]} />{M(accent, 1)}</mesh>
+    </group>
+  );
+}
+
 // Devor (X bo'ylab) — eshik + ramka + tavaqa.
 // Eshik HAR DOIM markaziy yo'lak (tashqi) tomonga ochiladi: yo'nalish z'dan
 // hisoblanadi — yuqori xonalar (z<0) +z ga, pastki xonalar (z>0) −z ga.
@@ -452,6 +463,13 @@ export default function OfficeDecor() {
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
+
+      {/* Dekorativ gilamlar — xona mebeli ostida (yassi, yurishga xalaqit yo'q) */}
+      <Rug p={[3, 0, 13.6]} w={5} d={3.6} c="#7d4a6b" accent="#a06a8c" />
+      <Rug p={[-13.5, 0, 13]} w={4.2} d={3.2} c="#8a5a2e" accent="#b0824a" />
+      <Rug p={[3.5, 0, -12.5]} w={4.6} d={3.6} c="#3f5e7a" accent="#5c82a0" />
+      <Rug p={[19, 0, -12.8]} w={3.4} d={3} c="#4a6b4f" accent="#6a8f70" />
+      <Rug p={[19, 0, 13]} w={3.4} d={3} c="#8a4038" accent="#ac5c52" />
     </group>
   );
 }
