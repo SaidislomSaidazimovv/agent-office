@@ -40,6 +40,13 @@ export function presetFor(role: string | undefined, seatIndex: number): CharSkin
   return PALETTE[seatIndex % PALETTE.length];
 }
 
+// Rol KALITI (i18n uchun) — aniqlanган rol yoki seat-fallback kaliti.
+const ROLE_KEYS = Object.keys(ROLE_PRESETS);
+export function roleKeyFor(role: string | undefined, seatIndex: number): string {
+  if (role && ROLE_PRESETS[role]) return role;
+  return ROLE_KEYS[seatIndex % ROLE_KEYS.length];
+}
+
 // Har agentga (id bo'yicha) noyob ko'rinish — bir xil rolli agentlar ham
 // farqlansin: aksessuar + soch rangi/kiyim soyasида nozik variatsiya.
 const ACCESSORIES: Accessory[] = [null, null, "glasses", "headphones", null, "cap", "glasses", null];

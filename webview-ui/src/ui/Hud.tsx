@@ -4,13 +4,13 @@ import { fmtCost, PRICING_AS_OF } from "../pricing";
 import { useDaylight } from "../scene/daylight";
 import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
-import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
+import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
+import { type Key, useT } from "../i18n";
 import { useOffice } from "../store";
 import { send } from "../transport";
+import SettingsPanel from "./SettingsPanel";
 
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
-
-const ROLES = Object.entries(ROLE_PRESETS).map(([key, p]) => ({ key, ...p }));
 
 // Davomiylik (ms → "12s" / "3m 5s" / "1h 4m").
 function fmtDur(ms: number): string {
@@ -41,6 +41,7 @@ export default function Hud() {
   const order = useOffice((s) => s.order);
   const selectedId = useOffice((s) => s.selectedId);
   const agents = useOffice((s) => s.agents);
+  const t = useT();
   const select = useOffice((s) => s.select);
   const movingId = useOffice((s) => s.movingId);
   const setMoving = useOffice((s) => s.setMoving);
@@ -142,7 +143,7 @@ export default function Hud() {
       <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
-          {order.length} agent{order.length === 1 ? "" : "lar"}
+          {order.length} {t("hud.agents")}
         </div>
         {/* Umumiy taxminiy xarajat (barcha agentlar) */}
         {(() => {
@@ -167,9 +168,9 @@ export default function Hud() {
         {/* Ovoz toggle */}
         <button
           onClick={toggleSound}
-          aria-label={soundEnabled ? "Ovozni o'chirish" : "Ovozni yoqish"}
+          aria-label={soundEnabled ? t("hud.soundOn") : t("hud.soundOff")}
           aria-pressed={soundEnabled}
-          title={soundEnabled ? "Ovoz yoqiq (bosib o'chiring)" : "Ovoz o'chiq (bosib yoqing)"}
+          title={soundEnabled ? t("hud.soundOn") : t("hud.soundOff")}
           style={{
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
             cursor: "pointer", border: "1px solid rgba(255,255,255,0.14)", background: "rgba(20,24,32,0.8)",
@@ -181,9 +182,9 @@ export default function Hud() {
         {/* Kun/tun toggle */}
         <button
           onClick={toggleDaylight}
-          aria-label={daylightOn ? "Kun/tun sikli yoqiq (bosib o'chiring)" : "Kun/tun sikli o'chiq (bosib yoqing)"}
+          aria-label={daylightOn ? t("hud.daylightOn") : t("hud.daylightOff")}
           aria-pressed={daylightOn}
-          title={daylightOn ? "Kun/tun sikli — real soatga bog'liq (bosib o'chiring)" : "Doimiy kunduzgi yorug'lik (bosib kun/tunni yoqing)"}
+          title={daylightOn ? t("hud.daylightOn") : t("hud.daylightOff")}
           style={{
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
             cursor: "pointer", fontSize: 12,
@@ -193,12 +194,14 @@ export default function Hud() {
         >
           {daylightOn ? "🌗" : "☀️"}
         </button>
+        {/* Sozlamalar (til + toggle'lar) */}
+        <SettingsPanel />
         {/* Faoliyat tasmasi toggle */}
         <button
           onClick={() => setFeed((f) => !f)}
-          aria-label="Faoliyat tasmasi"
+          aria-label={t("hud.feed")}
           aria-pressed={feed}
-          title="Faoliyat tasmasi (so'nggi hodisalar)"
+          title={t("hud.feed")}
           style={{
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
             cursor: "pointer", fontSize: 12,
@@ -260,7 +263,7 @@ export default function Hud() {
               <button
                 key={id}
                 onClick={() => { select(a.id); send({ type: "focusAgent", id: a.id }); }}
-                title={STATUS_LABEL[a.status]}
+                title={`${a.folderName} · ${t(`status.${a.status}` as Key)}`}
                 style={{
                   display: "flex", alignItems: "center", gap: 6, padding: "4px 11px", borderRadius: 20,
                   cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "#e8ecf2",
@@ -269,7 +272,7 @@ export default function Hud() {
                 }}
               >
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
-                {a.folderName}
+                {t(`role.${roleKeyFor(a.role, a.seatIndex)}` as Key)}
               </button>
             );
           })}
@@ -280,15 +283,15 @@ export default function Hud() {
       <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
         <button
           onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
-          aria-label={cameraMode === "iso" ? "Ichki (birinchi shaxs) rejimga o'tish" : "Yuqori (izometrik) rejimga o'tish"}
-          title={cameraMode === "iso" ? "Ichkidan yurib kuzatish" : "Yuqoridan (izometrik)"}
+          aria-label={cameraMode === "iso" ? t("cam.insideTip") : t("cam.topTip")}
+          title={cameraMode === "iso" ? t("cam.insideTip") : t("cam.topTip")}
           style={{
             padding: "7px 12px", borderRadius: 9, cursor: "pointer",
             border: "1px solid rgba(255,255,255,0.2)", background: "rgba(20,24,32,0.85)",
             color: "#fff", fontSize: 13, fontWeight: 600,
           }}
         >
-          {cameraMode === "iso" ? "🚶 Ichki" : "🔭 Yuqori"}
+          {cameraMode === "iso" ? t("cam.inside") : t("cam.top")}
         </button>
       </div>
 
@@ -297,16 +300,16 @@ export default function Hud() {
         <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
           <button
             onClick={() => setEditMode(!editMode)}
-            aria-label={editMode ? "Tahrirlashni yakunlash" : "Ofisni tahrirlash"}
+            aria-label={t("edit.tip")}
             aria-pressed={editMode}
-            title="Ofis jihozlarini tahrirlash"
+            title={t("edit.tip")}
             style={{
               padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600,
               border: `1px solid ${editMode ? "rgba(76,139,245,0.7)" : "rgba(255,255,255,0.2)"}`,
               background: editMode ? "rgba(76,139,245,0.25)" : "rgba(20,24,32,0.85)", color: "#fff",
             }}
           >
-            {editMode ? "✓ Tayyor" : "✏️ Tahrir"}
+            {editMode ? t("edit.done") : t("edit.start")}
           </button>
         </div>
       )}
@@ -316,26 +319,22 @@ export default function Hud() {
 
       {/* Kamera maslahati (rejimga qarab) */}
       <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
-        {cameraMode === "fpv" ? (
-          <>🖱 Qarash uchun bosing · <b>WASD</b> yurish · <b>Esc</b> chiqish</>
-        ) : (
-          <>🖱 Aylantirish uchun torting · <b>g'ildirak</b> masshtab · <b>←/→</b> agent tanlash</>
-        )}
+        {cameraMode === "fpv" ? t("hint.fpv") : t("hint.iso")}
       </div>
 
       {/* +Agent */}
       <div ref={menuRef} style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
         <button
           onClick={() => setMenu((m) => !m)}
-          title="Yangi Claude Code agenti qo'shish"
-          aria-label="Yangi agent qo'shish"
+          title={t("agent.addTitle")}
+          aria-label={t("agent.addTitle")}
           style={{
             padding: "7px 14px", borderRadius: 9, cursor: "pointer",
             border: "1px solid rgba(94,155,255,0.5)", background: "rgba(94,155,255,0.18)",
             color: "#fff", fontSize: 13, fontWeight: 600,
           }}
         >
-          + Agent
+          {t("agent.add")}
         </button>
         {menu && (
           <div
@@ -348,7 +347,7 @@ export default function Hud() {
             {/* Papka tanlash — faqat multi-root ish maydonida */}
             {multiRoot && (
               <>
-                <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>Papka</div>
+                <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>{t("agent.folder")}</div>
                 {folders.map((f) => (
                   <button
                     key={f.path}
@@ -368,33 +367,23 @@ export default function Hud() {
                 <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 4px" }} />
               </>
             )}
-            <div style={{ fontSize: 11, opacity: 0.6, padding: "4px 8px" }}>Rol tanlang</div>
-            {ROLES.map((r) => (
-              <button
-                key={r.key}
-                onClick={() => launch(r.key)}
-                style={{
-                  display: "block", width: "100%", textAlign: "left", padding: "7px 8px",
-                  borderRadius: 7, border: "none", background: "transparent", color: "#e8ecf2",
-                  fontSize: 13, cursor: "pointer",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: r.top, marginRight: 8 }} />
-                {r.label}
-              </button>
-            ))}
+            {/* Rol tanlanmaydi — agent qo'shiladi, roli terminaldagi ishga
+                qarab avtomatik aniqlanadi (roleInference). */}
             <button
               onClick={() => launch()}
               style={{
-                display: "block", width: "100%", textAlign: "left", padding: "7px 8px", marginTop: 2,
-                borderRadius: 7, border: "none", background: "transparent", color: "#9aa3af",
-                fontSize: 12, cursor: "pointer",
+                display: "block", width: "100%", textAlign: "center", padding: "8px 10px",
+                borderRadius: 7, border: "none", background: "rgba(94,155,255,0.2)",
+                color: "#e8ecf2", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(94,155,255,0.32)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(94,155,255,0.2)")}
             >
-              Rolsiz ishga tushirish
+              {t("agent.launch")}
             </button>
+            <div style={{ fontSize: 10, opacity: 0.5, padding: "6px 8px 2px", lineHeight: 1.35 }}>
+              {t("agent.roleAuto")}
+            </div>
             {/* Ruxsatsiz rejim (--dangerously-skip-permissions) */}
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "5px 4px" }} />
             <label
@@ -416,10 +405,9 @@ export default function Hud() {
             textAlign: "center", maxWidth: 340,
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Ofis hozircha bo'sh</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{t("empty.title")}</div>
           <div style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.5 }}>
-            <b>+ Agent</b> tugmasini bosing — yangi Claude Code terminali ochiladi va
-            uning faoliyati shu ofisda jonli ko'rinadi.
+            {t("empty.body")}
           </div>
         </div>
       )}
@@ -445,10 +433,10 @@ export default function Hud() {
             </button>
           </div>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 1 }}>
-            {presetFor(sel.role, sel.seatIndex).label}
+            {t(`role.${roleKeyFor(sel.role, sel.seatIndex)}` as Key)}
           </div>
           <div style={{ fontSize: 12, marginTop: 8 }}>
-            <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {STATUS_LABEL[sel.status]}
+            <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {t(`status.${sel.status}` as Key)}
             {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}
           </div>
           {/* Git holati (branch + o'zgargan fayllar) */}

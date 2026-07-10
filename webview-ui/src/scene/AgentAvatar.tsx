@@ -8,7 +8,8 @@ import { slide } from "./collision";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
-import { type CharSkin, characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
+import { type CharSkin, characterFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
+import { type Key, useT } from "../i18n";
 
 // ── Agent personaji (dunyo darajasida, navigatsiya bilan) ────
 // Ishlaganda stolda o'tiradi; bo'sh (idle) turganda ofis bo'ylab sayr
@@ -19,6 +20,9 @@ const SPEED = 1.7;
 function AgentAvatar({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
   const preset = characterFor(agent.role, agent.seatIndex, agent.id);
+  // Yorliq — papka nomi (repoда hammasи bir xil) o'rniga ANIQLANGAN rol (tarjimali).
+  const t = useT();
+  const roleLabel = t(`role.${roleKeyFor(agent.role, agent.seatIndex)}` as Key);
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const color = STATUS_COLOR[agent.status];
@@ -327,8 +331,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
         {selected ? (
           <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
-            <div style={{ fontWeight: 600 }}>{agent.folderName}</div>
-            <div style={{ fontSize: 10, opacity: 0.85 }}><span style={{ color }}>●</span> {STATUS_LABEL[agent.status]}{agent.toolLabel ? ` · ${agent.toolLabel}` : ""}</div>
+            <div style={{ fontWeight: 600 }}>{roleLabel}</div>
+            <div style={{ fontSize: 10, opacity: 0.85 }}><span style={{ color }}>●</span> {t(`status.${agent.status}` as Key)}{agent.toolLabel ? ` · ${agent.toolLabel}` : ""}</div>
             {agent.inputTokens > 0 && (
               <div style={{ marginTop: 3, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.16)", overflow: "hidden" }}>
                 <div style={{ width: `${Math.max(4, tok.pct * 100)}%`, height: "100%", background: tok.color }} />
@@ -338,7 +342,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 11, background: "rgba(16,20,27,0.82)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-            {agent.folderName}
+            {roleLabel}
           </div>
         )}
       </Html>
