@@ -6,7 +6,7 @@ import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { slide } from "./collision";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
-import { clearMeeting, meetingOf, report, seekMeeting, unreport } from "./presence";
+import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { type CharSkin, characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
@@ -87,8 +87,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const reportT = useRef(0); // presence bildirish throttle
   const seekCd = useRef(3 + Math.random() * 4); // keyingi izlashgacha
   const metAt = useRef(0); // gather nuqtasiga yetgan payt (0 = yetmagan)
-  const [emote, setEmote] = useState<"" | "👋" | "☕">("");
-  const emoteRef = useRef<"" | "👋" | "☕">("");
+  const [emote, setEmote] = useState<"" | "👋" | "☕" | "💬">("");
+  const emoteRef = useRef<"" | "👋" | "☕" | "💬">("");
   useEffect(() => () => unreport(agent.id), [agent.id]); // ketganda reyestrдан chiqar
 
   useFrame((_, delta) => {
@@ -149,24 +149,30 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         const now = performance.now() / 1000;
         const meet = meetingOf(agent.id);
         if (meet) {
-          // ── Uchrashuv: gather-tugunga bor; yetgach ~5.5s suhbat, keyin tarqa ──
-          const chatDone = metAt.current > 0 && now - metAt.current > 5.5;
-          if (now > meet.until || chatDone) {
+          // ── Uchrashuv: O'Z joyimga (spot) boraman; ikkovimiz yetgach ~6s
+          //    suhbat, keyin tarqaymiz. Sherik ketsa — kutmaymiz. ──
+          const spot = meetSpot(meet);
+          const partner = presenceOf(meet.partner);
+          const bothHere = metAt.current > 0 && partner != null && partner.metAt > 0;
+          const chatSince = bothHere ? Math.max(metAt.current, partner!.metAt) : 0;
+          const chatDone = bothHere && now - chatSince > 6;
+          const partnerGone = metAt.current > 0 && (partner == null || meetingOf(meet.partner) == null);
+          if (now > meet.until || chatDone || partnerGone) {
             clearMeeting(agent.id);
             metAt.current = 0;
             seekCd.current = 18 + Math.random() * 20; // yaqinда qayta uchrashmasin
             pause.current = 0.4 + Math.random();
+          } else if (Math.hypot(p.x - spot.x, p.z - spot.z) < 0.32) {
+            if (metAt.current === 0) metAt.current = now; // joyimga yetdim (sherikni kutaman)
+          } else if (Math.hypot(p.x - NODES[meet.point].x, p.z - NODES[meet.point].z) < 1.3) {
+            // hub'ga yetdim — oxirgi qadamni O'Z joyimga to'g'ri yuraman
+            path.current = [spot];
+            pendingNode.current = null;
           } else {
-            const gp = NODES[meet.point];
-            if (Math.hypot(p.x - gp.x, p.z - gp.z) < 1.15) {
-              if (metAt.current === 0) metAt.current = now; // yetdik — turamiz
-            } else {
-              // Yo'lni HAQIQIY joydan boshlaymiz (eski curNode teskari yubormasin).
-              const from = nearestNode(p.x, p.z);
-              const route = pathBetween(from, meet.point);
-              if (route.length === 0) { curNode.current = from; pause.current = 0.5; }
-              else { path.current = route; curNode.current = from; pendingNode.current = meet.point; }
-            }
+            const from = nearestNode(p.x, p.z);
+            const route = pathBetween(from, meet.point);
+            if (route.length === 0) { curNode.current = from; pause.current = 0.5; }
+            else { path.current = route; curNode.current = from; pendingNode.current = meet.point; }
           }
         } else if (pause.current > 0) {
           pause.current -= dt;
@@ -208,9 +214,16 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         const mvx = (dx / dist) * SPEED * dt;
         const mvz = (dz / dist) * SPEED * dt;
         const res = slide(p.x, p.z, mvx, mvz, 0.16);
-        const moved = Math.hypot(res.x - p.x, res.z - p.z);
-        p.x = res.x;
-        p.z = res.z;
+        // Agent-agent collision — bir-birini ustidan arvohdek o'tmaydi. O'q
+        // bo'yicha: agar YANGI joy boshqa agentга tegsa (va hozir tegmayotgan
+        // bo'lsak) — o'sha o'q bo'yicha turamiz. (Ichida qolsa — chiqishga ruxsat.)
+        const SEP = 0.42;
+        let fx = res.x, fz = res.z;
+        if (blockedByAgent(agent.id, fx, p.z, SEP) && !blockedByAgent(agent.id, p.x, p.z, SEP)) fx = p.x;
+        if (blockedByAgent(agent.id, fx, fz, SEP) && !blockedByAgent(agent.id, fx, p.z, SEP)) fz = p.z;
+        const moved = Math.hypot(fx - p.x, fz - p.z);
+        p.x = fx;
+        p.z = fz;
         moving = true;
         g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 10, dt);
         // Tiqilib qolsa — bu nuqtani tashlab, qayta rejalaymiz
@@ -239,24 +252,35 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     g.position.x = p.x;
     g.position.z = p.z;
 
-    // ── Uchrashuv: yetgan bo'lsak sherikka (gather markaziga) qarab imo-ishora ──
+    // ── Uchrashuv: joyimga yetsam SHERIKKA qarayman; IKKOVIMIZ yetsa gaplashamiz.
+    //    Emote FAQAT ikkovi ham yetganда (yolg'iz o'zidan emote yo'q). ──
     const mNow = meetingOf(agent.id);
+    const partnerNow = mNow ? presenceOf(mNow.partner) : undefined;
     if (mNow && metAt.current > 0) {
-      const gp = NODES[mNow.point];
-      const dx = gp.x - p.x, dz = gp.z - p.z;
+      // Sherik kelgan bo'lsa unga, aks holda hub markaziga (kutish yo'nalishi) qaray
+      const tx = partnerNow ? partnerNow.x : NODES[mNow.point].x;
+      const tz = partnerNow ? partnerNow.z : NODES[mNow.point].z;
+      const dx = tx - p.x, dz = tz - p.z;
       if (Math.hypot(dx, dz) > 0.05) g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 6, dt);
-      const el = performance.now() / 1000 - metAt.current;
-      const e = el < 1.8 ? "👋" : "☕"; // avval salom, keyin qahva
-      if (emoteRef.current !== e) { emoteRef.current = e; setEmote(e); }
+      const bothHere = partnerNow != null && partnerNow.metAt > 0;
+      if (bothHere) {
+        const since = Math.max(metAt.current, partnerNow!.metAt);
+        const el = performance.now() / 1000 - since;
+        // 👋 salom → 💬 suhbat (nav-bat almashib turadi)
+        const e = el < 1.6 ? "👋" : Math.floor(el * 1.2) % 2 === 0 ? "💬" : "☕";
+        if (emoteRef.current !== e) { emoteRef.current = e; setEmote(e); }
+      } else if (emoteRef.current !== "") {
+        emoteRef.current = ""; setEmote(""); // sherik hali yo'q — jim kutamiz
+      }
     } else if (emoteRef.current !== "") {
       emoteRef.current = ""; setEmote("");
     }
 
-    // Presence reyestri (throttled ~5/s)
+    // Presence reyestri (throttled ~5/s) — metAt bilan (sherik yetganimni bilsin)
     reportT.current -= dt;
     if (reportT.current <= 0) {
       reportT.current = 0.2;
-      report(agent.id, p.x, p.z, statusRef.current === "idle");
+      report(agent.id, p.x, p.z, statusRef.current === "idle", metAt.current);
     }
   });
 

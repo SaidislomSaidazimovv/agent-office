@@ -407,7 +407,8 @@ export default function OfficeDecor() {
       <Sofa p={[2, 0, 15]} c="#4a5568" />
       <Sofa p={[5.5, 0, 13]} ry={-Math.PI / 2} c="#556070" />
       <CoffeeTable p={[2, 0, 13]} />
-      <TV p={[2, 1.7, 15.8]} />
+      {/* ekran xona ichiga (divanlar tomonga, -z) qarasin — devorga emas */}
+      <TV p={[2, 1.7, 15.8]} ry={Math.PI} />
 
       {/* SHISHA XONA B [7,15] — ofis */}
       <Floor x0={7} x1={15} z0={9.5} z1={16} c="#d8d2e0" />
