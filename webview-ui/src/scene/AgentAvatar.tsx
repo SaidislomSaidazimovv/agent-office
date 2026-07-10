@@ -315,14 +315,14 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
       {hiring && (
         <Html position={[0, 2.62, 0]} center style={{ pointerEvents: "none" }}>
-          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ffd60a", color: "#1a1500", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>🔧 Sub-agent yolladi</div>
+          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ffd60a", color: "#1a1500", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.subHire")}</div>
         </Html>
       )}
 
       {/* Ruxsat pufagi */}
       {agent.permission && (
         <Html position={[0, 2.35, 0]} center style={{ pointerEvents: "none" }}>
-          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>🔔 Ruxsat so'raldi</div>
+          <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.permission")}</div>
         </Html>
       )}
 
@@ -355,6 +355,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 // so'ng onExited orqali ro'yxatдан chiqadi. Joyi `slot` bo'yicha barqaror.
 const SUB_TARGET = 0.5;
 function SubAgent({ skin, slot, leaving, onExited }: { skin: CharSkin; slot: number; leaving: boolean; onExited: () => void }) {
+  const t = useT();
   const g = useRef<THREE.Group>(null);
   const grow = useRef(0);
   const shrink = useRef(0);
@@ -381,7 +382,7 @@ function SubAgent({ skin, slot, leaving, onExited }: { skin: CharSkin; slot: num
     <group ref={g} position={[px, 0, pz]} scale={0.001}>
       <PixelPerson skin={skin} status="working" pose="stand" detail="low" />
       <Html position={[0, 1.95, 0]} center style={{ pointerEvents: "none" }}>
-        <div style={{ padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>🔧 Yordamchi</div>
+        <div style={{ padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>{t("bubble.helper")}</div>
       </Html>
     </group>
   );

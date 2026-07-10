@@ -5,7 +5,7 @@ import { useDaylight } from "../scene/daylight";
 import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
-import { type Key, useT } from "../i18n";
+import { type Key, translate, useLang, useT } from "../i18n";
 import { useOffice } from "../store";
 import { send } from "../transport";
 import SettingsPanel from "./SettingsPanel";
@@ -30,7 +30,7 @@ function shortModel(m: string): string {
 // "necha vaqt oldin" (event tasmasi uchun).
 function fmtAgo(at: number, now: number): string {
   const s = Math.floor((now - at) / 1000);
-  if (s < 5) return "hozir";
+  if (s < 5) return translate(useLang.getState().lang, "time.now");
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m`;
@@ -149,14 +149,14 @@ export default function Hud() {
         {(() => {
           const total = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
           return total > 0 ? (
-            <div title={`Barcha sessiyalar taxminiy xarajati — rasmiy narxlar (${PRICING_AS_OF})`} style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700, background: "rgba(48,209,88,0.16)", color: "#30d158", border: "1px solid rgba(48,209,88,0.4)" }}>
+            <div title={`${t("hud.costTip")} (${PRICING_AS_OF})`} style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700, background: "rgba(48,209,88,0.16)", color: "#30d158", border: "1px solid rgba(48,209,88,0.4)" }}>
               ~{fmtCost(total)}
             </div>
           ) : null;
         })()}
         {/* Aniqlash rejimi — jonli hook yoki JSONL zaxira */}
         <div
-          title={hookActive ? "Jonli hook oqimi (ishonchli aniqlash)" : "Faqat JSONL kuzatuvi (hook boshqa oynada yoki o'chiq — aniqlash evristik)"}
+          title={hookActive ? t("hud.hookTip") : t("hud.jsonlTip")}
           style={{
             display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 600,
             background: hookActive ? "rgba(48,209,88,0.16)" : "rgba(255,159,10,0.16)",
@@ -224,19 +224,19 @@ export default function Hud() {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>📜 Faoliyat</span>
-            <button onClick={() => setFeed(false)} aria-label="Tasmani yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{t("feed.title")}</span>
+            <button onClick={() => setFeed(false)} aria-label={t("feed.close")} style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
           </div>
-          <div role="log" aria-label="Faoliyat tasmasi" aria-live="polite" style={{ overflowY: "auto", padding: "4px 0" }}>
+          <div role="log" aria-label={t("hud.feed")} aria-live="polite" style={{ overflowY: "auto", padding: "4px 0" }}>
             {events.length === 0 ? (
-              <div style={{ padding: "14px 12px", fontSize: 12, opacity: 0.55, textAlign: "center" }}>Hozircha hodisa yo'q</div>
+              <div style={{ padding: "14px 12px", fontSize: 12, opacity: 0.55, textAlign: "center" }}>{t("hud.feedEmpty")}</div>
             ) : (
               events.map((e) => (
                 <div key={e.seq} style={{ display: "flex", alignItems: "baseline", gap: 7, padding: "4px 12px", fontSize: 11.5, lineHeight: 1.35 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: e.color, flexShrink: 0, transform: "translateY(1px)" }} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <b style={{ color: "#cdd6e2" }}>{e.who}</b>{" "}
-                    <span style={{ opacity: 0.82 }}>{e.text}</span>
+                    <span style={{ opacity: 0.82 }}>{e.key ? t(e.key) + (e.count && e.count > 1 ? ` ×${e.count}` : "") : e.text}</span>
                   </span>
                   <span style={{ opacity: 0.45, fontSize: 10, flexShrink: 0 }}>{fmtAgo(e.at, Date.now())}</span>
                 </div>
@@ -449,7 +449,7 @@ export default function Hud() {
                   ⑂ {g.branch}
                 </span>
                 {g.changed > 0 && (
-                  <span title="O'zgargan fayllar" style={{ color: "#ff9f0a" }}>● {g.changed} o'zgargan</span>
+                  <span title={t("insp.changedFiles")} style={{ color: "#ff9f0a" }}>● {g.changed} {t("insp.changed")}</span>
                 )}
               </div>
             );
@@ -467,8 +467,8 @@ export default function Hud() {
             return (
               <div style={{ marginTop: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 3 }}>
-                  <span>Kontekst · {winLabel}</span>
-                  <span>{Math.round(bar.pct * 100)}% · {kfmt(sel.inputTokens)} / {kfmt(sel.outputTokens)} chiqish</span>
+                  <span>{t("insp.context")} · {winLabel}</span>
+                  <span>{Math.round(bar.pct * 100)}% · {kfmt(sel.inputTokens)} / {kfmt(sel.outputTokens)} {t("insp.output")}</span>
                 </div>
                 <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
                   <div style={{ width: `${Math.max(3, bar.pct * 100)}%`, height: "100%", background: bar.color }} />
@@ -478,17 +478,17 @@ export default function Hud() {
           })()}
           {/* Taxminiy xarajat + model */}
           {sel.costUsd > 0 && (
-            <div title={`Taxminiy — rasmiy narxlar (${PRICING_AS_OF}). Kesh o'qish/yozish hisobga olingan.`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(48,209,88,0.1)", border: "1px solid rgba(48,209,88,0.25)" }}>
-              <span style={{ fontSize: 11, opacity: 0.75 }}>💰 Xarajat{sel.model ? ` · ${shortModel(sel.model)}` : ""}</span>
+            <div title={`${t("insp.costTip")} (${PRICING_AS_OF})`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(48,209,88,0.1)", border: "1px solid rgba(48,209,88,0.25)" }}>
+              <span style={{ fontSize: 11, opacity: 0.75 }}>{t("insp.cost")}{sel.model ? ` · ${shortModel(sel.model)}` : ""}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#30d158" }}>~{fmtCost(sel.costUsd)}</span>
             </div>
           )}
           {/* Sessiya statistikasi */}
           <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
             {[
-              { label: "Navbat", value: `${sel.turns}` },
-              { label: "Tool", value: `${sel.toolCalls}` },
-              { label: "Faol", value: fmtDur(sel.activeMs + (sel.activeSince != null ? Date.now() - sel.activeSince : 0)) },
+              { label: t("insp.queue"), value: `${sel.turns}` },
+              { label: t("insp.tool"), value: `${sel.toolCalls}` },
+              { label: t("insp.active"), value: fmtDur(sel.activeMs + (sel.activeSince != null ? Date.now() - sel.activeSince : 0)) },
             ].map((st) => (
               <div key={st.label} style={{ flex: 1, textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>{st.value}</div>
@@ -504,7 +504,7 @@ export default function Hud() {
                 aria-expanded={histOpen}
                 style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#cdd6e2" }}
               >
-                <span>🧰 Tool tarixi ({sel.toolHistory.length})</span>
+                <span>{t("insp.toolHistory")} ({sel.toolHistory.length})</span>
                 <span style={{ opacity: 0.6 }}>{histOpen ? "▴" : "▾"}</span>
               </button>
               {histOpen && (
@@ -527,17 +527,17 @@ export default function Hud() {
                 border: "1px solid rgba(94,155,255,0.5)", background: "rgba(94,155,255,0.18)", color: "#fff",
               }}
             >
-              💻 Terminal
+              {t("insp.terminal")}
             </button>
             <button
               onClick={() => setMoving(sel.id)}
-              title="Boshqa stolga ko'chirish"
+              title={t("insp.moveTip")}
               style={{
                 flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
                 border: "1px solid rgba(255,255,255,0.2)", background: "rgba(30,35,44,0.9)", color: "#fff",
               }}
             >
-              🪑 Ko'chirish
+              {t("insp.move")}
             </button>
             <button
               onClick={() => { send({ type: "closeAgent", id: sel.id }); select(null); }}
@@ -546,7 +546,7 @@ export default function Hud() {
                 border: "1px solid rgba(255,69,58,0.5)", background: "rgba(255,69,58,0.15)", color: "#fff",
               }}
             >
-              ✕ Yopish
+              {t("insp.close")}
             </button>
           </div>
         </div>
@@ -555,8 +555,8 @@ export default function Hud() {
       {/* Ko'chirish maslahati */}
       {movingId != null && (
         <div style={{ position: "absolute", top: 52, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", padding: "6px 14px", borderRadius: 10, background: "rgba(48,209,88,0.18)", border: "1px solid rgba(48,209,88,0.5)", color: "#8ff0b0", fontSize: 12, fontWeight: 600, display: "flex", gap: 10, alignItems: "center" }}>
-          🪑 Yangi stolni tanlang (🟢 bo'sh · 🟠 almashtirish)
-          <button onClick={() => setMoving(null)} style={{ border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#e8ecf2", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>Bekor</button>
+          {t("move.hint")}
+          <button onClick={() => setMoving(null)} style={{ border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#e8ecf2", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>{t("common.cancel")}</button>
         </div>
       )}
     </div>
@@ -565,6 +565,7 @@ export default function Hud() {
 
 // ── Layout editor paneli (jihoz palitrasi + boshqaruv) ──
 function LayoutEditor() {
+  const t = useT();
   const paletteType = useLayout((s) => s.paletteType);
   const setPalette = useLayout((s) => s.setPalette);
   const selectedId = useLayout((s) => s.selectedId);
@@ -604,44 +605,44 @@ function LayoutEditor() {
   return (
     <>
       <div style={{ position: "absolute", bottom: 54, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderRadius: 12, background: "rgba(16,20,27,0.96)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxWidth: "92vw", flexWrap: "wrap", fontFamily: "system-ui" }}>
-        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 2 }}>Qo'yish:</span>
+        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 2 }}>{t("le.place")}</span>
         {CATALOG.map((d) => (
-          <button key={d.type} title={d.label} onClick={() => setPalette(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
+          <button key={d.type} title={t(`furniture.${d.type}` as Key)} onClick={() => setPalette(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
             {d.emoji}
           </button>
         ))}
         {packs.map((d) => (
-          <button key={d.type} title={`${d.label} (paket)`} onClick={() => setPalette2(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
+          <button key={d.type} title={`${d.label} (${t("le.pack")})`} onClick={() => setPalette2(paletteType === d.type ? null : d.type)} style={pill(paletteType === d.type)}>
             {d.emoji}
           </button>
         ))}
-        <button title="Asset paket qo'shish (JSON)" onClick={() => { setAssets(true); setPackMsg(""); }} style={{ ...pill(assets), fontSize: 15 }}>📦</button>
+        <button title={t("le.addPack")} onClick={() => { setAssets(true); setPackMsg(""); }} style={{ ...pill(assets), fontSize: 15 }}>📦</button>
         {selectedId && (
           <>
             <div style={sep} />
-            <button title="Aylantirish" onClick={() => rotate(selectedId)} style={pill(false)}>🔄</button>
-            <button title="O'chirish" onClick={() => remove(selectedId)} style={{ ...pill(false), color: "#ff6b6b" }}>🗑️</button>
+            <button title={t("le.rotate")} onClick={() => rotate(selectedId)} style={pill(false)}>🔄</button>
+            <button title={t("le.delete")} onClick={() => remove(selectedId)} style={{ ...pill(false), color: "#ff6b6b" }}>🗑️</button>
           </>
         )}
         <div style={sep} />
         {/* Pol rangi */}
-        <label title="Pol rangi" style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
+        <label title={t("le.floorColor")} style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
           <input type="color" value={floorColor ?? "#d8c7a8"} onChange={(e) => setFloorColor(e.target.value)} style={{ position: "absolute", inset: -4, width: 40, height: 40, border: "none", padding: 0, cursor: "pointer" }} />
         </label>
-        <button title="Pol rangini tiklash" onClick={() => floorColor && setFloorColor(null)} style={{ ...pill(false, !floorColor), fontSize: 11, minWidth: 0 }}>↺</button>
+        <button title={t("le.floorReset")} onClick={() => floorColor && setFloorColor(null)} style={{ ...pill(false, !floorColor), fontSize: 11, minWidth: 0 }}>↺</button>
         {/* Devor rangi */}
-        <label title="Devor rangi" style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
+        <label title={t("le.wallColor")} style={{ ...pill(false), padding: 0, overflow: "hidden", position: "relative" }}>
           <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, pointerEvents: "none", opacity: 0.5 }}>▢</span>
           <input type="color" value={wallColor ?? "#dcd3c2"} onChange={(e) => setWallColor(e.target.value)} style={{ position: "absolute", inset: -4, width: 40, height: 40, border: "none", padding: 0, cursor: "pointer", opacity: 0.85 }} />
         </label>
-        <button title="Devor rangini tiklash" onClick={() => wallColor && setWallColor(null)} style={{ ...pill(false, !wallColor), fontSize: 11, minWidth: 0 }}>↺</button>
+        <button title={t("le.wallReset")} onClick={() => wallColor && setWallColor(null)} style={{ ...pill(false, !wallColor), fontSize: 11, minWidth: 0 }}>↺</button>
         <div style={sep} />
         {/* Mavzular (pol + devor palitrasi) */}
-        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 1 }}>Mavzu:</span>
+        <span style={{ fontSize: 11, opacity: 0.6, marginRight: 1 }}>{t("le.theme")}</span>
         {THEMES.map((th) => {
           const active = floorColor === th.floor && wallColor === th.wall;
           return (
-            <button key={th.key} title={th.label} onClick={() => applyTheme(th.key)} style={{ ...pill(active), padding: 0, overflow: "hidden", minWidth: 30 }}>
+            <button key={th.key} title={t(`theme.${th.key}` as Key)} onClick={() => applyTheme(th.key)} style={{ ...pill(active), padding: 0, overflow: "hidden", minWidth: 30 }}>
               <span style={{ display: "flex", width: "100%", height: "100%" }}>
                 <span style={{ flex: 1, background: th.floor }} />
                 <span style={{ flex: 1, background: th.wall }} />
@@ -650,18 +651,18 @@ function LayoutEditor() {
           );
         })}
         <div style={sep} />
-        <button title="Orqaga (undo)" onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
-        <button title="Oldinga (redo)" onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>
-        <button title="JSON eksport/import" onClick={() => { setErr(false); setJson(exportJSON()); }} style={{ ...pill(false), fontSize: 12, minWidth: 0 }}>⇄ JSON</button>
-        <button title="Hammasini tozalash" onClick={() => count && clearAll()} style={{ ...pill(false, !count), fontSize: 12, minWidth: 0 }}>Tozalash</button>
+        <button title={t("le.undo")} onClick={() => canUndo && undo()} style={pill(false, !canUndo)}>↶</button>
+        <button title={t("le.redo")} onClick={() => canRedo && redo()} style={pill(false, !canRedo)}>↷</button>
+        <button title="JSON" onClick={() => { setErr(false); setJson(exportJSON()); }} style={{ ...pill(false), fontSize: 12, minWidth: 0 }}>⇄ JSON</button>
+        <button title={t("le.clear")} onClick={() => count && clearAll()} style={{ ...pill(false, !count), fontSize: 12, minWidth: 0 }}>{t("le.clearShort")}</button>
       </div>
 
       {/* JSON eksport/import paneli */}
       {json !== null && (
         <div style={{ position: "absolute", bottom: 108, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 380, padding: 12, borderRadius: 12, background: "rgba(16,20,27,0.98)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 10px 28px rgba(0,0,0,0.6)", fontFamily: "system-ui" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Layout JSON</span>
-            <button onClick={() => setJson(null)} title="Yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>{t("le.layoutJson")}</span>
+            <button onClick={() => setJson(null)} title={t("common.close")} style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
           </div>
           <textarea
             value={json}
@@ -670,11 +671,11 @@ function LayoutEditor() {
             style={{ width: "100%", height: 150, resize: "vertical", boxSizing: "border-box", fontFamily: "ui-monospace, monospace", fontSize: 11, borderRadius: 8, padding: 8, background: "rgba(0,0,0,0.35)", color: "#dfe6ee", border: `1px solid ${err ? "#ff6b6b" : "rgba(255,255,255,0.14)"}` }}
           />
           <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 10, opacity: 0.6 }}>
-            <span>Nusxalash uchun tanlang · yoki JSON joylab "Qo'llash"</span>
+            <span>{t("le.copyHint")}</span>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button onClick={() => { if (importJSON(json)) setJson(null); else setErr(true); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>Qo'llash (import)</button>
-            <button onClick={() => setJson(null)} style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>Bekor</button>
+            <button onClick={() => { if (importJSON(json)) setJson(null); else setErr(true); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>{t("le.apply")}</button>
+            <button onClick={() => setJson(null)} style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>{t("common.cancel")}</button>
           </div>
         </div>
       )}
@@ -683,15 +684,15 @@ function LayoutEditor() {
       {assets && (
         <div style={{ position: "absolute", bottom: 108, left: "50%", transform: "translateX(-50%)", pointerEvents: "auto", width: 400, padding: 12, borderRadius: 12, background: "rgba(16,20,27,0.98)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 10px 28px rgba(0,0,0,0.6)", fontFamily: "system-ui" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>📦 Asset paketlari</span>
-            <button onClick={() => setAssets(false)} title="Yopish" style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>{t("le.assetPacks")}</span>
+            <button onClick={() => setAssets(false)} title={t("common.close")} style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 16 }}>×</button>
           </div>
           {packs.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
               {packs.map((d) => (
                 <span key={d.type} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 6px", borderRadius: 8, background: "rgba(30,35,44,0.9)", border: "1px solid rgba(255,255,255,0.12)", fontSize: 11 }}>
                   {d.emoji} {d.label}
-                  <button onClick={() => removePack(d.type)} title="O'chirish" style={{ border: "none", background: "transparent", color: "#ff6b6b", cursor: "pointer", fontSize: 12, padding: 0 }}>×</button>
+                  <button onClick={() => removePack(d.type)} title={t("le.delete")} style={{ border: "none", background: "transparent", color: "#ff6b6b", cursor: "pointer", fontSize: 12, padding: 0 }}>×</button>
                 </span>
               ))}
             </div>
@@ -708,13 +709,13 @@ function LayoutEditor() {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <label style={{ padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "#e8ecf2" }}>
-              📂 Fayl
+              {t("le.file")}
               <input type="file" accept=".json,application/json" style={{ display: "none" }} onChange={(e) => {
                 const f = e.target.files?.[0]; if (!f) return;
-                f.text().then((t) => { const n = addPack(t); setPackMsg(n ? `✓ ${n} ta jihoz qo'shildi` : "✗ Yaroqsiz JSON"); if (n) setPackText(""); });
+                f.text().then((txt) => { const n = addPack(txt); setPackMsg(n ? `✓ ${n} ${t("le.itemsAdded")}` : `✗ ${t("le.invalidJson")}`); if (n) setPackText(""); });
               }} />
             </label>
-            <button onClick={() => { const n = addPack(packText); setPackMsg(n ? `✓ ${n} ta jihoz qo'shildi` : "✗ Yaroqsiz JSON"); if (n) setPackText(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>Yuklash</button>
+            <button onClick={() => { const n = addPack(packText); setPackMsg(n ? `✓ ${n} ${t("le.itemsAdded")}` : `✗ ${t("le.invalidJson")}`); if (n) setPackText(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, border: "1px solid rgba(76,139,245,0.6)", background: "rgba(76,139,245,0.2)", color: "#fff" }}>{t("le.load")}</button>
           </div>
         </div>
       )}

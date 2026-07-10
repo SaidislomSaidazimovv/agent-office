@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { Key } from "./i18n";
 import { estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
 
@@ -61,7 +62,12 @@ export interface OfficeEvent {
   seq: number;
   at: number;
   who: string;
-  text: string;
+  /** i18n kaliti (tarjima render'da — reaktiv). */
+  key?: Key;
+  /** Tarjimasiz to'g'ridan-to'g'ri matn (masalan tool yorlig'i). */
+  text?: string;
+  /** Sub-agent ×N hisoblagichi. */
+  count?: number;
   color: string;
 }
 let evSeq = 0;
@@ -136,8 +142,8 @@ function recompute(a: AgentView): AgentView {
 }
 
 // Faoliyat tasmasiga yozuv qo'shadi (eng yangi boshda, MAX_EVENTS cheklovi).
-function pushEvent(events: OfficeEvent[], who: string, text: string, color: string): OfficeEvent[] {
-  const e: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, text, color };
+function pushEvent(events: OfficeEvent[], who: string, color: string, payload: { key?: Key; text?: string; count?: number }): OfficeEvent[] {
+  const e: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, color, ...payload };
   const next = [e, ...events];
   return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
 }
@@ -147,13 +153,12 @@ function pushEvent(events: OfficeEvent[], who: string, text: string, color: stri
 // (bir vaqtda 3 yordamchi yollasa feed 3 marta takrorlanmasin).
 function pushSubHire(events: OfficeEvent[], who: string): OfficeEvent[] {
   const top = events[0];
-  if (top && top.who === who && top.text.startsWith("sub-agent yolladi") && Date.now() - top.at < 8000) {
-    const m = top.text.match(/×(\d+)/);
-    const n = (m ? parseInt(m[1], 10) : 1) + 1;
-    const updated: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, text: `sub-agent yolladi ×${n} 🔧`, color: "#ffd60a" };
+  if (top && top.who === who && top.key === "event.subHire" && Date.now() - top.at < 8000) {
+    const n = (top.count ?? 1) + 1;
+    const updated: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, color: "#ffd60a", key: "event.subHire", count: n };
     return [updated, ...events.slice(1)];
   }
-  return pushEvent(events, who, "sub-agent yolladi 🔧", "#ffd60a");
+  return pushEvent(events, who, "#ffd60a", { key: "event.subHire", count: 1 });
 }
 
 // idle↔faol o'tishda faol vaqt + navbat sonini yangilaydi.
@@ -217,7 +222,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
       return {
         agents: { ...s.agents, [meta.id]: recompute(a) },
         order: [...s.order, meta.id],
-        events: pushEvent(s.events, a.folderName, "ofisga qo'shildi", "#5e9bff"),
+        events: pushEvent(s.events, a.folderName, "#5e9bff", { key: "event.joined" }),
       };
     });
   },
@@ -232,7 +237,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         agents,
         order: s.order.filter((x) => x !== id),
         selectedId: s.selectedId === id ? null : s.selectedId,
-        events: pushEvent(s.events, gone.folderName, "ofisdan chiqdi", "#8e8e93"),
+        events: pushEvent(s.events, gone.folderName, "#8e8e93", { key: "event.left" }),
       };
     });
   },
@@ -271,7 +276,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           reading: toolName ? get().readingTools.has(toolName) : false,
         }),
       },
-      events: pushEvent(s.events, a.folderName, label, "#30d158"),
+      events: pushEvent(s.events, a.folderName, "#30d158", { text: label }),
     }));
   },
 
@@ -311,7 +316,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) },
-      events: on ? pushEvent(s.events, a.folderName, "ruxsat so'radi 🔔", "#ff9f0a") : s.events,
+      events: on ? pushEvent(s.events, a.folderName, "#ff9f0a", { key: "event.permission" }) : s.events,
     }));
   },
 
@@ -320,7 +325,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) },
-      events: on ? pushEvent(s.events, a.folderName, "bloklandi (xato) ⛔", "#ff453a") : s.events,
+      events: on ? pushEvent(s.events, a.folderName, "#ff453a", { key: "event.blocked" }) : s.events,
     }));
   },
 
@@ -347,7 +352,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
       if (!cur || !cur.subagents.includes(key)) return;
       set((s) => ({
         agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x !== key) }) },
-        events: pushEvent(s.events, cur.folderName, "yordamchi tugatdi ✓", "#30d158"),
+        events: pushEvent(s.events, cur.folderName, "#30d158", { key: "event.helperDone" }),
       }));
     };
     if (elapsed >= SUBAGENT_MIN_MS) remove();
