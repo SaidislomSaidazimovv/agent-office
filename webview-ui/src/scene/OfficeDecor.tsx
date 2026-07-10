@@ -362,28 +362,28 @@ export default function OfficeDecor() {
       {/* SERVER XONASI [-23,-9] */}
       <Floor x0={-23} x1={-9} z0={-16} z1={-9.5} c="#c6cace" />
       <WallX x0={-23} x1={-9} z={-9.5} door={2.6} />
-      {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15]} />)}
+      {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15.4]} />)}
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={`b${x}`} p={[x, 0, -11]} ry={Math.PI} />)}
-      <CoolingUnit p={[-22, 0, -13]} ry={Math.PI / 2} />
+      <CoolingUnit p={[-22.6, 0, -13]} ry={Math.PI / 2} />
 
       {/* OSHXONA [-9,-1] */}
       <Floor x0={-9} x1={-1} z0={-16} z1={-9.5} c="#d3d7d3" />
       <WallX x0={-9} x1={-1} z={-9.5} door={2} />
-      <Kitchen p={[-5, 0, -15]} />
+      <Kitchen p={[-5, 0, -15.5]} />
 
       {/* MAJLIS [-1,8] */}
       <Floor x0={-1} x1={8} z0={-16} z1={-9.5} c="#cdd6df" />
       <WallX x0={-1} x1={8} z={-9.5} door={2} />
       <MeetingTable p={[3.5, 0, -12.5]} />
-      <Whiteboard p={[3.5, 0, -15.6]} />
+      <Whiteboard p={[3.5, 0, -15.82]} />
 
       {/* XOJATXONA [8,15] */}
       <Floor x0={8} x1={15} z0={-16} z1={-9.5} c="#cfe0e6" />
       <WallX x0={8} x1={15} z={-9.5} door={2} />
       <Stall p={[9.8, 0, -15]} />
       <Stall p={[11.8, 0, -15]} />
-      <Sink p={[13.6, 0, -15.5]} />
-      <Sink p={[14.4, 0, -15.5]} />
+      <Sink p={[13.6, 0, -15.675]} />
+      <Sink p={[14.4, 0, -15.675]} />
 
       {/* SHISHA XONA A [15,23] */}
       <Floor x0={15} x1={23} z0={-16} z1={-9.5} c="#d8d2e0" />
@@ -396,7 +396,7 @@ export default function OfficeDecor() {
       {/* KUTUBXONA [-23,-11] */}
       <Floor x0={-23} x1={-11} z0={9.5} z1={16} c="#d8cfc0" />
       <WallX x0={-23} x1={-11} z={9.5} door={2.4} />
-      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15]} ry={Math.PI} />)}
+      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
 

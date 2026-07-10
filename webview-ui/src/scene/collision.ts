@@ -74,11 +74,11 @@ export function setActiveSeats(seatIndexes: number[]): void {
 // ── Statik mebel (doim bor) ──
 // Reception
 r(-1.7, 1.7, 7.0, 8.0);
-// Server xonasi (rack qatorlari)
-r(-22, -10, -15.6, -14.4);
+// Server xonasi (rack qatorlari) — orqa qator devorga taqaldi (z=-15.4)
+r(-22, -10, -16.0, -14.8);
 r(-22, -10, -11.6, -10.4);
-// Oshxona
-r(-7.6, -2.4, -15.7, -14.3);
+// Oshxona — peshtaxta devorga taqaldi (z=-15.5)
+r(-7.6, -2.4, -16.0, -14.8);
 // Majlis stoli (yuqori)
 r(1.9, 5.1, -14.1, -10.9);
 // Xojatxona
@@ -86,8 +86,8 @@ r(9, 12.6, -16, -13.8);
 r(13.2, 15, -16, -14.6);
 // glassA stol
 r(18, 20, -13.8, -11.8);
-// Kutubxona (javonlar + stol)
-r(-22.6, -14.4, 14.4, 15.6);
+// Kutubxona (javonlar + stol) — old qator devorga taqaldi (z=15.68)
+r(-22.6, -14.4, 15.4, 15.9);
 r(-22.6, -14.4, 10.4, 11.6);
 r(-14.8, -12.2, 12, 14);
 // Fokus stoli
