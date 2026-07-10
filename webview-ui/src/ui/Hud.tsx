@@ -51,6 +51,7 @@ export default function Hud() {
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
   const events = useOffice((s) => s.events);
+  const gitRepos = useOffice((s) => s.gitRepos);
   const daylightOn = useDaylight((s) => s.enabled);
   const toggleDaylight = useDaylight((s) => s.toggle);
   const editMode = useLayout((s) => s.editMode);
@@ -450,6 +451,21 @@ export default function Hud() {
             <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {STATUS_LABEL[sel.status]}
             {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}
           </div>
+          {/* Git holati (branch + o'zgargan fayllar) */}
+          {(() => {
+            const g = gitRepos[sel.folderName];
+            if (!g?.branch) return null;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 5, opacity: 0.85 }}>
+                <span title="Git branch" style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 7px", borderRadius: 10, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  ⑂ {g.branch}
+                </span>
+                {g.changed > 0 && (
+                  <span title="O'zgargan fayllar" style={{ color: "#ff9f0a" }}>● {g.changed} o'zgargan</span>
+                )}
+              </div>
+            );
+          })()}
           {sel.task && (
             <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4, lineHeight: 1.4 }}>📋 {sel.task}</div>
           )}

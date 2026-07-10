@@ -87,6 +87,9 @@ export function useExtensionMessages(): void {
         case "workspaceFolders":
           store.setFolders(msg.folders);
           break;
+        case "gitStatus":
+          store.setGitRepos(msg.repos);
+          break;
       }
     });
 

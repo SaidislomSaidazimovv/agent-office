@@ -6,6 +6,7 @@ import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
+import { gitInfoForPath } from "./gitInfo.js";
 import { handleHookEvent } from "../server/hookHandler.js";
 import { agentSnapshotMessages } from "../server/stateActions.js";
 import { HookServer } from "../server/hookServer.js";
@@ -247,6 +248,23 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  // ── Git xabardorligi (branch + o'zgargan fayllar; child_process YO'Q) ──
+  private gitTimer?: ReturnType<typeof setInterval>;
+  private sendGitInfo(): void {
+    const repos: { name: string; branch?: string; changed: number }[] = [];
+    for (const f of vscode.workspace.workspaceFolders ?? []) {
+      const g = gitInfoForPath(f.uri.fsPath);
+      if (g) repos.push({ name: f.name, branch: g.branch, changed: g.changed });
+    }
+    this.post({ type: "gitStatus", repos });
+  }
+  /** Git holatini vaqti-vaqti bilan yangilaydi (VS Code Git API o'zgarishlarini
+   *  aniq kuzatish o'rniga oddiy taymer — arzon, ishonchli). */
+  private startGitRefresh(): void {
+    if (this.gitTimer) return;
+    this.gitTimer = setInterval(() => this.sendGitInfo(), 5000);
+  }
+
   private layoutPath(): string {
     return path.join(os.homedir(), ".agent-office", "layout.json");
   }
@@ -307,6 +325,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         path: f.uri.fsPath,
       })),
     });
+    // 3b) Git holati (branch + o'zgargan fayllar) — child_process'siz
+    this.sendGitInfo();
+    this.startGitRefresh();
     // 4) Mavjud agentlar (buferdan oldin ular ham qayta yaratiladi)
     const agents = this.store.values();
     this.post({
@@ -351,6 +372,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
 
   dispose(): void {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
+    if (this.gitTimer) clearInterval(this.gitTimer);
     this.watcher.stop();
     this.manager.dispose();
     this.hookServer.stop();

@@ -104,6 +104,8 @@ interface OfficeState {
   hookActive: boolean;
   readingTools: Set<string>;
   folders: { name: string; path: string }[];
+  /** Papka nomi → git holati (branch + o'zgargan fayllar). */
+  gitRepos: Record<string, { branch?: string; changed: number }>;
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
 
@@ -120,6 +122,7 @@ interface OfficeState {
   setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
+  setGitRepos(repos: { name: string; branch?: string; changed: number }[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
   setMoving(id: number | null): void;
@@ -171,6 +174,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   hookActive: false,
   readingTools: new Set(DEFAULT_READING),
   folders: [],
+  gitRepos: {},
   cameraMode: "iso",
   setCameraMode(m) {
     set({ cameraMode: m });
@@ -383,6 +387,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   setFolders(folders) {
     set({ folders: folders ?? [] });
+  },
+
+  setGitRepos(repos) {
+    set({ gitRepos: Object.fromEntries((repos ?? []).map((r) => [r.name, { branch: r.branch, changed: r.changed }])) });
   },
 
   setHookActive(active) {

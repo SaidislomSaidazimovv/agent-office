@@ -22,6 +22,7 @@ export type ServerMessage =
   | SubagentClear
   | AgentTokenUsage
   | WorkspaceFolders
+  | GitStatus
   | SettingsLoaded
   | HookStatus
   | LayoutLoaded;
@@ -133,6 +134,11 @@ export interface AgentTokenUsage {
   billedInput?: number;
   billedCacheWrite?: number;
   billedCacheRead?: number;
+}
+export interface GitStatus {
+  type: "gitStatus";
+  /** Papka nomi → git holati (branch + o'zgargan fayllar soni). */
+  repos: { name: string; branch?: string; changed: number }[];
 }
 export interface WorkspaceFolders {
   type: "workspaceFolders";
