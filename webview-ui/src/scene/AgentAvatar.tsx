@@ -38,6 +38,34 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     return () => clearTimeout(t);
   }, [hiring]);
 
+  // Yordamchilar — BARQAROR slot + chiqish animatsiyasi. Store ro'yxatidan
+  // farqi: ketayotgan yordamchini darrov o'chirmay, kichrayib yo'qolgunча
+  // saqlaymiz. Slot kalit bo'yicha barqaror — o'rtadagi ketsa qolganlari
+  // SAKRAMAYDI (avvalgi index-asosli joylashuv bug'i).
+  const [helpers, setHelpers] = useState<{ key: string; slot: number; leaving: boolean }[]>([]);
+  const subSig = agent.subagents.join(",");
+  useEffect(() => {
+    const active = agent.subagents;
+    setHelpers((prev) => {
+      const used = new Set<number>();
+      const next = prev.map((h) => {
+        used.add(h.slot);
+        return active.includes(h.key) ? (h.leaving ? { ...h, leaving: false } : h) : { ...h, leaving: true };
+      });
+      for (const key of active) {
+        if (!next.some((h) => h.key === key)) {
+          let slot = 0;
+          while (used.has(slot)) slot++;
+          used.add(slot);
+          next.push({ key, slot, leaving: false });
+        }
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subSig]);
+  const removeHelper = (key: string) => setHelpers((prev) => prev.filter((h) => h.key !== key));
+
   // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
   const sit = useRef<WP>({ ...sitPoint(seat) });
 
@@ -168,9 +196,9 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         getState={() => ({ sit: seated.current, moving: movingRef.current })}
       />
 
-      {/* Sub-agentlar — yonida KICHIK yordamchi personaj (paydo bo'lish pop'i bilan) */}
-      {agent.subagents.map((key, i) => (
-        <SubAgent key={key} skin={preset} index={i} />
+      {/* Sub-agentlar — yonida KICHIK yordamchi personaj (kirish/chiqish anim.) */}
+      {helpers.map((h) => (
+        <SubAgent key={h.key} skin={preset} slot={h.slot} leaving={h.leaving} onExited={() => removeHelper(h.key)} />
       ))}
 
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
@@ -211,20 +239,32 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   );
 }
 
-// Sub-agent — parent yonidagi KICHIK yordamchi personaj. Paydo bo'lganda
-// noldan "pop" (ozgina overshoot) bilan kattalashadi — yollangani seziladi.
-function SubAgent({ skin, index }: { skin: CharSkin; index: number }) {
+// Sub-agent — parent yonidagi KICHIK yordamchi. Kirganda noldan "pop"
+// (easeOutBack) bilan kattalashadi, ketganda kichrayib yo'qoladi (leaving),
+// so'ng onExited orqali ro'yxatдан chiqadi. Joyi `slot` bo'yicha barqaror.
+const SUB_TARGET = 0.5;
+function SubAgent({ skin, slot, leaving, onExited }: { skin: CharSkin; slot: number; leaving: boolean; onExited: () => void }) {
   const g = useRef<THREE.Group>(null);
-  const t = useRef(0);
-  const TARGET = 0.5;
-  const px = 0.9 + (index % 2) * 0.62;
-  const pz = 0.45 - Math.floor(index / 2) * 0.62;
+  const grow = useRef(0);
+  const shrink = useRef(0);
+  const done = useRef(false);
+  const px = 0.9 + (slot % 2) * 0.62;
+  const pz = 0.45 - Math.floor(slot / 2) * 0.62;
   useFrame((_, delta) => {
-    if (!g.current || t.current >= 1) return;
-    t.current = Math.min(1, t.current + delta * 3.2); // ~0.3s
-    const x = t.current, c1 = 1.70158, c3 = c1 + 1;
-    const e = 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); // easeOutBack
-    g.current.scale.setScalar(TARGET * e);
+    const gg = g.current;
+    if (!gg) return;
+    if (leaving) {
+      shrink.current = Math.min(1, shrink.current + delta * 4.5); // ~0.22s
+      const e = 1 - shrink.current * shrink.current; // easeInQuad → 1..0
+      gg.scale.setScalar(Math.max(0.0001, SUB_TARGET * e));
+      if (shrink.current >= 1 && !done.current) { done.current = true; onExited(); }
+      return;
+    }
+    if (grow.current < 1) {
+      grow.current = Math.min(1, grow.current + delta * 3.2); // ~0.3s
+      const x = grow.current, c1 = 1.70158, c3 = c1 + 1;
+      gg.scale.setScalar(SUB_TARGET * (1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2))); // easeOutBack
+    }
   });
   return (
     <group ref={g} position={[px, 0, pz]} scale={0.001}>

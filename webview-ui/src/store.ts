@@ -129,6 +129,20 @@ function pushEvent(events: OfficeEvent[], who: string, text: string, color: stri
   return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
 }
 
+// Sub-agent yollash hodisasini BIRLASHTIRADI: agar eng yangi yozuv shu agentning
+// yaqinda yollagan yozuvi bo'lsa — yangi qator emas, "×N" hisoblagichini oshiradi
+// (bir vaqtda 3 yordamchi yollasa feed 3 marta takrorlanmasin).
+function pushSubHire(events: OfficeEvent[], who: string): OfficeEvent[] {
+  const top = events[0];
+  if (top && top.who === who && top.text.startsWith("sub-agent yolladi") && Date.now() - top.at < 8000) {
+    const m = top.text.match(/×(\d+)/);
+    const n = (m ? parseInt(m[1], 10) : 1) + 1;
+    const updated: OfficeEvent = { seq: ++evSeq, at: Date.now(), who, text: `sub-agent yolladi ×${n} 🔧`, color: "#ffd60a" };
+    return [updated, ...events.slice(1)];
+  }
+  return pushEvent(events, who, "sub-agent yolladi 🔧", "#ffd60a");
+}
+
 // idle↔faol o'tishda faol vaqt + navbat sonini yangilaydi.
 function touchActive(a: AgentView, active: boolean, now: number): Partial<AgentView> {
   const wasActive = a.activeSince != null;
@@ -292,7 +306,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     subAddedAt.set(subKey(id, key), Date.now());
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, active: true, ...touchActive(a, true, Date.now()), subagents: [...a.subagents, key] }) },
-      events: pushEvent(s.events, a.folderName, "sub-agent yolladi 🔧", "#ffd60a"),
+      events: pushSubHire(s.events, a.folderName),
     }));
   },
 
@@ -307,7 +321,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
       subAddedAt.delete(k);
       const cur = get().agents[id];
       if (!cur || !cur.subagents.includes(key)) return;
-      set((s) => ({ agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x !== key) }) } }));
+      set((s) => ({
+        agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x !== key) }) },
+        events: pushEvent(s.events, cur.folderName, "yordamchi tugatdi ✓", "#30d158"),
+      }));
     };
     if (elapsed >= SUBAGENT_MIN_MS) remove();
     else setTimeout(remove, SUBAGENT_MIN_MS - elapsed);
