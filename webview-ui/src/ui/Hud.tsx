@@ -49,6 +49,7 @@ export default function Hud() {
   const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -467,6 +468,29 @@ export default function Hud() {
               </div>
             ))}
           </div>
+          {/* Tool tarixi (yig'iladigan) */}
+          {sel.toolHistory.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={() => setHistOpen((v) => !v)}
+                aria-expanded={histOpen}
+                style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#cdd6e2" }}
+              >
+                <span>🧰 Tool tarixi ({sel.toolHistory.length})</span>
+                <span style={{ opacity: 0.6 }}>{histOpen ? "▴" : "▾"}</span>
+              </button>
+              {histOpen && (
+                <div style={{ marginTop: 4, maxHeight: 132, overflowY: "auto", borderRadius: 7, border: "1px solid rgba(255,255,255,0.08)" }}>
+                  {sel.toolHistory.map((h, i) => (
+                    <div key={`${h.at}-${i}`} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "3px 8px", fontSize: 11, borderTop: i ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.label}</span>
+                      <span style={{ opacity: 0.45, fontSize: 10, flexShrink: 0 }}>{fmtAgo(h.at, Date.now())}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={() => send({ type: "focusAgent", id: sel.id })}

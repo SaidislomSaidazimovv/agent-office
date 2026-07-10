@@ -43,9 +43,13 @@ export interface AgentView {
   activeMs: number;
   /** Joriy faol interval boshlangan payt (ms) yoki null (idle). */
   activeSince: number | null;
+  /** So'nggi tool chaqiruvlari (eng yangi boshda, cheklangan) — inspektor tarixi. */
+  toolHistory: { label: string; at: number }[];
   // Hisoblangan
   status: AgentStatus;
 }
+
+const MAX_TOOL_HISTORY = 24;
 
 // ── Faoliyat tasmasi (event log) ──────────────────────────────
 export interface OfficeEvent {
@@ -196,6 +200,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         turns: 0,
         activeMs: 0,
         activeSince: null,
+        toolHistory: [],
         status: "idle",
       };
       return {
@@ -251,6 +256,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           activeToolCount: a.activeToolCount + 1,
           toolCalls: a.toolCalls + 1,
           toolLabel: label,
+          toolHistory: [{ label, at: Date.now() }, ...a.toolHistory].slice(0, MAX_TOOL_HISTORY),
           reading: toolName ? get().readingTools.has(toolName) : false,
         }),
       },
