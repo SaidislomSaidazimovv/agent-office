@@ -228,7 +228,7 @@ function SubAgent({ skin, index }: { skin: CharSkin; index: number }) {
   });
   return (
     <group ref={g} position={[px, 0, pz]} scale={0.001}>
-      <PixelPerson skin={skin} status="working" pose="stand" />
+      <PixelPerson skin={skin} status="working" pose="stand" detail="low" />
       <Html position={[0, 1.95, 0]} center style={{ pointerEvents: "none" }}>
         <div style={{ padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>🔧 Yordamchi</div>
       </Html>

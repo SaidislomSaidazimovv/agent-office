@@ -25,6 +25,8 @@ interface Props {
   status: AgentStatus;
   pose?: "sit" | "stand";
   moving?: boolean;
+  /** "low" — soddalashtirilgan (yuz tafsilotsiz) — kichik yordamchilar uchun. */
+  detail?: "high" | "low";
   /** Har freym o'qiladi (re-render'siz poza/harakatni yangilash uchun). */
   getState?: () => { sit: boolean; moving: boolean };
 }
@@ -105,7 +107,8 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
   }
 }
 
-export default function PixelPerson({ skin: s, status, pose = "sit", moving = false, getState }: Props) {
+export default function PixelPerson({ skin: s, status, pose = "sit", moving = false, detail = "high", getState }: Props) {
+  const lod = detail === "low";
   const rootRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null); // tos+yuqori (balandligi poza bilan)
   const upperRef = useRef<THREE.Group>(null);
@@ -249,19 +252,20 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
           <VB p={[0, 0.45, 0]} s={[0.1, 0.08, 0.1]} m={skin} />
           <group ref={headRef} position={[0, 0.62, 0]}>
             <VB s={[0.3, 0.3, 0.3]} m={skin} />
-            {/* ko'zlar (oq + qorachiq) */}
-            {[-0.07, 0.07].map((x) => (
-              <group key={x} position={[x, 0.025, -0.151]}>
-                <VB s={[0.05, 0.055, 0.02]} m={EYE_WHITE} cast={false} />
-                <VB p={[0, 0, -0.012]} s={[0.025, 0.03, 0.01]} m={EYE_PUPIL} cast={false} />
-              </group>
-            ))}
-            {/* burun */}
-            <VB p={[0, -0.03, -0.155]} s={[0.04, 0.05, 0.03]} m={skin} cast={false} />
-            {/* quloqlar */}
-            {[-0.157, 0.157].map((x) => <VB key={x} p={[x, 0.0, 0.01]} s={[0.03, 0.08, 0.08]} m={skin} />)}
+            {/* Yuz tafsilotlari (ko'z/burun/quloq/aksessuar) — faqat high LOD.
+                Kichik yordamchilar (low) uchun ko'rinmaydi → tashlab ketamiz. */}
+            {!lod && <>
+              {[-0.07, 0.07].map((x) => (
+                <group key={x} position={[x, 0.025, -0.151]}>
+                  <VB s={[0.05, 0.055, 0.02]} m={EYE_WHITE} cast={false} />
+                  <VB p={[0, 0, -0.012]} s={[0.025, 0.03, 0.01]} m={EYE_PUPIL} cast={false} />
+                </group>
+              ))}
+              <VB p={[0, -0.03, -0.155]} s={[0.04, 0.05, 0.03]} m={skin} cast={false} />
+              {[-0.157, 0.157].map((x) => <VB key={x} p={[x, 0.0, 0.01]} s={[0.03, 0.08, 0.08]} m={skin} />)}
+            </>}
             <Hair style={s.hairStyle} color={s.hair} />
-            {s.accessory && <Accessory type={s.accessory} />}
+            {!lod && s.accessory && <Accessory type={s.accessory} />}
           </group>
         </group>
       </group>
