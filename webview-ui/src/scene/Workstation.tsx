@@ -2,6 +2,7 @@ import { memo } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
+import { useDaylight } from "./daylight";
 import { basicMat, cyl, stdMat, UNIT_BOX } from "./resources";
 import { seatFor, STATUS_COLOR } from "./roles";
 
@@ -31,6 +32,9 @@ function Workstation({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
   const select = useOffice((s) => s.select);
   const color = STATUS_COLOR[agent.status];
+  // Ekran porlashi kechаsi kuchayadi (qorong'uда monitorlar ko'proq ajralib turadi).
+  const lampsOn = useDaylight((s) => s.params.lamps);
+  const glowOpacity = lampsOn ? 0.4 : 0.2;
 
   return (
     <group position={[seat.x, 0, seat.z]} rotation={[0, seat.ry, 0]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
@@ -45,7 +49,7 @@ function Workstation({ agent }: { agent: AgentView }) {
         <B p={[0, 0.26, 0]} s={[0.7, 0.42, 0.03]} m={MON_M} />
         <mesh position={[0, 0.26, -0.02]} geometry={SCREEN_G} material={basicMat(color, { toneMapped: false })} />
         {/* ekran porlashi — holat rangida yumshoq halo */}
-        <mesh position={[0, 0.26, -0.025]} geometry={GLOW_G} material={basicMat(color, { transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false })} />
+        <mesh position={[0, 0.26, -0.025]} geometry={GLOW_G} material={basicMat(color, { transparent: true, opacity: glowOpacity, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false })} />
         {/* nozik stend */}
         <B p={[0, 0.05, 0]} s={[0.05, 0.16, 0.05]} m={STAND_M} />
         <B p={[0, -0.02, 0]} s={[0.26, 0.02, 0.14]} m={DESK_EDGE_M} cast={false} />
