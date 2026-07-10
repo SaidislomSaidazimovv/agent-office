@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { THEMES, useLayout } from "../layoutStore";
 import { fmtCost, PRICING_AS_OF } from "../pricing";
-import { useDaylight } from "../scene/daylight";
-import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
 import { type Key, translate, useLang, useT } from "../i18n";
@@ -49,12 +47,8 @@ export default function Hud() {
   const setCameraMode = useOffice((s) => s.setCameraMode);
   const folders = useOffice((s) => s.folders);
   const hookActive = useOffice((s) => s.hookActive);
-  const soundEnabled = useOffice((s) => s.soundEnabled);
-  const setSound = useOffice((s) => s.setSound);
   const events = useOffice((s) => s.events);
   const gitRepos = useOffice((s) => s.gitRepos);
-  const daylightOn = useDaylight((s) => s.enabled);
-  const toggleDaylight = useDaylight((s) => s.toggle);
   const editMode = useLayout((s) => s.editMode);
   const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
@@ -81,12 +75,6 @@ export default function Hud() {
     };
   }, [menu]);
 
-  const toggleSound = () => {
-    const next = !soundEnabled;
-    setSound(next);
-    if (next) unlockAudio(); // brauzer audiosini foydalanuvchi imo-ishorasida ochamiz
-    send({ type: "setSoundEnabled", enabled: next });
-  };
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
@@ -165,35 +153,7 @@ export default function Hud() {
         >
           {hookActive ? "🔗 Hook" : "📄 JSONL"}
         </div>
-        {/* Ovoz toggle */}
-        <button
-          onClick={toggleSound}
-          aria-label={soundEnabled ? t("hud.soundOn") : t("hud.soundOff")}
-          aria-pressed={soundEnabled}
-          title={soundEnabled ? t("hud.soundOn") : t("hud.soundOff")}
-          style={{
-            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
-            cursor: "pointer", border: "1px solid rgba(255,255,255,0.14)", background: "rgba(20,24,32,0.8)",
-            color: soundEnabled ? "#e8ecf2" : "#8e8e93", fontSize: 12,
-          }}
-        >
-          {soundEnabled ? "🔊" : "🔇"}
-        </button>
-        {/* Kun/tun toggle */}
-        <button
-          onClick={toggleDaylight}
-          aria-label={daylightOn ? t("hud.daylightOn") : t("hud.daylightOff")}
-          aria-pressed={daylightOn}
-          title={daylightOn ? t("hud.daylightOn") : t("hud.daylightOff")}
-          style={{
-            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
-            cursor: "pointer", fontSize: 12,
-            border: `1px solid ${daylightOn ? "rgba(255,214,10,0.5)" : "rgba(255,255,255,0.14)"}`,
-            background: daylightOn ? "rgba(255,214,10,0.16)" : "rgba(20,24,32,0.8)", color: "#e8ecf2",
-          }}
-        >
-          {daylightOn ? "🌗" : "☀️"}
-        </button>
+        {/* Ovoz + kun/tun endi FAQAT sozlamalar panelida (⚙) */}
         {/* Sozlamalar (til + toggle'lar) */}
         <SettingsPanel />
         {/* Faoliyat tasmasi toggle */}

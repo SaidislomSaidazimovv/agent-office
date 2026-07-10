@@ -69,7 +69,8 @@ function applyWall(m: THREE.MeshStandardMaterial | null, openCoord: number): voi
   const t = smoothstep(-FADE, FADE, openCoord);
   const op = SOLID + (GHOST - SOLID) * t;
   m.opacity = op;
-  m.transparent = op < 0.985;
+  const tr = op < 0.985;
+  if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } // toggle → recompile
   m.depthWrite = op > 0.6; // qattiq bo'lsa chuqurlik yozadi (fon), shaffofда yo'q
 }
 
@@ -96,10 +97,14 @@ export default function Room({ mode }: { mode: CameraMode }) {
       return;
     }
     const cx = camera.position.x, cz = camera.position.z;
-    applyWall(backM.current, -cz); // orqa devor (z=-D/2): kamera z<0 → near → shaffof
-    applyWall(frontM.current, cz); // old devor  (z=+D/2): kamera z>0 → near → shaffof
-    applyWall(leftM.current, -cx); // chap devor (x=-W/2): kamera x<0 → near → shaffof
-    applyWall(rightM.current, cx); // o'ng devor (x=+W/2): kamera x>0 → near → shaffof
+    // Devor FAQAT kamera uning TASHQARISIGA (±D/2 / ±W/2) o'tганда shaffof
+    // bo'ladi (tashqi yuzi ko'ringanда). Aks holda ichki yuzi ko'rinadi → qattiq
+    // fon. Chegara 0'da EMAS, devor pozitsiyasida — shu bois face-on ko'rinishда
+    // uzoq devorlar to'g'ri qattiq qoladi.
+    applyWall(backM.current, -(cz + D / 2)); // orqa (z=-D/2): kamera z<-D/2 → shaffof
+    applyWall(frontM.current, cz - D / 2); // old  (z=+D/2): kamera z>+D/2 → shaffof
+    applyWall(leftM.current, -(cx + W / 2)); // chap (x=-W/2): kamera x<-W/2 → shaffof
+    applyWall(rightM.current, cx - W / 2); // o'ng (x=+W/2): kamera x>+W/2 → shaffof
   });
 
   return (

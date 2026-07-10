@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LANGS, useLang, useT } from "../i18n";
+import { unlockAudio } from "../notificationSound";
 import { useDaylight } from "../scene/daylight";
 import { useOffice } from "../store";
 import { send } from "../transport";
@@ -27,7 +28,7 @@ export default function SettingsPanel() {
     return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const toggleSound = () => { const n = !soundEnabled; setSound(n); send({ type: "setSoundEnabled", enabled: n }); };
+  const toggleSound = () => { const n = !soundEnabled; setSound(n); if (n) unlockAudio(); send({ type: "setSoundEnabled", enabled: n }); };
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
