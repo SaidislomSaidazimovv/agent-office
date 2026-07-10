@@ -128,6 +128,11 @@ export interface AgentTokenUsage {
   outputTokens: number;
   /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
   contextWindow: number;
+  /** Xarajat baholagichi uchun — model + jamlangan billing tokenlari. */
+  model?: string;
+  billedInput?: number;
+  billedCacheWrite?: number;
+  billedCacheRead?: number;
 }
 export interface WorkspaceFolders {
   type: "workspaceFolders";

@@ -68,7 +68,9 @@ export function useExtensionMessages(): void {
           store.clearSubagent(msg.id, msg.parentToolId);
           break;
         case "agentTokenUsage":
-          store.setTokens(msg.id, msg.inputTokens, msg.outputTokens, msg.contextWindow);
+          store.setTokens(msg.id, msg.inputTokens, msg.outputTokens, msg.contextWindow, {
+            model: msg.model, billedInput: msg.billedInput, billedCacheWrite: msg.billedCacheWrite, billedCacheRead: msg.billedCacheRead,
+          });
           break;
         case "settingsLoaded":
           store.setSound(msg.soundEnabled);

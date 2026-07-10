@@ -64,6 +64,10 @@ export interface AgentState {
   // ── Tokenlar ──
   inputTokens: number;
   outputTokens: number;
+  /** Xarajat uchun JAMLANGAN billing tokenlari (kontekst hajmidan farqli). */
+  billedInput: number;
+  billedCacheWrite: number;
+  billedCacheRead: number;
   /** Sessiya modeli (transcript `message.model`dan). */
   model?: string;
   /** Shu model uchun kontekst oynasi (200k yoki 1M). */
@@ -102,6 +106,9 @@ export function createAgentState(
     hookToolCounter: 0,
     inputTokens: 0,
     outputTokens: 0,
+    billedInput: 0,
+    billedCacheWrite: 0,
+    billedCacheRead: 0,
     contextWindow: MAX_CONTEXT_TOKENS,
   };
 }

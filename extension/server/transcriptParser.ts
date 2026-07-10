@@ -77,12 +77,21 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
     agent.contextWindow = CONTEXT_WINDOW_1M;
   }
   agent.outputTokens += usage.output_tokens || 0;
+  // Xarajat uchun — har navbat billing tokenlarini JAMLAYMIZ (kesh o'qish/yozish
+  // har navbat alohida hisoblanadi; yig'indi = haqiqiy billed tokenlar).
+  agent.billedInput += usage.input_tokens || 0;
+  agent.billedCacheWrite += usage.cache_creation_input_tokens || 0;
+  agent.billedCacheRead += usage.cache_read_input_tokens || 0;
   store.broadcast({
     type: "agentTokenUsage",
     id: agent.id,
     inputTokens: agent.inputTokens,
     outputTokens: agent.outputTokens,
     contextWindow: agent.contextWindow,
+    model: agent.model,
+    billedInput: agent.billedInput,
+    billedCacheWrite: agent.billedCacheWrite,
+    billedCacheRead: agent.billedCacheRead,
   });
 }
 

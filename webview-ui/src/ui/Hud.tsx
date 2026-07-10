@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { THEMES, useLayout } from "../layoutStore";
+import { fmtCost, PRICING_AS_OF } from "../pricing";
 import { useDaylight } from "../scene/daylight";
 import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
@@ -18,6 +19,13 @@ function fmtDur(ms: number): string {
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ${s % 60}s`;
   return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+// Model id → qisqa nom ("claude-opus-4-8[1m]" → "Opus 4.8").
+function shortModel(m: string): string {
+  const s = m.toLowerCase();
+  const fam = s.includes("fable") ? "Fable" : s.includes("mythos") ? "Mythos" : s.includes("haiku") ? "Haiku" : s.includes("sonnet") ? "Sonnet" : s.includes("opus") ? "Opus" : "";
+  const ver = m.match(/(\d+)-(\d+)/);
+  return fam ? `${fam}${ver ? " " + ver[1] + "." + ver[2] : ""}` : m.slice(0, 14);
 }
 // "necha vaqt oldin" (event tasmasi uchun).
 function fmtAgo(at: number, now: number): string {
@@ -135,6 +143,15 @@ export default function Hud() {
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} agent{order.length === 1 ? "" : "lar"}
         </div>
+        {/* Umumiy taxminiy xarajat (barcha agentlar) */}
+        {(() => {
+          const total = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
+          return total > 0 ? (
+            <div title={`Barcha sessiyalar taxminiy xarajati — rasmiy narxlar (${PRICING_AS_OF})`} style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700, background: "rgba(48,209,88,0.16)", color: "#30d158", border: "1px solid rgba(48,209,88,0.4)" }}>
+              ~{fmtCost(total)}
+            </div>
+          ) : null;
+        })()}
         {/* Aniqlash rejimi — jonli hook yoki JSONL zaxira */}
         <div
           title={hookActive ? "Jonli hook oqimi (ishonchli aniqlash)" : "Faqat JSONL kuzatuvi (hook boshqa oynada yoki o'chiq — aniqlash evristik)"}
@@ -455,6 +472,13 @@ export default function Hud() {
               </div>
             );
           })()}
+          {/* Taxminiy xarajat + model */}
+          {sel.costUsd > 0 && (
+            <div title={`Taxminiy — rasmiy narxlar (${PRICING_AS_OF}). Kesh o'qish/yozish hisobga olingan.`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(48,209,88,0.1)", border: "1px solid rgba(48,209,88,0.25)" }}>
+              <span style={{ fontSize: 11, opacity: 0.75 }}>💰 Xarajat{sel.model ? ` · ${shortModel(sel.model)}` : ""}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#30d158" }}>~{fmtCost(sel.costUsd)}</span>
+            </div>
+          )}
           {/* Sessiya statistikasi */}
           <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
             {[

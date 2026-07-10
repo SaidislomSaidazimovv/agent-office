@@ -19,7 +19,7 @@ export type ServerMessage =
   | { type: "subagentToolStart"; id: number; parentToolId: string; toolId: string; status: string }
   | { type: "subagentToolDone"; id: number; parentToolId: string; toolId: string }
   | { type: "subagentClear"; id: number; parentToolId: string }
-  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number }
+  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number; model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
   | { type: "hookStatus"; active: boolean }

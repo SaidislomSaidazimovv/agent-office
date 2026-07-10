@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
 
 // ── Sahna agent holati ───────────────────────────────────────
@@ -34,6 +35,10 @@ export interface AgentView {
   outputTokens: number;
   /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
   contextWindow: number;
+  /** Sessiya modeli (xarajat + ko'rsatish uchun). */
+  model?: string;
+  /** Taxminiy sessiya xarajati ($, billing tokenlaridan hisoblangan). */
+  costUsd: number;
   // ── Sessiya statistikasi ──
   /** Umumiy tool chaqiruvlari (sessiya davomida). */
   toolCalls: number;
@@ -112,7 +117,7 @@ interface OfficeState {
   setBlocked(id: number, on: boolean): void;
   addSubagent(id: number, key: string): void;
   clearSubagent(id: number, key: string): void;
-  setTokens(id: number, input: number, output: number, contextWindow?: number): void;
+  setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
   setHookActive(active: boolean): void;
@@ -196,6 +201,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         inputTokens: 0,
         outputTokens: 0,
         contextWindow: MAX_CONTEXT_TOKENS,
+        costUsd: 0,
         toolCalls: 0,
         turns: 0,
         activeMs: 0,
@@ -336,10 +342,14 @@ export const useOffice = create<OfficeState>((set, get) => ({
     else setTimeout(remove, SUBAGENT_MIN_MS - elapsed);
   },
 
-  setTokens(id, input, output, contextWindow) {
+  setTokens(id, input, output, contextWindow, cost) {
     const a = get().agents[id];
     if (!a) return;
-    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow } } }));
+    const model = cost?.model ?? a.model;
+    const costUsd = cost
+      ? estimateCost(model, { input: cost.billedInput ?? 0, cacheWrite: cost.billedCacheWrite ?? 0, cacheRead: cost.billedCacheRead ?? 0, output })
+      : a.costUsd;
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow, model, costUsd } } }));
   },
 
   select(id) {
