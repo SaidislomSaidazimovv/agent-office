@@ -3,6 +3,21 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+Office-polish work toward the next release (not yet published).
+
+### Added
+
+- **Decorative rugs** under the furniture in the lounge, library and meeting rooms.
+- A **wall clock** and two more framed paintings on the side walls.
+- **Hanging pendant lights** over the open office that glow and cast light at night.
+- **Soft contact shadows** beneath each agent so characters no longer look like they float.
+
+### Changed
+
+- Agent **monitor screens glow brighter at night** so desks read as lit-up in the dark.
+
 ## [0.1.4] — 2026-07-11
 
 The office came alive — dynamic walls, self-organising agents, deeper insight,
