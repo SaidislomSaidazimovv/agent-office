@@ -5,6 +5,7 @@ import type { AgentStatus } from "../store";
 import type { Accessory as AccessoryType, CharSkin, HairStyle } from "./roles";
 import { STATUS_COLOR } from "./roles";
 import { basicMat, sphere, stdMat, UNIT_BOX } from "./resources";
+import { visibleObject } from "./visibility";
 
 // Ulashilgan birlik-kub qutisi: har voxel bo'lagi bitta geometriya + keshlangan
 // material (20 agentda minglab dublikat o'rniga o'nlab noyob obyekt).
@@ -43,7 +44,7 @@ function Accessory({ type }: { type: AccessoryType }) {
     const gm = stdMat("#15181d", { roughness: 0.4, metalness: 0.3 });
     return (
       <group position={[0, 0.025, -0.152]}>
-        {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0, 0]} rotation={[Math.PI / 2, 0, 0]} material={gm}><torusGeometry args={[0.043, 0.008, 6, 14]} /></mesh>)}
+        {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0, 0]} material={gm}><torusGeometry args={[0.043, 0.008, 6, 14]} /></mesh>)}
         <VB s={[0.055, 0.008, 0.008]} m={gm} cast={false} />
         {[-0.11, 0.11].map((x) => <VB key={x} p={[x, 0, 0.09]} s={[0.008, 0.008, 0.18]} m={gm} cast={false} />)}
       </group>
@@ -142,6 +143,10 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
+    // Perf: ekrandan tashqarida bo'lsa rigni MUZLATAMIZ (faqat kosmetika —
+    // harakat/joylashuv AgentAvatar'da, bunga bog'liq emas). damp() eksponensial
+    // bo'lgani uchun qayta ko'ринganda silliq davom etadi (sakramaydi).
+    if (rootRef.current && !visibleObject(rootRef.current)) return;
     t.current += dt;
     const tt = t.current;
     const st = getState ? getState() : { sit: pose === "sit", moving };

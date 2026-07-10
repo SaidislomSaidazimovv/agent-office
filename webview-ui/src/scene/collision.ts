@@ -101,6 +101,11 @@ r(8.7, 10.3, 13.8, 15.2);
 r(11.7, 13.3, 13.8, 15.2);
 // glassC stol
 r(18, 20, 12, 14);
+// ── Turgan chiroqlar + pol o'simliklari (agent ular ustidan o'tmasin) ──
+// Hammasi nav-qirralaridan chetда joylashtirilgan (OfficeDecor), shu bois bu
+// kichik to'siqlar yo'l grafini uzmaydi — faqat "arvohdek o'tishни" to'xtatadi.
+for (const [x, z] of [[-7, 5], [7, -5]] as [number, number][]) r(x - 0.22, x + 0.22, z - 0.22, z + 0.22); // chiroqlar
+for (const [x, z] of [[-1.5, 5], [1.5, 5], [-16, 6], [16, 6], [-16, -6], [16, -6]] as [number, number][]) r(x - 0.28, x + 0.28, z - 0.28, z + 0.28); // o'simliklar
 
 /** (x,z) nuqta radius r bilan biror to'siqga tegadimi? (statik mebel + band stollar) */
 export function blocked(x: number, z: number, rad: number): boolean {

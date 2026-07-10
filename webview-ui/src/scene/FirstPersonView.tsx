@@ -74,7 +74,7 @@ export default function FirstPersonView() {
 
   return (
     <>
-      <PerspectiveCamera makeDefault fov={72} position={[0, EYE, 5.5]} near={0.1} far={200} />
+      <PerspectiveCamera makeDefault fov={72} position={[0, EYE, 5.5]} rotation={[-0.22, 0, 0]} near={0.1} far={200} />
       <PointerLockControls />
     </>
   );

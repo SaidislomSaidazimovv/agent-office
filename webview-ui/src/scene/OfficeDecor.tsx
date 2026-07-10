@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useLayout } from "../layoutStore";
 import { useDaylight } from "./daylight";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
+import { visiblePoint } from "./visibility";
 
 // ── Katta ko'p-xonali ofis (server/xojatxona/kutubxona/shisha) ──
 // Hammasi qutı/silindr/konus — yengil. Xona: x[-23,23], z[-16,16].
@@ -54,7 +55,10 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
       <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={wc} />
       <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
       <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
-      <group position={[cx - door / 2, openH / 2, z]} rotation={[0, -1.25 * swing, 0]}>
+      {/* Tavaqa deyarli tekis ochiladi (devorga taqaladi) — yo'lakka chiqib
+          turmaydi, agent undan "arvohdek" o'tmaydi. Yo'lak tomon 0.1 siljigan
+          (devor bilan z-fight bo'lmasin). */}
+      <group position={[cx - door / 2, openH / 2, z + 0.1 * swing]} rotation={[0, -2.8 * swing, 0]}>
         <mesh position={[W / 2, 0, 0]} castShadow>
           <boxGeometry args={[W, openH - 0.04, 0.05]} />
           <meshStandardMaterial color={DOORW} roughness={0.5} metalness={0.2} />
@@ -113,6 +117,7 @@ export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   useFrame((state) => {
     const g = leaves.current;
     if (!g) return;
+    if (!visiblePoint(p[0], 0.6, p[2])) return; // ekrandan tashqari — tebranishni o'tkazamiz
     const t = state.clock.elapsedTime;
     g.rotation.z = Math.sin(t * 1.1 + ph) * 0.05;
     g.rotation.x = Math.cos(t * 0.85 + ph) * 0.04;
@@ -326,9 +331,9 @@ function Stall({ p }: { p: V3 }) {
   return (
     <group position={p}>
       <Toilet p={[0, 0, 0]} />
-      <Box p={[-0.75, 0.9, 0.2]} s={[0.06, 1.8, 1.6]} c="#c8d0d4" />
-      <Box p={[0.75, 0.9, 0.2]} s={[0.06, 1.8, 1.6]} c="#c8d0d4" />
-      <Box p={[0, 0.9, 1.0]} s={[1.5, 1.8, 0.06]} c="#c8d0d4" />
+      <Box p={[-0.75, 0.9, -0.2]} s={[0.06, 1.8, 1.6]} c="#c8d0d4" />
+      <Box p={[0.75, 0.9, -0.2]} s={[0.06, 1.8, 1.6]} c="#c8d0d4" />
+      <Box p={[0, 0.9, -1.0]} s={[1.5, 1.8, 0.06]} c="#c8d0d4" />
     </group>
   );
 }
@@ -391,8 +396,8 @@ export default function OfficeDecor() {
       {/* KUTUBXONA [-23,-11] */}
       <Floor x0={-23} x1={-11} z0={9.5} z1={16} c="#d8cfc0" />
       <WallX x0={-23} x1={-11} z={9.5} door={2.4} />
-      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15]} />)}
-      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} ry={Math.PI} />)}
+      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15]} ry={Math.PI} />)}
+      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
 
       {/* FOKUS [-11,-3] */}
@@ -433,14 +438,16 @@ export default function OfficeDecor() {
       {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
           Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
       {/* Printer, lampalar, o'simliklar */}
-      <StandingLamp p={[-9, 0, 6]} />
-      <StandingLamp p={[9, 0, -6]} />
+      {/* Chiroq/o'simliklar — nav-qirralaridan chetda (agent ular ustidan
+          o'tmasin), collision.ts da kichik to'siqlari bor. */}
+      <StandingLamp p={[-7, 0, 5]} />
+      <StandingLamp p={[7, 0, -5]} />
       <Plant p={[-16, 0, 6]} scale={1.1} />
       <Plant p={[16, 0, 6]} scale={1.1} />
       <Plant p={[-16, 0, -6]} scale={1.1} />
       <Plant p={[16, 0, -6]} scale={1.1} />
-      <Plant p={[-3, 0, 6.5]} scale={0.9} />
-      <Plant p={[3, 0, 6.5]} scale={0.9} />
+      <Plant p={[-1.5, 0, 5]} scale={0.9} />
+      <Plant p={[1.5, 0, 5]} scale={0.9} />
 
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />

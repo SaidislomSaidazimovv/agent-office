@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import type * as THREE from "three";
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
@@ -49,6 +51,28 @@ function Daylight() {
   );
 }
 
+// ── Dinamik devor shaffofligi (Sims/Habbo "dollhouse cutaway") ──────
+// Kvadrat bino: 4 perimetr devor. Iso kamera aylanadi — QAYSI 2 devor kamera
+// bilan ofis o'rtasi orasida qolsa (ya'ni bizga TASHQI yuzi qaragan), o'shalar
+// shaffof bo'ladi (ichi ko'rinsin). Qolgan 2 devorning ICHKI yuzi bizga
+// qaragani uchun ular QATTIQ fon bo'lib turadi. FPV'da hammasi zich.
+const GHOST = 0.16; // ochiq (near) devor shaffofligi
+const SOLID = 1.0; // yopiq (far) devor
+const FADE = 7; // silliq o'tish oralig'i (kamera koordinatasi bo'yicha)
+function smoothstep(e0: number, e1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+// openCoord > 0 → devorning tashqi yuzi kameraga qaragan (near) → shaffof.
+function applyWall(m: THREE.MeshStandardMaterial | null, openCoord: number): void {
+  if (!m) return;
+  const t = smoothstep(-FADE, FADE, openCoord);
+  const op = SOLID + (GHOST - SOLID) * t;
+  m.opacity = op;
+  m.transparent = op < 0.985;
+  m.depthWrite = op > 0.6; // qattiq bo'lsa chuqurlik yozadi (fon), shaffofда yo'q
+}
+
 export default function Room({ mode }: { mode: CameraMode }) {
   const { W, D, WH } = ROOM;
   const fpv = mode === "fpv";
@@ -57,10 +81,26 @@ export default function Room({ mode }: { mode: CameraMode }) {
   const wallMat = wallColor ?? "#dcd3c2";
   // Yon devorlar biroz to'qroq (chuqurlik hissi) — mavzu rangidan hosila.
   const sideWall = wallColor ? shade(wallColor, -10) : "#d2c9b7";
-  // Yaqin devorlar — uzoq devor bilan BIR XIL balandlik. Iso'da yarim-shaffof
-  // (ichi ko'rinib tursin), FPV'da to'liq qattiq/zich.
-  const nearOpacity = fpv ? 1 : 0.2;
-  const nearTransparent = !fpv;
+
+  const backM = useRef<THREE.MeshStandardMaterial>(null);
+  const frontM = useRef<THREE.MeshStandardMaterial>(null);
+  const leftM = useRef<THREE.MeshStandardMaterial>(null);
+  const rightM = useRef<THREE.MeshStandardMaterial>(null);
+
+  useFrame(({ camera }) => {
+    if (fpv) {
+      for (const r of [backM, frontM, leftM, rightM]) {
+        const m = r.current;
+        if (m) { m.opacity = 1; m.transparent = false; m.depthWrite = true; }
+      }
+      return;
+    }
+    const cx = camera.position.x, cz = camera.position.z;
+    applyWall(backM.current, -cz); // orqa devor (z=-D/2): kamera z<0 → near → shaffof
+    applyWall(frontM.current, cz); // old devor  (z=+D/2): kamera z>0 → near → shaffof
+    applyWall(leftM.current, -cx); // chap devor (x=-W/2): kamera x<0 → near → shaffof
+    applyWall(rightM.current, cx); // o'ng devor (x=+W/2): kamera x>0 → near → shaffof
+  });
 
   return (
     <group>
@@ -78,24 +118,22 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.6} metalness={0.05} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
-      {/* ── Perimetr devorlar (yopiq bino) ── */}
-      {/* Uzoq devorlar — doim ko'rinadi */}
+      {/* ── Perimetr devorlar (4 tomon) — dinamik shaffoflik useFrame'da ── */}
       <mesh position={[0, WH / 2, -D / 2]} receiveShadow>
         <boxGeometry args={[W, WH, 0.3]} />
-        <meshStandardMaterial color={wallMat} roughness={1} />
+        <meshStandardMaterial ref={backM} color={wallMat} roughness={1} transparent opacity={SOLID} />
+      </mesh>
+      <mesh position={[0, WH / 2, D / 2]} receiveShadow>
+        <boxGeometry args={[W, WH, 0.3]} />
+        <meshStandardMaterial ref={frontM} color={wallMat} roughness={1} transparent opacity={GHOST} depthWrite={false} />
       </mesh>
       <mesh position={[-W / 2, WH / 2, 0]} receiveShadow>
         <boxGeometry args={[0.3, WH, D]} />
-        <meshStandardMaterial color={sideWall} roughness={1} />
-      </mesh>
-      {/* Yaqin devorlar — 4 tomon BIR XIL balandlik. Iso'da yarim-shaffof. */}
-      <mesh position={[0, WH / 2, D / 2]} receiveShadow>
-        <boxGeometry args={[W, WH, 0.3]} />
-        <meshStandardMaterial color={wallMat} roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
+        <meshStandardMaterial ref={leftM} color={sideWall} roughness={1} transparent opacity={SOLID} />
       </mesh>
       <mesh position={[W / 2, WH / 2, 0]} receiveShadow>
         <boxGeometry args={[0.3, WH, D]} />
-        <meshStandardMaterial color={sideWall} roughness={1} transparent={nearTransparent} opacity={nearOpacity} depthWrite={fpv} />
+        <meshStandardMaterial ref={rightM} color={sideWall} roughness={1} transparent opacity={GHOST} depthWrite={false} />
       </mesh>
 
       {/* Shift — faqat FPV (ichki ko'rinish yopiq bo'lsin) */}

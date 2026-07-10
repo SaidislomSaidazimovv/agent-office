@@ -13,6 +13,7 @@ import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
 import { ROLE_PRESETS } from "./scene/roles";
+import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
 import Hud from "./ui/Hud";
@@ -29,7 +30,8 @@ function ShadowThrottle() {
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
   }, [gl]);
-  useFrame(() => {
+  useFrame((state) => {
+    updateFrustum(state.camera); // perf culling — har agent shundan foydalanadi
     if (f.current++ % 4 === 0) gl.shadowMap.needsUpdate = true;
   });
   return null;
