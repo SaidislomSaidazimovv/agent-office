@@ -17,6 +17,7 @@ export type ServerMessage =
   | AgentToolPermission
   | AgentToolPermissionClear
   | AgentBlocked
+  | AgentRoleDetected
   | SubagentToolStart
   | SubagentToolDone
   | SubagentClear
@@ -121,6 +122,12 @@ export interface AgentBlocked {
   type: "agentBlocked";
   id: number;
   blocked: boolean;
+}
+export interface AgentRoleDetected {
+  type: "agentRoleDetected";
+  id: number;
+  /** Faoliyatdan aniqlangan rol (frontend/backend/qa/docs/data/research). */
+  role: string;
 }
 export interface AgentTokenUsage {
   type: "agentTokenUsage";

@@ -19,8 +19,10 @@ export interface AgentState {
   sessionId?: string;
   /** Loyiha papka nomi (ko'rsatish uchun). */
   folderName: string;
-  /** Foydalanuvchi tanlagan rol (research/frontend/...) yoki avto. */
+  /** Aniqlangan rol (research/frontend/...). Terminal faoliyatidan avtomatik. */
   role?: string;
+  /** Rol ballari — tool faoliyatidan yig'iladi (roleInference). */
+  roleScores: Record<string, number>;
   /** Boshlang'ich vazifa yorlig'i. */
   task?: string;
   /** VS Code terminali tomonidan yaratilganmi yoki tashqi sessiya. */
@@ -92,6 +94,7 @@ export function createAgentState(
     lineBuffer: "",
     folderName,
     role: opts.role,
+    roleScores: {},
     task: opts.task,
     isExternal: opts.isExternal ?? false,
     hadToolsInTurn: false,

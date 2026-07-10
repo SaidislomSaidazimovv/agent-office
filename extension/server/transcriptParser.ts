@@ -7,6 +7,7 @@ import {
   TOOL_DONE_DELAY_MS,
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
+import { accumulateRole } from "./roleInference.js";
 import { formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
@@ -154,6 +155,10 @@ export function processTranscriptLine(
         const name = tool.name || "Tool";
         const status = formatToolStatus(name, tool.input);
         const runInBackground = !!(tool.input && tool.input.run_in_background);
+
+        // Rolni faoliyatdan aniqlash (to'liq input — file_path qisqarmasidan avval)
+        const detected = accumulateRole(agent, name, tool.input as Record<string, unknown> | undefined);
+        if (detected) store.broadcast({ type: "agentRoleDetected", id: agent.id, role: detected });
 
         if (SUBAGENT_TOOL_NAMES.has(name)) {
           agent.subagentToolIds.add(toolId);

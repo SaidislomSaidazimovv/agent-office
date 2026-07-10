@@ -113,6 +113,7 @@ interface OfficeState {
   removeAgent(id: number): void;
   setActive(id: number, active: boolean, awaitingInput?: boolean): void;
   setTool(id: number, toolName: string | undefined, label: string): void;
+  setRole(id: number, role: string): void;
   toolDone(id: number): void;
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
@@ -272,6 +273,13 @@ export const useOffice = create<OfficeState>((set, get) => ({
       },
       events: pushEvent(s.events, a.folderName, label, "#30d158"),
     }));
+  },
+
+  setRole(id, role) {
+    const a = get().agents[id];
+    if (!a || a.role === role) return;
+    // Rol o'zgardi → ko'rinish (skin) + yorliq avtomatik yangilanadi.
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, role } } }));
   },
 
   toolDone(id) {

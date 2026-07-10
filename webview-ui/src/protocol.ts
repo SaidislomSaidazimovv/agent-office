@@ -16,6 +16,7 @@ export type ServerMessage =
   | { type: "agentToolPermission"; id: number }
   | { type: "agentToolPermissionClear"; id: number }
   | { type: "agentBlocked"; id: number; blocked: boolean }
+  | { type: "agentRoleDetected"; id: number; role: string }
   | { type: "subagentToolStart"; id: number; parentToolId: string; toolId: string; status: string }
   | { type: "subagentToolDone"; id: number; parentToolId: string; toolId: string }
   | { type: "subagentClear"; id: number; parentToolId: string }
