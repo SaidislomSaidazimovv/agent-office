@@ -309,6 +309,22 @@ export function StandingLamp({ p }: { p: V3 }) {
   );
 }
 
+// Shift chirog'i (pendant) — ochiq ofis ustida osilgan, kechаsi porlaydi.
+export function PendantLight({ p }: { p: V3 }) {
+  const lampsOn = useDaylight((s) => s.params.lamps);
+  return (
+    <group position={p}>
+      <mesh position={[0, 2.35, 0]}><cylinderGeometry args={[0.012, 0.012, 0.9, 6]} />{M("#2a2e35")}</mesh>
+      <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#33383f" roughness={0.5} side={2} /></mesh>
+      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.09, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.4 : 0.4} /></mesh>
+      {lampsOn && <>
+        <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.32, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.2} depthWrite={false} /></mesh>
+        <pointLight position={[0, 1.78, 0]} intensity={5} distance={5} decay={2} color="#ffd98a" />
+      </>}
+    </group>
+  );
+}
+
 // ── YANGI: server rack ──
 function ServerRack({ p, ry = 0 }: { p: V3; ry?: number }) {
   const lights = useMemo(() => {
@@ -475,6 +491,11 @@ export default function OfficeDecor() {
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
+      {/* Shift chiroqlari — ochiq ofis ustida (kechаsi porlaydi) */}
+      <PendantLight p={[-4, 0, -3.2]} />
+      <PendantLight p={[4, 0, -3.2]} />
+      <PendantLight p={[-4, 0, 3.2]} />
+      <PendantLight p={[4, 0, 3.2]} />
       {/* Devor soati + qo'shimcha rasmlar (yon devorlarда, ochiq ofisga qaragan) */}
       <WallClock p={[-22.85, 2.35, -6]} ry={Math.PI / 2} />
       <Painting p={[-22.85, 1.6, 6]} ry={Math.PI / 2} c="#5a8c5a" />
