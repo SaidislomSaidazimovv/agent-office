@@ -30,7 +30,7 @@ interface Props {
   /** "low" — soddalashtirilgan (yuz tafsilotsiz) — kichik yordamchilar uchun. */
   detail?: "high" | "low";
   /** Har freym o'qiladi (re-render'siz poza/harakatni yangilash uchun). */
-  getState?: () => { sit: boolean; moving: boolean };
+  getState?: () => { sit: boolean; moving: boolean; speed?: number };
 }
 
 function damp(c: number, t: number, l: number, dt: number): number {
@@ -121,6 +121,12 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const kneeR = useRef<THREE.Group>(null);
   const shoL = useRef<THREE.Group>(null);
   const shoR = useRef<THREE.Group>(null);
+  const elbowL = useRef<THREE.Group>(null);
+  const elbowR = useRef<THREE.Group>(null);
+  const ankleL = useRef<THREE.Group>(null);
+  const ankleR = useRef<THREE.Group>(null);
+  const walkPhase = useRef(0); // masofaga bog'liq qadam fazasi (oyoq sirg'anmaydi)
+  const walkBlend = useRef(0); // yurish amplitudasi 0→1 (silliq kirish/chiqish)
   const ringRef = useRef<THREE.Mesh>(null);
   const t = useRef(Math.random() * 10);
   const stretchLeft = useRef(0); // cho'zilish davomi (s)
@@ -159,19 +165,31 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
     const stretching = stretchLeft.current > 0;
 
-    // Tos balandligi — yurganda: son TIK bo'lganda (mid-stance) eng baland
-    // (avval abs(sin) edi — heel-strike'da ko'tarib "pogo" ko'rinardi).
-    const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.cos(tt * 8)) * 0.03 : 0);
+    // ── Qadam fazasi — MASOFAга bog'liq (oyoq sirg'anmaydi) + silliq kirish ──
+    const spd = st.speed ?? 0;
+    walkPhase.current += (spd / 0.34) * Math.PI * dt; // ~0.34m qadam = yarim sikl
+    walkBlend.current = damp(walkBlend.current, walk ? 1 : 0, 9, dt);
+    const wp = walkPhase.current, wb = walkBlend.current;
+    const gait = Math.sin(wp); // asosiy qadam sinusi
+    const gaitC = Math.cos(wp);
+
+    // Tos balandligi — son TIK bo'lganda (mid-stance) eng baland; amplituda wb bilan.
+    const pelvisY = sit ? 0.55 : 0.92 + Math.abs(gaitC) * 0.03 * wb;
     if (bodyRef.current) bodyRef.current.position.y = damp(bodyRef.current.position.y, pelvisY, 12, dt);
     // Status halqasi — o'tirganda bosh pastga tushadi, halqa ham unga ergashadi.
     if (ringRef.current) ringRef.current.position.y = damp(ringRef.current.position.y, sit ? 1.42 : 1.75, 12, dt);
 
-    // Oyoqlar (o'tirganda son OLDINGA −z, boldir pastga; yurganda tebranish)
-    const swing = walk ? Math.sin(tt * 8) * 0.6 : 0;
+    // Oyoqlar (son + tizza + to'piq) — qadam fazasidan, wb bilan silliq
+    const swing = gait * 0.6 * wb;
+    const kneeSwingL = Math.max(0, gait) * 0.55 * wb;   // ko'targanda tizza bukiladi
+    const kneeSwingR = Math.max(0, -gait) * 0.55 * wb;
     if (hipL.current) hipL.current.rotation.x = damp(hipL.current.rotation.x, sit ? 1.5 : swing, 12, dt);
     if (hipR.current) hipR.current.rotation.x = damp(hipR.current.rotation.x, sit ? 1.5 : -swing, 12, dt);
-    if (kneeL.current) kneeL.current.rotation.x = damp(kneeL.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
-    if (kneeR.current) kneeR.current.rotation.x = damp(kneeR.current.rotation.x, sit ? -1.5 : walk ? Math.max(0, -Math.sin(tt * 8)) * 0.5 : 0.02, 12, dt);
+    if (kneeL.current) kneeL.current.rotation.x = damp(kneeL.current.rotation.x, sit ? -1.5 : kneeSwingL + 0.02, 12, dt);
+    if (kneeR.current) kneeR.current.rotation.x = damp(kneeR.current.rotation.x, sit ? -1.5 : kneeSwingR + 0.02, 12, dt);
+    // To'piq — oyoq ko'tarilganda tumshuq yuqori (dorsifleksiya), bosganda tekis
+    if (ankleL.current) ankleL.current.rotation.x = damp(ankleL.current.rotation.x, sit ? 0.5 : -kneeSwingL * 0.7, 10, dt);
+    if (ankleR.current) ankleR.current.rotation.x = damp(ankleR.current.rotation.x, sit ? 0.5 : -kneeSwingR * 0.7, 10, dt);
 
     // Yuqori tana engashishi + NAFAS OLISH (ko'krak ko'tarilib-tushadi)
     let lean = 0.03;
@@ -185,7 +203,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       upperRef.current.rotation.x = damp(upperRef.current.rotation.x, lean, 7, dt);
       upperRef.current.scale.y = damp(upperRef.current.scale.y, breathe, 6, dt);
       // Yelka gavda bilan qarama-qarshi buriladi (yurish tabiiyroq)
-      upperRef.current.rotation.y = damp(upperRef.current.rotation.y, walk ? -Math.sin(tt * 8) * 0.18 : 0, 8, dt);
+      upperRef.current.rotation.y = damp(upperRef.current.rotation.y, -gait * 0.18 * wb, 8, dt);
     }
 
     // Bosh — nod/tilt + vaqti-vaqti bilan atrofga QARASH (yaw)
@@ -222,50 +240,62 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       eyesRef.current.scale.y = openY;
     }
 
-    // Yelka/qo'l — o'tirganda OLDINGA (yozish), o'ylashda qo'l iyakka,
-    // cho'zilishda ikki qo'l tepaga, yurganda tebranish.
-    const armSwing = walk ? Math.sin(tt * 8) * 0.5 : 0;
-    let shTL: number, shTR: number;
+    // Yelka + TIRSAK — o'tirganda yozish (tirsak bukilgan), o'ylashda qo'l iyakka
+    // (tirsak katta bukiladi — endi haqiqiy), cho'zilish, yurganda tebranish.
+    const armSwing = gait * 0.5 * wb;
+    let shTL: number, shTR: number, elTL: number, elTR: number;
     if (stretching) {
-      shTL = -2.6; shTR = -2.7; // qo'llar bosh uzra
+      shTL = -2.6; shTR = -2.7; elTL = 0.15; elTR = 0.15; // qo'llar bosh uzra
     } else if (sit && thinking) {
-      shTL = 0.5; shTR = 2.0 + Math.sin(tt * 1.4) * 0.05; // o'ng qo'l iyakka
+      shTL = 0.5; elTL = 0.25;
+      shTR = 1.2 + Math.sin(tt * 1.4) * 0.04; elTR = 1.7; // o'ng qo'l iyakka (tirsak bukilgan)
     } else if (sit) {
-      shTL = working ? 0.95 + Math.max(0, Math.sin(tt * 11)) * 0.25 : 0.5;
-      shTR = working ? 0.95 + Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0.5;
+      const tapL = working ? Math.max(0, Math.sin(tt * 11)) * 0.25 : 0;
+      const tapR = working ? Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0;
+      shTL = working ? 0.95 + tapL : 0.5;
+      shTR = working ? 0.95 + tapR : 0.5;
+      elTL = working ? 0.7 + tapL : 0.22; // yozganda tirsak bukilgan
+      elTR = working ? 0.7 + tapR : 0.22;
     } else {
       shTL = -armSwing; shTR = armSwing;
+      elTL = 0.2 + Math.abs(armSwing) * 0.4; elTR = elTL; // yurganda passiv bukilish
     }
     if (shoL.current) shoL.current.rotation.x = damp(shoL.current.rotation.x, shTL, 10, dt);
     if (shoR.current) shoR.current.rotation.x = damp(shoR.current.rotation.x, shTR, 10, dt);
+    if (elbowL.current) elbowL.current.rotation.x = damp(elbowL.current.rotation.x, elTL, 10, dt);
+    if (elbowR.current) elbowR.current.rotation.x = damp(elbowR.current.rotation.x, elTR, 10, dt);
 
     if (rootRef.current) {
       // yurganda tabiiy yon-tebranish, turganda nozik chayqalish, blocked'da asabiy
-      const sway = status === "blocked" ? Math.sin(tt * 20) * 0.02 : walk ? Math.sin(tt * 8) * 0.028 : Math.sin(tt * 0.7) * 0.01;
+      const sway = status === "blocked" ? Math.sin(tt * 20) * 0.02 : walk ? gaitC * 0.028 * wb : Math.sin(tt * 0.7) * 0.01;
       rootRef.current.rotation.z = damp(rootRef.current.rotation.z, sway, walk ? 9 : 5, dt);
     }
   });
 
   const bottomMat = cloth(s.bottom), topMat = cloth(s.top), shoeMat = cloth(s.shoes);
 
-  // Oyoq (son + tizza + boldir + poyabzal), hip pivotda
-  const leg = (x: number, hipRef: React.RefObject<THREE.Group>, kneeRef: React.RefObject<THREE.Group>) => (
+  // Oyoq (son + tizza + boldir + TO'PIQ + poyabzal)
+  const leg = (x: number, hipRef: React.RefObject<THREE.Group>, kneeRef: React.RefObject<THREE.Group>, ankleRef: React.RefObject<THREE.Group>) => (
     <group ref={hipRef} position={[x, 0, 0]}>
       <VB p={[0, -0.2, 0]} s={[0.13, 0.42, 0.14]} m={bottomMat} />
       <group ref={kneeRef} position={[0, -0.4, 0]}>
         <VB p={[0, -0.2, 0]} s={[0.12, 0.42, 0.12]} m={bottomMat} />
-        {/* poyabzal — tovoni orqada, tumshug'i OLDINGA (−z, yuz tomon) */}
-        <VB p={[0, -0.42, -0.05]} s={[0.13, 0.1, 0.26]} m={shoeMat} />
+        {/* to'piq pivotда poyabzal — yurganda tumshuq ko'tariladi, tekis bosadi */}
+        <group ref={ankleRef} position={[0, -0.42, 0]}>
+          <VB p={[0, 0, -0.05]} s={[0.13, 0.1, 0.26]} m={shoeMat} />
+        </group>
       </group>
     </group>
   );
 
-  // Qo'l (yelka pivot → bilak + kaft)
-  const arm = (x: number, shoRef: React.RefObject<THREE.Group>) => (
+  // Qo'l (yelka pivot → TIRSAK → bilak + kaft)
+  const arm = (x: number, shoRef: React.RefObject<THREE.Group>, elbowRef: React.RefObject<THREE.Group>) => (
     <group ref={shoRef} position={[x, 0.28, 0]}>
       <VB p={[0, -0.13, 0]} s={[0.1, 0.26, 0.1]} m={topMat} />
-      <VB p={[0, -0.32, 0.02]} s={[0.09, 0.24, 0.09]} m={topMat} />
-      <VB p={[0, -0.46, 0.03]} s={[0.09, 0.08, 0.09]} m={skin} />
+      <group ref={elbowRef} position={[0, -0.26, 0]}>
+        <VB p={[0, -0.06, 0.02]} s={[0.09, 0.24, 0.09]} m={topMat} />
+        <VB p={[0, -0.2, 0.03]} s={[0.09, 0.08, 0.09]} m={skin} />
+      </group>
     </group>
   );
 
@@ -275,14 +305,14 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
         {/* Tos */}
         <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} cast />
         {/* Oyoqlar (tos pastidan) */}
-        {leg(-0.09, hipL, kneeL)}
-        {leg(0.09, hipR, kneeR)}
+        {leg(-0.09, hipL, kneeL, ankleL)}
+        {leg(0.09, hipR, kneeR, ankleR)}
 
         {/* Yuqori tana */}
         <group ref={upperRef} position={[0, 0.09, 0]}>
           <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} cast />
-          {arm(-0.23, shoL)}
-          {arm(0.23, shoR)}
+          {arm(-0.23, shoL, elbowL)}
+          {arm(0.23, shoR, elbowR)}
           <VB p={[0, 0.45, 0]} s={[0.1, 0.08, 0.1]} m={skin} />
           <group ref={headRef} position={[0, 0.62, 0]}>
             <VB s={[0.3, 0.3, 0.3]} m={skin} cast />

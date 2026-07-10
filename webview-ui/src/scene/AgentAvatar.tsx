@@ -80,6 +80,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const movingRef = useRef(false);
   const prevDesired = useRef(true);
   const stuck = useRef(0);
+  const speedRef = useRef(0); // haqiqiy yurish tezligi (oyoq sirg'anmasin uchun)
   const firstIdleTrip = useRef(false); // ishdan endi bo'shadi → tanaffusga
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
@@ -225,6 +226,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         p.x = fx;
         p.z = fz;
         moving = true;
+        speedRef.current = moved / Math.max(dt, 0.001); // m/s — qadam fazasi uchun
         g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 10, dt);
         // Tiqilib qolsa — bu nuqtani tashlab, qayta rejalaymiz
         if (moved < SPEED * dt * 0.25) {
@@ -247,6 +249,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       }
     }
     movingRef.current = moving;
+    if (!moving) speedRef.current *= Math.max(0, 1 - dt * 6); // to'xtaganda so'nadi
 
     if (seated.current) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
     g.position.x = p.x;
@@ -289,7 +292,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       <PixelPerson
         skin={preset}
         status={agent.status}
-        getState={() => ({ sit: seated.current, moving: movingRef.current })}
+        getState={() => ({ sit: seated.current, moving: movingRef.current, speed: speedRef.current })}
       />
 
       {/* Sub-agentlar — yonida KICHIK yordamchi personaj (kirish/chiqish anim.) */}
