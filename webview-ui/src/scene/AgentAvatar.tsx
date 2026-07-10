@@ -149,6 +149,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         seated.current = false;
         const now = performance.now() / 1000;
         const meet = meetingOf(agent.id);
+        if (!meet && metAt.current) metAt.current = 0; // uchrashuv tashqaridan tozalandi
         if (meet) {
           // ── Uchrashuv: O'Z joyimga (spot) boraman; ikkovimiz yetgach ~6s
           //    suhbat, keyin tarqaymiz. Sherik ketsa — kutmaymiz. ──
@@ -157,7 +158,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           const bothHere = metAt.current > 0 && partner != null && partner.metAt > 0;
           const chatSince = bothHere ? Math.max(metAt.current, partner!.metAt) : 0;
           const chatDone = bothHere && now - chatSince > 6;
-          const partnerGone = metAt.current > 0 && (partner == null || meetingOf(meet.partner) == null);
+          const partnerGone = partner == null || meetingOf(meet.partner) == null; // yurib turган bo'lsam ham bekor qilaman (R2)
           if (now > meet.until || chatDone || partnerGone) {
             clearMeeting(agent.id);
             metAt.current = 0;

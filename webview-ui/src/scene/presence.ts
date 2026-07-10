@@ -38,12 +38,22 @@ export function blockedByAgent(id: number, x: number, z: number, rad: number): b
 // o'ng) → yopishmaydi, orasida masofa bo'ladi. Emote FAQAT ikkovi ham yetganда.
 export interface Meet { partner: number; point: string; side: number; until: number }
 const meets = new Map<number, Meet>();
+// Band hub'lar — bir hub'ga BIR juft. Ikki juft bir joyni tanlab, bir-birini
+// bloklab 30s "qotishi"ning oldini oladi (R5).
+const occupiedHubs = new Set<string>();
 
 export function meetingOf(id: number): Meet | null {
   return meets.get(id) ?? null;
 }
+/** Uchrashuvni tozalaydi — HAR IKKALA tomonни ham (sherikda "osilib" qolgan
+ *  yozuv qolmasin, R4) va hub'ni bo'shatadi. */
 export function clearMeeting(id: number): void {
+  const m = meets.get(id);
+  if (!m) return;
   meets.delete(id);
+  const pm = meets.get(m.partner);
+  if (pm && pm.partner === id) meets.delete(m.partner);
+  occupiedHubs.delete(m.point);
 }
 
 // Ijtimoiy uchrashuv joylari (xona ichki tugunlari). Katta ofisda tasodifiy
@@ -64,13 +74,16 @@ export function seekMeeting(id: number, x: number, z: number, now: number): Meet
   }
   if (!partner || id > partner.id) return null;
   const mx = (x + partner.x) / 2, mz = (z + partner.z) / 2;
-  let node = SOCIAL_HUBS[0], bd = Infinity;
+  let node = "", bd = Infinity;
   for (const h of SOCIAL_HUBS) {
+    if (occupiedHubs.has(h)) continue; // band hub — boshqa juftga qoldiramiz
     const n = NODES[h];
     const d = (n.x - mx) ** 2 + (n.z - mz) ** 2;
     if (d < bd) { bd = d; node = h; }
   }
-  const until = now + 30; // xavfsizlik timeout'i (yurib borish + suhbat)
+  if (!node) return null; // barcha hub band — hozircha uchrashuv yo'q
+  const until = now + 18; // xavfsizlik timeout'i (yurib borish + ~6s suhbat)
+  occupiedHubs.add(node);
   meets.set(id, { partner: partner.id, point: node, side: -1, until });
   meets.set(partner.id, { partner: id, point: node, side: 1, until });
   return meets.get(id)!;
@@ -88,4 +101,5 @@ export function meetSpot(m: Meet): { x: number; z: number } {
 export function _reset(): void {
   reg.clear();
   meets.clear();
+  occupiedHubs.clear();
 }
