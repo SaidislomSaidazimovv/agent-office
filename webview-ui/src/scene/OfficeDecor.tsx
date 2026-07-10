@@ -278,6 +278,18 @@ function ModChairAt({ p, ry = 0 }: { p: V3; ry?: number }) {
 export function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} /><mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh></group>;
 }
+// Devor soati — yuzi +z (Painting kabi), ry bilan devorга buriladi.
+export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.3, 0.3, 0.06, 22]} />{M("#2a2e35", 0.6)}</mesh>
+      <mesh position={[0, 0, 0.035]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.26, 0.26, 0.01, 22]} />{M("#f4f1ea", 0.5)}</mesh>
+      <Box p={[0, 0.075, 0.05]} s={[0.025, 0.15, 0.012]} c="#23262b" />
+      <Box p={[0.05, 0, 0.05]} s={[0.1, 0.025, 0.012]} c="#23262b" />
+      <mesh position={[0, 0, 0.055]}><cylinderGeometry args={[0.022, 0.022, 0.02, 8]} />{M("#c0392b", 0.4)}</mesh>
+    </group>
+  );
+}
 export function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} /><mesh position={[0, 0, 0.05]}><planeGeometry args={[1.85, 1.0]} /><meshBasicMaterial color="#1b3a5c" /></mesh></group>;
 }
@@ -463,6 +475,10 @@ export default function OfficeDecor() {
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
+      {/* Devor soati + qo'shimcha rasmlar (yon devorlarда, ochiq ofisga qaragan) */}
+      <WallClock p={[-22.85, 2.35, -6]} ry={Math.PI / 2} />
+      <Painting p={[-22.85, 1.6, 6]} ry={Math.PI / 2} c="#5a8c5a" />
+      <Painting p={[22.85, 1.6, -6]} ry={-Math.PI / 2} c="#c8a03a" />
 
       {/* Dekorativ gilamlar — xona mebeli ostida (yassi, yurishga xalaqit yo'q) */}
       <Rug p={[3, 0, 13.6]} w={5} d={3.6} c="#7d4a6b" accent="#a06a8c" />
