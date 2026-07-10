@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
+import { useDaylight } from "./daylight";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
 export const ROOM = { W: 46, D: 32, WH: 3.4 };
@@ -10,6 +12,37 @@ function shade(hex: string, amt: number): string {
   const cl = (v: number) => Math.max(0, Math.min(255, v));
   const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
   return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
+// Kun/tun yorug'ligi — parametrlar useDaylight store'dan, real soatдан ~30s'da
+// yangilanadi (soat sekin o'zgargani uchun snap sezilmaydi). Fon rangi ham shundan.
+function Daylight() {
+  const params = useDaylight((s) => s.params);
+  const refresh = useDaylight((s) => s.refresh);
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 30000);
+    return () => clearInterval(t);
+  }, [refresh]);
+  return (
+    <>
+      <color attach="background" args={[params.sky]} />
+      <ambientLight intensity={params.ambient} />
+      <hemisphereLight args={["#ffffff", "#c9c2b2", params.hemi]} />
+      <directionalLight
+        position={[12, 20, 8]}
+        intensity={params.dirI}
+        color={params.dir}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-24}
+        shadow-camera-right={24}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
+        shadow-bias={-0.0005}
+      />
+    </>
+  );
 }
 
 export default function Room({ mode }: { mode: CameraMode }) {
@@ -27,22 +60,9 @@ export default function Room({ mode }: { mode: CameraMode }) {
 
   return (
     <group>
-      {/* Yorug'lik — biroz kamroq ambient (kontrast/soya seziladi), soya-kamerasi
-          butun xonani qamraydi (x=±23, z=±16 dan tashqaridagi mebel ham soya beradi). */}
-      <ambientLight intensity={0.72} />
-      <hemisphereLight args={["#ffffff", "#c9c2b2", 0.55]} />
-      <directionalLight
-        position={[12, 20, 8]}
-        intensity={0.9}
-        color="#fff3e0"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-24}
-        shadow-camera-right={24}
-        shadow-camera-top={18}
-        shadow-camera-bottom={-18}
-        shadow-bias={-0.0005}
-      />
+      {/* Yorug'lik — kun/tun sikliga bog'liq (Daylight). Soya-kamerasi butun
+          xonani qamraydi (x=±23, z=±16 dan tashqaridagi mebel ham soya beradi). */}
+      <Daylight />
 
       {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>

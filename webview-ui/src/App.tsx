@@ -92,8 +92,7 @@ export default function App() {
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
-        <color attach="background" args={["#11151c"]} />
-
+        {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>
             <OrthographicCamera makeDefault position={[34, 27, 34]} zoom={20} near={-300} far={800} />

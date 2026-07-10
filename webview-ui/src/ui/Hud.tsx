@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { THEMES, useLayout } from "../layoutStore";
+import { useDaylight } from "../scene/daylight";
 import { unlockAudio } from "../notificationSound";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, presetFor, ROLE_PRESETS, STATUS_COLOR, STATUS_LABEL, tokenBar } from "../scene/roles";
@@ -42,6 +43,8 @@ export default function Hud() {
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
   const events = useOffice((s) => s.events);
+  const daylightOn = useDaylight((s) => s.enabled);
+  const toggleDaylight = useDaylight((s) => s.toggle);
   const editMode = useLayout((s) => s.editMode);
   const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
@@ -155,6 +158,21 @@ export default function Hud() {
           }}
         >
           {soundEnabled ? "🔊" : "🔇"}
+        </button>
+        {/* Kun/tun toggle */}
+        <button
+          onClick={toggleDaylight}
+          aria-label={daylightOn ? "Kun/tun sikli yoqiq (bosib o'chiring)" : "Kun/tun sikli o'chiq (bosib yoqing)"}
+          aria-pressed={daylightOn}
+          title={daylightOn ? "Kun/tun sikli — real soatga bog'liq (bosib o'chiring)" : "Doimiy kunduzgi yorug'lik (bosib kun/tunni yoqing)"}
+          style={{
+            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
+            cursor: "pointer", fontSize: 12,
+            border: `1px solid ${daylightOn ? "rgba(255,214,10,0.5)" : "rgba(255,255,255,0.14)"}`,
+            background: daylightOn ? "rgba(255,214,10,0.16)" : "rgba(20,24,32,0.8)", color: "#e8ecf2",
+          }}
+        >
+          {daylightOn ? "🌗" : "☀️"}
         </button>
         {/* Faoliyat tasmasi toggle */}
         <button

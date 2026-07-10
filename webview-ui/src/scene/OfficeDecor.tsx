@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
 import { useLayout } from "../layoutStore";
+import { useDaylight } from "./daylight";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 
 // ── Katta ko'p-xonali ofis (server/xojatxona/kutubxona/shisha) ──
@@ -265,7 +266,19 @@ export function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} /><mesh position={[0, 0, 0.05]}><planeGeometry args={[1.85, 1.0]} /><meshBasicMaterial color="#1b3a5c" /></mesh></group>;
 }
 export function StandingLamp({ p }: { p: V3 }) {
-  return <group position={p}><mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh><mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh><mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={0.5} side={2} /></mesh></group>;
+  const lampsOn = useDaylight((s) => s.params.lamps);
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh>
+      <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh>
+      <mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={lampsOn ? 1.7 : 0.35} side={2} /></mesh>
+      {/* Tunda yumshoq porlash + haqiqiy nur */}
+      {lampsOn && <>
+        <mesh position={[0, 1.7, 0]}><sphereGeometry args={[0.36, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.22} depthWrite={false} /></mesh>
+        <pointLight position={[0, 1.7, 0]} intensity={7} distance={5.5} decay={2} color="#ffd98a" />
+      </>}
+    </group>
+  );
 }
 
 // ── YANGI: server rack ──
