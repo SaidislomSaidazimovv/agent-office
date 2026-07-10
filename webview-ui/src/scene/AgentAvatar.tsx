@@ -5,7 +5,8 @@ import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { slide } from "./collision";
-import { breakRoom, idleDestination, nearestNode, pathBetween, type WP } from "./nav";
+import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
+import { clearMeeting, meetingOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { type CharSkin, characterFor, seatFor, sitPoint, STATUS_COLOR, STATUS_LABEL, tokenBar } from "./roles";
 
@@ -82,6 +83,13 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const firstIdleTrip = useRef(false); // ishdan endi bo'shadi → tanaffusga
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
+  // ── Ijtimoiy hayot (uchrashuv) ──
+  const reportT = useRef(0); // presence bildirish throttle
+  const seekCd = useRef(3 + Math.random() * 4); // keyingi izlashgacha
+  const metAt = useRef(0); // gather nuqtasiga yetgan payt (0 = yetmagan)
+  const [emote, setEmote] = useState<"" | "👋" | "☕">("");
+  const emoteRef = useRef<"" | "👋" | "☕">("");
+  useEffect(() => () => unreport(agent.id), [agent.id]); // ketganda reyestrдан chiqar
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -94,7 +102,29 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     if (desiredSit !== prevDesired.current) {
       prevDesired.current = desiredSit;
       if (!desiredSit) firstIdleTrip.current = true; // ishni tugatdi → tanaffus
+      if (desiredSit) { clearMeeting(agent.id); metAt.current = 0; } // task keldi → uchrashuvni tashla
       if (path.current.length > 1) {
+        path.current = path.current.slice(0, 1);
+        pendingNode.current = null;
+      }
+    }
+
+    // Ijtimoiy izlash — HAR freym (sayr davomida ham). Cooldown tugagach bo'sh
+    // sherik topilsa, joriy yo'lni tashlab hub'ga yo'naladi (keyingi freym
+    // meet-tarmog'i boshqaradi). Aks holda tez-tez qayta urinadi.
+    if (!desiredSit && !meetingOf(agent.id)) {
+      if (seekCd.current > 0) seekCd.current -= dt;
+      else {
+        const m = seekMeeting(agent.id, p.x, p.z, performance.now() / 1000);
+        if (m) { path.current = []; pendingNode.current = null; }
+        else seekCd.current = 1.2 + Math.random(); // sherik hali yo'q — birozdan keyin
+      }
+    }
+    // Uchrashuv bor, lekin sayr yo'lida (sherik — o'z yo'lini tozalamagan) —
+    // joriy qirrani tugatib hub'ga qayta yo'naltiramiz (uzoq sayr qilmasin).
+    {
+      const cm = meetingOf(agent.id);
+      if (cm && metAt.current === 0 && pendingNode.current !== cm.point && path.current.length > 1) {
         path.current = path.current.slice(0, 1);
         pendingNode.current = null;
       }
@@ -116,7 +146,29 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         }
       } else {
         seated.current = false;
-        if (pause.current > 0) {
+        const now = performance.now() / 1000;
+        const meet = meetingOf(agent.id);
+        if (meet) {
+          // ── Uchrashuv: gather-tugunga bor; yetgach ~5.5s suhbat, keyin tarqa ──
+          const chatDone = metAt.current > 0 && now - metAt.current > 5.5;
+          if (now > meet.until || chatDone) {
+            clearMeeting(agent.id);
+            metAt.current = 0;
+            seekCd.current = 18 + Math.random() * 20; // yaqinда qayta uchrashmasin
+            pause.current = 0.4 + Math.random();
+          } else {
+            const gp = NODES[meet.point];
+            if (Math.hypot(p.x - gp.x, p.z - gp.z) < 1.15) {
+              if (metAt.current === 0) metAt.current = now; // yetdik — turamiz
+            } else {
+              // Yo'lni HAQIQIY joydan boshlaymiz (eski curNode teskari yubormasin).
+              const from = nearestNode(p.x, p.z);
+              const route = pathBetween(from, meet.point);
+              if (route.length === 0) { curNode.current = from; pause.current = 0.5; }
+              else { path.current = route; curNode.current = from; pendingNode.current = meet.point; }
+            }
+          }
+        } else if (pause.current > 0) {
           pause.current -= dt;
         } else {
           const target = firstIdleTrip.current ? breakRoom() : idleDestination(agent.role);
@@ -186,6 +238,26 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     if (seated.current) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
     g.position.x = p.x;
     g.position.z = p.z;
+
+    // ── Uchrashuv: yetgan bo'lsak sherikka (gather markaziga) qarab imo-ishora ──
+    const mNow = meetingOf(agent.id);
+    if (mNow && metAt.current > 0) {
+      const gp = NODES[mNow.point];
+      const dx = gp.x - p.x, dz = gp.z - p.z;
+      if (Math.hypot(dx, dz) > 0.05) g.rotation.y = dampAngle(g.rotation.y, Math.atan2(-dx, -dz), 6, dt);
+      const el = performance.now() / 1000 - metAt.current;
+      const e = el < 1.8 ? "👋" : "☕"; // avval salom, keyin qahva
+      if (emoteRef.current !== e) { emoteRef.current = e; setEmote(e); }
+    } else if (emoteRef.current !== "") {
+      emoteRef.current = ""; setEmote("");
+    }
+
+    // Presence reyestri (throttled ~5/s)
+    reportT.current -= dt;
+    if (reportT.current <= 0) {
+      reportT.current = 0.2;
+      report(agent.id, p.x, p.z, statusRef.current === "idle");
+    }
   });
 
   return (
@@ -200,6 +272,13 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       {helpers.map((h) => (
         <SubAgent key={h.key} skin={preset} slot={h.slot} leaving={h.leaving} onExited={() => removeHelper(h.key)} />
       ))}
+
+      {/* Ijtimoiy imo-ishora (uchrashuvда salom/qahva) */}
+      {emote && (
+        <Html position={[0, 2.25, 0]} center style={{ pointerEvents: "none" }}>
+          <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{emote}</div>
+        </Html>
+      )}
 
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
       {hiring && (

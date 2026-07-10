@@ -12,6 +12,7 @@ import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
+import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
@@ -604,6 +605,31 @@ test("nav: har xonaga kirish VA undan chiqish yo'li bor", () => {
     assert.ok(pathBetween("g2_1", `${key}_i`).length > 0, `${key} ichkarisiga yo'l bo'lishi kerak`);
     assert.ok(pathBetween(`${key}_i`, "g2_1").length > 0, `${key} ichidan CHIQISH yo'li bo'lishi kerak`);
   }
+});
+
+// ── Ijtimoiy hayot (uchrashuv) ───────────────────────────────
+test("presence: ikki bo'sh agent bitta hub'ga juftlanadi (faqat kichik id tashabbus)", () => {
+  presenceReset();
+  report(1, -5, -3, true);
+  report(2, -5, 0, true);
+  const m1 = seekMeeting(1, -5, -3, 0);
+  assert.ok(m1, "kichik id (1) uchrashuv yaratishi kerak");
+  const m2 = meetingOf(2);
+  assert.ok(m2, "sherik (2) ga ham yozilishi kerak");
+  assert.equal(m1!.point, m2!.point, "ikkovi bir xil hub'ga borishi kerak");
+  assert.ok(NODES[m1!.point], "hub haqiqiy nav tuguni bo'lishi kerak");
+
+  presenceReset();
+  report(1, -5, -3, true);
+  report(2, -5, 0, true);
+  assert.equal(seekMeeting(2, -5, 0, 0), null, "katta id tashabbus qilmasligi kerak");
+});
+
+test("presence: band (busy) agent uchrashuvga tanlanmaydi", () => {
+  presenceReset();
+  report(1, -5, -3, true);
+  report(2, -5, 0, false); // band
+  assert.equal(seekMeeting(1, -5, -3, 0), null, "yagona sherik band bo'lsa uchrashuv yo'q");
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
