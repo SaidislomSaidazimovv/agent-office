@@ -31,9 +31,6 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
     &nbsp;
     <img width="49%" src="https://raw.githubusercontent.com/SaidislomSaidazimovv/agent-office/main/media/office-fpv.png" alt="First-person walk-around"/>
 </p>
-<p align="center">
-    <img width="49%" src="https://raw.githubusercontent.com/SaidislomSaidazimovv/agent-office/main/media/characters.png" alt="Voxel agent characters"/>
-</p>
 </details>
 
 ## Highlights

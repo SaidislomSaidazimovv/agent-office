@@ -3,6 +3,51 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.4] — 2026-07-11
+
+The office came alive — dynamic walls, self-organising agents, deeper insight,
+and three languages. 🌆
+
+### Added
+
+- **Dynamic dollhouse walls** — the two walls between you and the interior fade
+  out as you rotate (Sims/Habbo-style cutaway), so the office is always readable;
+  the far walls stay solid as a backdrop.
+- **Automatic roles** — you no longer pick a role. Each agent's role is inferred
+  from what it actually does (edited file types, shell commands, tools) and shown
+  on its label, so agents in the same repo are finally distinguishable.
+- **Settings panel** (⚙) — with **language** selection (**O'zbekcha / Русский /
+  English**) plus day-night and sound toggles, persisted locally.
+- **Full localisation** — the whole UI is available in Uzbek, Russian and English.
+- **Cost estimate** — per-agent and total estimated spend using official Claude
+  prices (cache reads/writes accounted for).
+- **Git awareness** — the inspector shows each agent's branch and changed-file
+  count.
+- **Tool history** — a collapsible list of an agent's recent tool calls.
+- **Lifelike animation** — elbow/ankle joints, blinking, occasional glances, and
+  a distance-locked stride (no foot-skating).
+
+### Changed
+
+- Agent labels now show the detected **role** instead of the repository folder
+  name (which was identical on every agent).
+- Sound and day-night toggles moved into the settings panel.
+- Doors open nearly flat against the wall (no more clipping through an open leaf).
+
+### Fixed
+
+- Corrected several backwards fixtures (bathroom stalls, library bookshelves, TV).
+- Wall-standing and wall-hung fixtures now sit flush against their walls.
+- Social meetings keep space and face each other; removed meeting deadlocks and
+  a case where an agent emoted alone.
+- Solid collision between agents, and for doors, lamps and plants.
+- Glasses accessory now faces forward over the eyes.
+
+### Performance
+
+- Off-screen agent rigs and plant sway are frozen (frustum culling).
+- Shadow-map updates are throttled to reduce stutter with many agents.
+
 ## [0.1.3] — 2026-07-06
 
 A "livelier office" release — more characters, more life, more insight, and a
