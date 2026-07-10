@@ -81,8 +81,10 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           seated.current = true;
         } else {
           const target = nearestNode(sit.current.x, sit.current.z);
-          path.current = [...pathBetween(curNode.current, target), sit.current];
-          pendingNode.current = target;
+          const route = pathBetween(curNode.current, target);
+          // Yo'l topilmasa — to'g'ridan-to'g'ri stulga (o'z stoli ochiq maydonda).
+          path.current = route.length ? [...route, sit.current] : [sit.current];
+          pendingNode.current = route.length ? target : null;
         }
       } else {
         seated.current = false;
@@ -91,8 +93,15 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         } else {
           const target = firstIdleTrip.current ? breakRoom() : idleDestination(agent.role);
           firstIdleTrip.current = false;
-          path.current = pathBetween(curNode.current, target);
-          pendingNode.current = target;
+          const route = pathBetween(curNode.current, target);
+          if (route.length === 0) {
+            // Yetib bo'lmaydi — joyimizni qayta aniqlab, biroz kutamiz.
+            curNode.current = nearestNode(p.x, p.z);
+            pause.current = 0.6 + Math.random();
+          } else {
+            path.current = route;
+            pendingNode.current = target;
+          }
         }
       }
     }
@@ -131,7 +140,10 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
             path.current.shift();
             stuck.current = 0;
             if (path.current.length === 0) {
-              curNode.current = pendingNode.current ?? nearestNode(p.x, p.z);
+              // Yetib BORMADIK — shuning uchun joriy tugunni HAQIQIY joydan
+              // olamiz (pendingNode'ni ishlatsak, graf bo'yicha yolg'on joyda
+              // turgan bo'lardik va keyingi yo'l ham noto'g'ri chiqardi).
+              curNode.current = nearestNode(p.x, p.z);
               pendingNode.current = null;
               if (!desiredSit) pause.current = 1 + Math.random() * 3;
             }

@@ -10,7 +10,7 @@ import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
-import { NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
+import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { useOffice } from "../webview-ui/src/store.js";
@@ -551,6 +551,58 @@ test("hech bir xona ichki nuqtasi mebel ichida emas (agent titramaydi)", () => {
     const n = NODES[`${key}_i`];
     assert.ok(n, `${key}_i mavjud bo'lishi kerak`);
     assert.ok(!blocked(n.x, n.z, 0.3), `${key} ichki nuqtasi (${n.x},${n.z}) mebeldan tashqarida bo'lishi kerak`);
+  }
+});
+
+// ── Nav grafi butunligi ──────────────────────────────────────
+// Regressiya qalqoni: bir paytlar "glassA_d" ham startsWith("g") ga tushib,
+// eshik O'ZIGA ulanib qolgan edi → 3 shisha xona grafдан uzilib, agent ichkariga
+// kirib chiqolmay qolardi. Quyidagi 3 test shuni qaytadan sodir bo'lishiga
+// yo'l qo'ymaydi.
+
+const ROOM_KEYS = ["server", "kitchen", "meeting", "bathroom", "glassA", "library", "focus", "lounge", "glassB", "glassC"];
+
+test("nav grafi: self-loop yo'q va HAMMA tugun bog'langan", () => {
+  for (const [a, b] of EDGES) assert.notEqual(a, b, `self-loop qirra: ${a}`);
+  const adj: Record<string, string[]> = {};
+  for (const k of Object.keys(NODES)) adj[k] = [];
+  for (const [a, b] of EDGES) { adj[a].push(b); adj[b].push(a); }
+  const seen = new Set(["g0_0"]);
+  const q = ["g0_0"];
+  while (q.length) {
+    const c = q.shift()!;
+    for (const n of adj[c]) if (!seen.has(n)) { seen.add(n); q.push(n); }
+  }
+  const missing = Object.keys(NODES).filter((k) => !seen.has(k));
+  assert.deepEqual(missing, [], `yetib bo'lmaydigan tugunlar: ${missing.join(", ")}`);
+});
+
+test("nav grafi: har qirra to'siqsiz (bo'sh ofis + hamma o'rindiq band)", () => {
+  const RAD = 0.16; // AgentAvatar personaj radiusi
+  const badEdges = (): string[] => {
+    const bad: string[] = [];
+    for (const [a, b] of EDGES) {
+      const A = NODES[a], B = NODES[b];
+      const d = Math.hypot(B.x - A.x, B.z - A.z);
+      const steps = Math.max(2, Math.ceil(d / 0.08));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        if (blocked(A.x + (B.x - A.x) * t, A.z + (B.z - A.z) * t, RAD)) { bad.push(`${a}→${b}`); break; }
+      }
+    }
+    return bad;
+  };
+  setActiveSeats([]);
+  assert.deepEqual(badEdges(), [], "bo'sh ofisda bloklangan qirra bo'lmasligi kerak");
+  setActiveSeats([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(badEdges(), [], "o'rindiqlar band bo'lganda ham bloklangan qirra bo'lmasligi kerak");
+  setActiveSeats([]);
+});
+
+test("nav: har xonaga kirish VA undan chiqish yo'li bor", () => {
+  for (const key of ROOM_KEYS) {
+    assert.ok(pathBetween("g2_1", `${key}_i`).length > 0, `${key} ichkarisiga yo'l bo'lishi kerak`);
+    assert.ok(pathBetween(`${key}_i`, "g2_1").length > 0, `${key} ichidan CHIQISH yo'li bo'lishi kerak`);
   }
 });
 

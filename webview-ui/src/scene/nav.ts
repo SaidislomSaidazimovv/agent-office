@@ -10,19 +10,24 @@ export interface WP {
 }
 
 export const NODES: Record<string, WP> = {};
-const EDGES: [string, string][] = [];
+/** Graf qirralari — sinov (nav-validatsiya) uchun ham eksport qilinadi. */
+export const EDGES: [string, string][] = [];
 
 // Markaziy grid (ochiq yo'laklar — agent stollari x=±5.5, z=-3.2/0/3.2 va
 // yon stollar x=±13 dan chetda: qatorlar ular orasidagi yo'laklarda).
 const CX = [-17, -9, 0, 9, 17];
 const CZ = [-6.5, -1.8, 1.8, 6.5];
 const grid: string[][] = [];
+/** Faqat markaziy grid tugunlari. (DIQQAT: "glassA_d" ham "g" bilan boshlanadi —
+ *  shuning uchun startsWith("g") ISHLATMAYMIZ, aniq ro'yxat yuritamiz.) */
+const GRID_KEYS: string[] = [];
 CX.forEach((x, i) => {
   grid[i] = [];
   CZ.forEach((z, j) => {
     const k = `g${i}_${j}`;
     NODES[k] = { x, z };
     grid[i][j] = k;
+    GRID_KEYS.push(k);
   });
 });
 for (let i = 0; i < CX.length; i++) {
@@ -37,28 +42,40 @@ const ROOMS: [string, number, "top" | "bottom"][] = [
   ["server", -16, "top"], ["kitchen", -5, "top"], ["meeting", 3.5, "top"], ["bathroom", 11.5, "top"], ["glassA", 19, "top"],
   ["library", -17, "bottom"], ["focus", -7, "bottom"], ["lounge", 2, "bottom"], ["glassB", 11, "bottom"], ["glassC", 19, "bottom"],
 ];
+/** Ikki nuqta orasidagi to'g'ri kesma to'siqsizmi? (agent radiusidan kengroq
+ *  zaxira bilan — qirra tanlashda ishonchli bo'lsin). */
+function clearPath(ax: number, az: number, bx: number, bz: number, rad = 0.22): boolean {
+  const d = Math.hypot(bx - ax, bz - az);
+  const steps = Math.max(2, Math.ceil(d / 0.1));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    if (blocked(ax + (bx - ax) * t, az + (bz - az) * t, rad)) return false;
+  }
+  return true;
+}
+
 for (const [key, cx, side] of ROOMS) {
   const doorZ = side === "top" ? -9.0 : 9.0;
-  const intZ = side === "top" ? -12.5 : 12.5;
-  // Ichki nuqta mebel to'siqiga tushsa — eshik tomon surib chiqaramiz (agent
-  // stolga tiqilib titramasin). O'z-o'zini to'g'rilaydi: mebel o'zgarsa ham.
-  const step = side === "top" ? 0.5 : -0.5;
-  let iz = intZ;
-  for (let g = 0; g < 12 && blocked(cx, iz, 0.3); g++) iz += step;
+  const inward = side === "top" ? -1 : 1;
+  // Ichki tugun: eshikdan ichkariga YURIB, birinchi to'siqgacha eng chuqur bo'sh
+  // nuqta. Shunda door→interior kesmasi HAR DOIM to'siqsiz — agent xonaga kirib
+  // qolmaydi va bemalol chiqadi. (Avval: qat'iy z=±12.5 → server/kutubxona
+  // rack/javon qatorlari ortida qolib ketardi.)
+  let iz = doorZ;
+  for (let z = doorZ; Math.abs(z - doorZ) <= 6.5; z += inward * 0.25) {
+    if (blocked(cx, z, 0.32)) break;
+    iz = z;
+  }
   NODES[`${key}_d`] = { x: cx, z: doorZ };
   NODES[`${key}_i`] = { x: cx, z: iz };
   EDGES.push([`${key}_d`, `${key}_i`]);
-  let best = "";
-  let bd = Infinity;
-  for (const gk of Object.keys(NODES)) {
-    if (!gk.startsWith("g")) continue;
-    const n = NODES[gk];
-    const d = (n.x - cx) ** 2 + (n.z - doorZ) ** 2;
-    if (d < bd) {
-      bd = d;
-      best = gk;
-    }
-  }
+  // Eshikni eng yaqin TO'SIQSIZ grid tuguniga ulaymiz — masofa emas, haqiqiy
+  // yo'l muhim (masalan lounge eshigi resepshn stoli ortida qolmasin).
+  const near = [...GRID_KEYS].sort((a, b) => {
+    const A = NODES[a], B = NODES[b];
+    return (A.x - cx) ** 2 + (A.z - doorZ) ** 2 - ((B.x - cx) ** 2 + (B.z - doorZ) ** 2);
+  });
+  const best = near.find((gk) => clearPath(cx, doorZ, NODES[gk].x, NODES[gk].z)) ?? near[0];
   EDGES.push([`${key}_d`, best]);
 }
 
@@ -98,7 +115,9 @@ export function pathBetween(from: string, to: string): WP[] {
       }
     }
   }
-  if (!(to in prev)) return [NODES[to]];
+  // Yetib bo'lmasa — BO'SH yo'l. (Avval maqsad nuqtasini qaytarardi → agent
+  // to'g'ri chiziqda devorga qarab yurib tiqilib qolardi.)
+  if (!(to in prev)) return [];
   const out: WP[] = [];
   let c: string | null = to;
   while (c) {

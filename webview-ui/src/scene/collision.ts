@@ -116,8 +116,12 @@ export function blocked(x: number, z: number, rad: number): boolean {
   return false;
 }
 
-/** Harakatni o'qlar bo'yicha alohida qo'llaydi (devor bo'ylab sirg'anadi). */
+/** Harakatni o'qlar bo'yicha alohida qo'llaydi (devor bo'ylab sirg'anadi).
+ *  QOCHISH: agar personaj ALLAQACHON to'siq ichida bo'lsa (masalan ustiga
+ *  dinamik o'rindiq/mebel to'siqi paydo bo'lgan), har yo'nalish bloklanib
+ *  abadiy tiqilib qolardi — shu holda harakatga ruxsat beramiz (chiqib ketsin). */
 export function slide(x: number, z: number, dx: number, dz: number, rad: number): { x: number; z: number } {
+  if (blocked(x, z, rad)) return { x: x + dx, z: z + dz };
   let nx = x;
   let nz = z;
   if (dx !== 0 && !blocked(x + dx, z, rad)) nx = x + dx;
