@@ -1,6 +1,6 @@
 import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
@@ -18,6 +18,22 @@ import { useOffice } from "./store";
 import Hud from "./ui/Hud";
 import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
 import { useExtensionMessages } from "./useExtensionMessages";
+
+// Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
+// harakatlanadi, shuning uchun 15Hz soya ko'zga ilinmaydi — lekin har freym
+// butun sahnani soya-o'tishда qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
+function ShadowThrottle() {
+  const gl = useThree((s) => s.gl);
+  const f = useRef(0);
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+  }, [gl]);
+  useFrame(() => {
+    if (f.current++ % 4 === 0) gl.shadowMap.needsUpdate = true;
+  });
+  return null;
+}
 
 // Debug/galereya rejimlari (o'zim tekshirish uchun)
 const Q = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
@@ -88,10 +104,11 @@ export default function App() {
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
         shadows
-        dpr={[1, 1.25]}
+        dpr={1}
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
+        <ShadowThrottle />
         {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>

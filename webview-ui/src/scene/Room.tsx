@@ -34,13 +34,17 @@ function Daylight() {
         intensity={params.dirI}
         color={params.dir}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-24}
         shadow-camera-right={24}
         shadow-camera-top={18}
         shadow-camera-bottom={-18}
-        shadow-bias={-0.0005}
+        shadow-radius={4}
+        shadow-normalBias={0.02}
+        shadow-bias={-0.0002}
       />
+      {/* Iliq qaytaruvchi nur (pol/devordan aks — CG "yassi" ko'rinishni yumshatadi) */}
+      <directionalLight position={[-10, 6, -8]} intensity={params.dirI * 0.2} color="#ffe6c4" />
     </>
   );
 }
@@ -67,11 +71,11 @@ export default function Room({ mode }: { mode: CameraMode }) {
       {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#e9e2d2" roughness={1} />
+        <meshStandardMaterial color="#e9e2d2" roughness={0.68} metalness={0.04} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
         <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.6} metalness={0.05} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
       {/* ── Perimetr devorlar (yopiq bino) ── */}

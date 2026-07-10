@@ -9,7 +9,9 @@ import { basicMat, sphere, stdMat, UNIT_BOX } from "./resources";
 // Ulashilgan birlik-kub qutisi: har voxel bo'lagi bitta geometriya + keshlangan
 // material (20 agentda minglab dublikat o'rniga o'nlab noyob obyekt).
 type V3 = [number, number, number];
-function VB({ p, s, m, cast = true }: { p?: V3; s: V3; m: THREE.Material; cast?: boolean }) {
+// cast default FALSE — 20 agentда ~600 mayda soya-tashlovchi mesh perf'ni yeydi.
+// Faqat tana+bosh (siluet) soya tashlaydi — yerga o'tirtirish uchun yetarli.
+function VB({ p, s, m, cast = false }: { p?: V3; s: V3; m: THREE.Material; cast?: boolean }) {
   return <mesh position={p} scale={s} geometry={UNIT_BOX} material={m} castShadow={cast} />;
 }
 const EYE_WHITE = stdMat("#f4f0ea", { roughness: 0.5 });
@@ -123,6 +125,11 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const t = useRef(Math.random() * 10);
   const stretchLeft = useRef(0); // cho'zilish davomi (s)
   const stretchCd = useRef(6 + Math.random() * 10); // keyingi cho'zilishgacha
+  const eyesRef = useRef<THREE.Group>(null);
+  const blinkLeft = useRef(0);
+  const blinkCd = useRef(2 + Math.random() * 4); // keyingi pirpirashgacha
+  const glanceCd = useRef(3 + Math.random() * 5); // keyingi qarashgacha
+  const headYaw = useRef(0); // atrofga qarash (maqsad)
 
   const cloth = (c: string) => stdMat(c, { roughness: 0.85 });
   const skin = stdMat(s.skin, { roughness: 0.6 });
@@ -152,8 +159,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
     const stretching = stretchLeft.current > 0;
 
-    // Tos balandligi
-    const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.sin(tt * 8)) * 0.03 : 0);
+    // Tos balandligi — yurganda: son TIK bo'lganda (mid-stance) eng baland
+    // (avval abs(sin) edi — heel-strike'da ko'tarib "pogo" ko'rinardi).
+    const pelvisY = sit ? 0.55 : 0.92 + (walk ? Math.abs(Math.cos(tt * 8)) * 0.03 : 0);
     if (bodyRef.current) bodyRef.current.position.y = damp(bodyRef.current.position.y, pelvisY, 12, dt);
     // Status halqasi — o'tirganda bosh pastga tushadi, halqa ham unga ergashadi.
     if (ringRef.current) ringRef.current.position.y = damp(ringRef.current.position.y, sit ? 1.42 : 1.75, 12, dt);
@@ -171,21 +179,47 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     else if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
     else if (thinking) lean = -0.04;
     else if (walk) lean = 0.11; // yurganda oldinga engashadi
-    const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.014 : 0.024);
+    // Nafas — ikki nomutanosib chastota (mexanik takror ko'rinmasin)
+    const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.014 : 0.024) * (1 + 0.3 * Math.sin(tt * 0.29));
     if (upperRef.current) {
       upperRef.current.rotation.x = damp(upperRef.current.rotation.x, lean, 7, dt);
       upperRef.current.scale.y = damp(upperRef.current.scale.y, breathe, 6, dt);
+      // Yelka gavda bilan qarama-qarshi buriladi (yurish tabiiyroq)
+      upperRef.current.rotation.y = damp(upperRef.current.rotation.y, walk ? -Math.sin(tt * 8) * 0.18 : 0, 8, dt);
     }
 
-    // Bosh
+    // Bosh — nod/tilt + vaqti-vaqti bilan atrofga QARASH (yaw)
     let nod = 0, tilt = 0;
     if (stretching) nod = -0.3; // yuqoriga qaraydi
     else if (thinking) { tilt = 0.2; nod = -0.06; }
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
+    // Bo'sh/o'ylanayotganда gohida yon-yonga qaraydi
+    if (!working) {
+      glanceCd.current -= dt;
+      if (glanceCd.current <= 0) {
+        headYaw.current = (Math.random() - 0.5) * 0.7;
+        glanceCd.current = 2.5 + Math.random() * 4;
+      }
+    } else headYaw.current = 0;
     if (headRef.current) {
-      headRef.current.rotation.x = damp(headRef.current.rotation.x, nod + Math.sin(tt * 1.6) * 0.02, 7, dt);
+      headRef.current.rotation.x = damp(headRef.current.rotation.x, nod + Math.sin(tt * 1.6) * 0.02 + Math.sin(tt * 0.37) * 0.015, 7, dt);
       headRef.current.rotation.z = damp(headRef.current.rotation.z, tilt, 6, dt);
+      headRef.current.rotation.y = damp(headRef.current.rotation.y, headYaw.current + Math.sin(tt * 0.5) * 0.03, 5, dt);
+    }
+
+    // Ko'z pirpirash — har ~2-6s tez yumilib ochiladi (eng kuchli "tirik" belgisi)
+    if (blinkLeft.current <= 0) {
+      blinkCd.current -= dt;
+      if (blinkCd.current <= 0) { blinkLeft.current = 0.12; blinkCd.current = 2 + Math.random() * 5; }
+    } else {
+      blinkLeft.current -= dt;
+    }
+    if (eyesRef.current) {
+      const bl = blinkLeft.current;
+      // 0.12s ичида: yopil (0→~0.06s) → och. sinus bilan silliq.
+      const openY = bl > 0 ? Math.max(0.08, 1 - Math.sin((1 - bl / 0.12) * Math.PI) * 0.95) : 1;
+      eyesRef.current.scale.y = openY;
     }
 
     // Yelka/qo'l — o'tirganda OLDINGA (yozish), o'ylashda qo'l iyakka,
@@ -239,28 +273,31 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     <group ref={rootRef}>
       <group ref={bodyRef} position={[0, 0.55, 0]}>
         {/* Tos */}
-        <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} />
+        <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} cast />
         {/* Oyoqlar (tos pastidan) */}
         {leg(-0.09, hipL, kneeL)}
         {leg(0.09, hipR, kneeR)}
 
         {/* Yuqori tana */}
         <group ref={upperRef} position={[0, 0.09, 0]}>
-          <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} />
+          <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} cast />
           {arm(-0.23, shoL)}
           {arm(0.23, shoR)}
           <VB p={[0, 0.45, 0]} s={[0.1, 0.08, 0.1]} m={skin} />
           <group ref={headRef} position={[0, 0.62, 0]}>
-            <VB s={[0.3, 0.3, 0.3]} m={skin} />
+            <VB s={[0.3, 0.3, 0.3]} m={skin} cast />
             {/* Yuz tafsilotlari (ko'z/burun/quloq/aksessuar) — faqat high LOD.
                 Kichik yordamchilar (low) uchun ko'rinmaydi → tashlab ketamiz. */}
             {!lod && <>
-              {[-0.07, 0.07].map((x) => (
-                <group key={x} position={[x, 0.025, -0.151]}>
-                  <VB s={[0.05, 0.055, 0.02]} m={EYE_WHITE} cast={false} />
-                  <VB p={[0, 0, -0.012]} s={[0.025, 0.03, 0.01]} m={EYE_PUPIL} cast={false} />
-                </group>
-              ))}
+              {/* ko'zlar — eyesRef guruhда (y=0.025 markaz) → pirpiraganda joyida yumiladi */}
+              <group ref={eyesRef} position={[0, 0.025, 0]}>
+                {[-0.07, 0.07].map((x) => (
+                  <group key={x} position={[x, 0, -0.151]}>
+                    <VB s={[0.05, 0.055, 0.02]} m={EYE_WHITE} cast={false} />
+                    <VB p={[0, 0, -0.012]} s={[0.025, 0.03, 0.01]} m={EYE_PUPIL} cast={false} />
+                  </group>
+                ))}
+              </group>
               <VB p={[0, -0.03, -0.155]} s={[0.04, 0.05, 0.03]} m={skin} cast={false} />
               {[-0.157, 0.157].map((x) => <VB key={x} p={[x, 0.0, 0.01]} s={[0.03, 0.08, 0.08]} m={skin} />)}
             </>}
