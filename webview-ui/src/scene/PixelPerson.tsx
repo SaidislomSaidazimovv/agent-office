@@ -4,6 +4,17 @@ import * as THREE from "three";
 import type { AgentStatus } from "../store";
 import type { Accessory as AccessoryType, CharSkin, HairStyle } from "./roles";
 import { STATUS_COLOR } from "./roles";
+import { basicMat, sphere, stdMat, UNIT_BOX } from "./resources";
+
+// Ulashilgan birlik-kub qutisi: har voxel bo'lagi bitta geometriya + keshlangan
+// material (20 agentda minglab dublikat o'rniga o'nlab noyob obyekt).
+type V3 = [number, number, number];
+function VB({ p, s, m, cast = true }: { p?: V3; s: V3; m: THREE.Material; cast?: boolean }) {
+  return <mesh position={p} scale={s} geometry={UNIT_BOX} material={m} castShadow={cast} />;
+}
+const EYE_WHITE = stdMat("#f4f0ea", { roughness: 0.5 });
+const EYE_PUPIL = stdMat("#1a1a22");
+const RING_GEO = new THREE.RingGeometry(0.06, 0.1, 18);
 
 // ── Voxel chibi personaj: o'tirish / turish / yurish ─────────
 // pose="sit" — stolda o'tirib yozadi (working/thinking...).
@@ -25,30 +36,30 @@ function damp(c: number, t: number, l: number, dt: number): number {
 // Bosh aksessuari — per-agent xilma-xillik (bosh markazida, old = -z).
 function Accessory({ type }: { type: AccessoryType }) {
   if (type === "glasses") {
-    const f = () => <meshStandardMaterial color="#15181d" roughness={0.4} metalness={0.3} />;
+    const gm = stdMat("#15181d", { roughness: 0.4, metalness: 0.3 });
     return (
       <group position={[0, 0.025, -0.152]}>
-        {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.043, 0.008, 6, 14]} />{f()}</mesh>)}
-        <mesh><boxGeometry args={[0.055, 0.008, 0.008]} />{f()}</mesh>
-        {[-0.11, 0.11].map((x) => <mesh key={x} position={[x, 0, 0.09]}><boxGeometry args={[0.008, 0.008, 0.18]} />{f()}</mesh>)}
+        {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 0, 0]} rotation={[Math.PI / 2, 0, 0]} material={gm}><torusGeometry args={[0.043, 0.008, 6, 14]} /></mesh>)}
+        <VB s={[0.055, 0.008, 0.008]} m={gm} cast={false} />
+        {[-0.11, 0.11].map((x) => <VB key={x} p={[x, 0, 0.09]} s={[0.008, 0.008, 0.18]} m={gm} cast={false} />)}
       </group>
     );
   }
   if (type === "headphones") {
-    const m = () => <meshStandardMaterial color="#23262b" roughness={0.5} />;
+    const hm = stdMat("#23262b", { roughness: 0.5 });
     return (
       <group>
-        <mesh position={[0, 0.02, 0]} rotation={[0, 0, 0]}><torusGeometry args={[0.175, 0.022, 8, 16, Math.PI]} />{m()}</mesh>
-        {[-0.162, 0.162].map((x) => <mesh key={x} position={[x, 0.0, 0]} castShadow><boxGeometry args={[0.05, 0.13, 0.13]} />{m()}</mesh>)}
+        <mesh position={[0, 0.02, 0]} material={hm}><torusGeometry args={[0.175, 0.022, 8, 16, Math.PI]} /></mesh>
+        {[-0.162, 0.162].map((x) => <VB key={x} p={[x, 0.0, 0]} s={[0.05, 0.13, 0.13]} m={hm} />)}
       </group>
     );
   }
   if (type === "cap") {
-    const m = () => <meshStandardMaterial color="#2f6bd6" roughness={0.8} />;
+    const cm = stdMat("#2f6bd6", { roughness: 0.8 });
     return (
       <group position={[0, 0.155, 0]}>
-        <mesh castShadow><boxGeometry args={[0.335, 0.11, 0.335]} />{m()}</mesh>
-        <mesh position={[0, -0.045, -0.22]} castShadow><boxGeometry args={[0.3, 0.03, 0.16]} />{m()}</mesh>
+        <VB s={[0.335, 0.11, 0.335]} m={cm} />
+        <VB p={[0, -0.045, -0.22]} s={[0.3, 0.03, 0.16]} m={cm} />
       </group>
     );
   }
@@ -56,43 +67,39 @@ function Accessory({ type }: { type: AccessoryType }) {
 }
 
 function Hair({ style, color }: { style: HairStyle; color: string }) {
-  const m = () => <meshStandardMaterial color={color} roughness={0.9} />;
-  const cap = (
-    <mesh position={[0, 0.16, 0]} castShadow>
-      <boxGeometry args={[0.33, 0.09, 0.33]} />
-      {m()}
-    </mesh>
-  );
+  const hm = stdMat(color, { roughness: 0.9 });
+  const hm2 = stdMat(color, { roughness: 0.95 }); // sferik soch (afro/curly)
+  const cap = <VB p={[0, 0.16, 0]} s={[0.33, 0.09, 0.33]} m={hm} />;
   switch (style) {
     case "short":
-      return (<group>{cap}<mesh position={[0, 0.02, 0.13]} castShadow><boxGeometry args={[0.33, 0.3, 0.09]} />{m()}</mesh></group>);
+      return (<group>{cap}<VB p={[0, 0.02, 0.13]} s={[0.33, 0.3, 0.09]} m={hm} /></group>);
     case "long":
       return (
         <group>{cap}
-          {[-0.185, 0.185].map((x) => <mesh key={x} position={[x, -0.14, 0]} castShadow><boxGeometry args={[0.06, 0.4, 0.32]} />{m()}</mesh>)}
-          <mesh position={[0, -0.11, 0.15]} castShadow><boxGeometry args={[0.34, 0.5, 0.08]} />{m()}</mesh>
+          {[-0.185, 0.185].map((x) => <VB key={x} p={[x, -0.14, 0]} s={[0.06, 0.4, 0.32]} m={hm} />)}
+          <VB p={[0, -0.11, 0.15]} s={[0.34, 0.5, 0.08]} m={hm} />
         </group>
       );
     case "afro":
-      return (<mesh position={[0, 0.14, 0.01]} castShadow><sphereGeometry args={[0.25, 12, 10]} /><meshStandardMaterial color={color} roughness={0.95} /></mesh>);
+      return (<mesh position={[0, 0.14, 0.01]} castShadow geometry={sphere(0.25, 12, 10)} material={hm2} />);
     case "curly":
       return (
         <group>
-          <mesh position={[0, 0.15, 0.01]} castShadow><sphereGeometry args={[0.215, 12, 10]} /><meshStandardMaterial color={color} roughness={0.95} /></mesh>
-          {[-0.16, 0.16].map((x) => <mesh key={x} position={[x, -0.02, 0]} castShadow><sphereGeometry args={[0.1, 8, 8]} /><meshStandardMaterial color={color} roughness={0.95} /></mesh>)}
+          <mesh position={[0, 0.15, 0.01]} castShadow geometry={sphere(0.215, 12, 10)} material={hm2} />
+          {[-0.16, 0.16].map((x) => <mesh key={x} position={[x, -0.02, 0]} castShadow geometry={sphere(0.1, 8, 8)} material={hm2} />)}
         </group>
       );
     case "spiky":
       return (
         <group>{cap}
-          {[-0.1, 0, 0.1].map((x) => [-0.08, 0.08].map((z) => <mesh key={`${x}_${z}`} position={[x, 0.23, z]} rotation={[0.15 * z, 0, 0.2 * x]} castShadow><coneGeometry args={[0.05, 0.13, 4]} />{m()}</mesh>))}
+          {[-0.1, 0, 0.1].map((x) => [-0.08, 0.08].map((z) => <mesh key={`${x}_${z}`} position={[x, 0.23, z]} rotation={[0.15 * z, 0, 0.2 * x]} castShadow material={hm}><coneGeometry args={[0.05, 0.13, 4]} /></mesh>))}
         </group>
       );
     default:
       return (
         <group>{cap}
-          <mesh position={[0, -0.02, 0.14]} castShadow><boxGeometry args={[0.34, 0.36, 0.09]} />{m()}</mesh>
-          {[-0.185, 0.185].map((x) => <mesh key={x} position={[x, 0, 0.02]} castShadow><boxGeometry args={[0.06, 0.24, 0.3]} />{m()}</mesh>)}
+          <VB p={[0, -0.02, 0.14]} s={[0.34, 0.36, 0.09]} m={hm} />
+          {[-0.185, 0.185].map((x) => <VB key={x} p={[x, 0, 0.02]} s={[0.06, 0.24, 0.3]} m={hm} />)}
         </group>
       );
   }
@@ -114,8 +121,8 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const stretchLeft = useRef(0); // cho'zilish davomi (s)
   const stretchCd = useRef(6 + Math.random() * 10); // keyingi cho'zilishgacha
 
-  const cloth = (c: string) => <meshStandardMaterial color={c} roughness={0.85} />;
-  const skinMat = <meshStandardMaterial color={s.skin} roughness={0.6} />;
+  const cloth = (c: string) => stdMat(c, { roughness: 0.85 });
+  const skin = stdMat(s.skin, { roughness: 0.6 });
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -202,23 +209,16 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
   });
 
+  const bottomMat = cloth(s.bottom), topMat = cloth(s.top), shoeMat = cloth(s.shoes);
+
   // Oyoq (son + tizza + boldir + poyabzal), hip pivotda
   const leg = (x: number, hipRef: React.RefObject<THREE.Group>, kneeRef: React.RefObject<THREE.Group>) => (
     <group ref={hipRef} position={[x, 0, 0]}>
-      <mesh position={[0, -0.2, 0]} castShadow>
-        <boxGeometry args={[0.13, 0.42, 0.14]} />
-        {cloth(s.bottom)}
-      </mesh>
+      <VB p={[0, -0.2, 0]} s={[0.13, 0.42, 0.14]} m={bottomMat} />
       <group ref={kneeRef} position={[0, -0.4, 0]}>
-        <mesh position={[0, -0.2, 0]} castShadow>
-          <boxGeometry args={[0.12, 0.42, 0.12]} />
-          {cloth(s.bottom)}
-        </mesh>
+        <VB p={[0, -0.2, 0]} s={[0.12, 0.42, 0.12]} m={bottomMat} />
         {/* poyabzal — tovoni orqada, tumshug'i OLDINGA (−z, yuz tomon) */}
-        <mesh position={[0, -0.42, -0.05]} castShadow>
-          <boxGeometry args={[0.13, 0.1, 0.26]} />
-          {cloth(s.shoes)}
-        </mesh>
+        <VB p={[0, -0.42, -0.05]} s={[0.13, 0.1, 0.26]} m={shoeMat} />
       </group>
     </group>
   );
@@ -226,18 +226,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   // Qo'l (yelka pivot → bilak + kaft)
   const arm = (x: number, shoRef: React.RefObject<THREE.Group>) => (
     <group ref={shoRef} position={[x, 0.28, 0]}>
-      <mesh position={[0, -0.13, 0]} castShadow>
-        <boxGeometry args={[0.1, 0.26, 0.1]} />
-        {cloth(s.top)}
-      </mesh>
-      <mesh position={[0, -0.32, 0.02]} castShadow>
-        <boxGeometry args={[0.09, 0.24, 0.09]} />
-        {cloth(s.top)}
-      </mesh>
-      <mesh position={[0, -0.46, 0.03]} castShadow>
-        <boxGeometry args={[0.09, 0.08, 0.09]} />
-        {skinMat}
-      </mesh>
+      <VB p={[0, -0.13, 0]} s={[0.1, 0.26, 0.1]} m={topMat} />
+      <VB p={[0, -0.32, 0.02]} s={[0.09, 0.24, 0.09]} m={topMat} />
+      <VB p={[0, -0.46, 0.03]} s={[0.09, 0.08, 0.09]} m={skin} />
     </group>
   );
 
@@ -245,50 +236,38 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     <group ref={rootRef}>
       <group ref={bodyRef} position={[0, 0.55, 0]}>
         {/* Tos */}
-        <mesh position={[0, 0, 0]} castShadow>
-          <boxGeometry args={[0.34, 0.18, 0.26]} />
-          {cloth(s.bottom)}
-        </mesh>
+        <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} />
         {/* Oyoqlar (tos pastidan) */}
         {leg(-0.09, hipL, kneeL)}
         {leg(0.09, hipR, kneeR)}
 
         {/* Yuqori tana */}
         <group ref={upperRef} position={[0, 0.09, 0]}>
-          <mesh position={[0, 0.22, 0]} castShadow>
-            <boxGeometry args={[0.36, 0.4, 0.24]} />
-            {cloth(s.top)}
-          </mesh>
+          <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} />
           {arm(-0.23, shoL)}
           {arm(0.23, shoR)}
-          <mesh position={[0, 0.45, 0]} castShadow>
-            <boxGeometry args={[0.1, 0.08, 0.1]} />
-            {skinMat}
-          </mesh>
+          <VB p={[0, 0.45, 0]} s={[0.1, 0.08, 0.1]} m={skin} />
           <group ref={headRef} position={[0, 0.62, 0]}>
-            <mesh castShadow><boxGeometry args={[0.3, 0.3, 0.3]} />{skinMat}</mesh>
+            <VB s={[0.3, 0.3, 0.3]} m={skin} />
             {/* ko'zlar (oq + qorachiq) */}
             {[-0.07, 0.07].map((x) => (
               <group key={x} position={[x, 0.025, -0.151]}>
-                <mesh><boxGeometry args={[0.05, 0.055, 0.02]} /><meshStandardMaterial color="#f4f0ea" roughness={0.5} /></mesh>
-                <mesh position={[0, 0, -0.012]}><boxGeometry args={[0.025, 0.03, 0.01]} /><meshStandardMaterial color="#1a1a22" /></mesh>
+                <VB s={[0.05, 0.055, 0.02]} m={EYE_WHITE} cast={false} />
+                <VB p={[0, 0, -0.012]} s={[0.025, 0.03, 0.01]} m={EYE_PUPIL} cast={false} />
               </group>
             ))}
             {/* burun */}
-            <mesh position={[0, -0.03, -0.155]}><boxGeometry args={[0.04, 0.05, 0.03]} />{skinMat}</mesh>
+            <VB p={[0, -0.03, -0.155]} s={[0.04, 0.05, 0.03]} m={skin} cast={false} />
             {/* quloqlar */}
-            {[-0.157, 0.157].map((x) => <mesh key={x} position={[x, 0.0, 0.01]} castShadow><boxGeometry args={[0.03, 0.08, 0.08]} />{skinMat}</mesh>)}
+            {[-0.157, 0.157].map((x) => <VB key={x} p={[x, 0.0, 0.01]} s={[0.03, 0.08, 0.08]} m={skin} />)}
             <Hair style={s.hairStyle} color={s.hair} />
             {s.accessory && <Accessory type={s.accessory} />}
           </group>
         </group>
       </group>
 
-      {/* Holat halqasi */}
-      <mesh ref={ringRef} position={[0, 1.75, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.06, 0.1, 18]} />
-        <meshBasicMaterial color={STATUS_COLOR[status]} transparent opacity={0.9} side={THREE.DoubleSide} />
-      </mesh>
+      {/* Holat halqasi — geometriya ulashilgan, material status rangi bo'yicha keshlangan */}
+      <mesh ref={ringRef} position={[0, 1.75, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={RING_GEO} material={basicMat(STATUS_COLOR[status], { transparent: true, opacity: 0.9, side: THREE.DoubleSide })} />
     </group>
   );
 }

@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
 import { useLayout } from "../layoutStore";
+import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 
 // ── Katta ko'p-xonali ofis (server/xojatxona/kutubxona/shisha) ──
 // Hammasi qutı/silindr/konus — yengil. Xona: x[-23,23], z[-16,16].
@@ -21,13 +22,9 @@ const STEEL = "#8b929c"; // chrome/po'lat oyoq
 const DESKTOP = "#f2efe9"; // oq stol usti
 const ACCENT = "#4c8bf5"; // ko'k aksent
 
+// Barcha qutilar — BITTA birlik geometriya (scale bilan) + KESHLANGAN material.
 function Box({ p, s, c, rough = 0.9 }: { p: V3; s: V3; c: string; rough?: number }) {
-  return (
-    <mesh position={p} castShadow receiveShadow>
-      <boxGeometry args={s} />
-      {M(c, rough)}
-    </mesh>
-  );
+  return <mesh position={p} scale={s} geometry={UNIT_BOX} material={stdMat(c, { roughness: rough })} castShadow receiveShadow />;
 }
 
 function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: number; c: string }) {
