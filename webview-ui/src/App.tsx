@@ -16,6 +16,7 @@ import { ROLE_PRESETS } from "./scene/roles";
 import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
 import Hud from "./ui/Hud";
+import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
 import { useExtensionMessages } from "./useExtensionMessages";
 
 // Debug/galereya rejimlari (o'zim tekshirish uchun)
@@ -114,8 +115,10 @@ export default function App() {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;
         })}
+        {PERF_ENABLED && <PerfProbe />}
       </Canvas>
       <Hud />
+      {PERF_ENABLED && <PerfOverlay />}
     </div>
   );
 }
