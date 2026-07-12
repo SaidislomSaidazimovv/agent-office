@@ -240,15 +240,23 @@ function Kitchen({ p, ry = 0 }: { p: V3; ry?: number }) {
       {/* baland shkaf + aksent */}
       <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#eceae4" rough={0.5} />
       <Box p={[2.9, 0.95, 0.36]} s={[0.5, 0.02, 0.02]} c={ACCENT} />
+      {/* NEON yozuv — "retro diner" districtining imzosi. Faqat emissive
+          (pointLight EMAS) → perf narxi nol, lekin kechаsi kuchli porlaydi. */}
+      <mesh position={[0, 1.78, -0.3]}><boxGeometry args={[2.1, 0.54, 0.06]} /><meshStandardMaterial color="#191216" roughness={0.5} /></mesh>
+      <mesh position={[0, 1.78, -0.26]}><boxGeometry args={[1.78, 0.24, 0.03]} /><meshStandardMaterial color="#ff4d8d" emissive="#ff4d8d" emissiveIntensity={2.8} toneMapped={false} /></mesh>
     </group>
   );
 }
+// Boardroom prezentatsiya ekrani (avval oddiy oq doska edi) — "majlis"
+// districtining imzosi. Emissive displey: qorong'i shifer-ko'k polda porlaydi.
 function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 1.4, 0]} s={[1.8, 1.05, 0.06]} c="#f4f4ee" rough={0.6} />
-      <mesh position={[-0.4, 1.55, 0.05]}><boxGeometry args={[0.5, 0.03, 0.01]} /><meshStandardMaterial color="#3d7dd6" /></mesh>
-      <mesh position={[0.2, 1.35, 0.05]}><boxGeometry args={[0.7, 0.03, 0.01]} /><meshStandardMaterial color="#33a852" /></mesh>
+      <Box p={[0, 1.4, 0]} s={[1.95, 1.12, 0.07]} c="#161a20" rough={0.4} />
+      <mesh position={[0, 1.4, 0.045]}><boxGeometry args={[1.76, 0.95, 0.01]} /><meshStandardMaterial color="#1b3a5c" emissive="#2c6aa8" emissiveIntensity={0.85} toneMapped={false} /></mesh>
+      {/* diagramma chiziqlari — porlaydi */}
+      <mesh position={[-0.4, 1.58, 0.055]}><boxGeometry args={[0.55, 0.045, 0.01]} /><meshStandardMaterial color="#5ac8fa" emissive="#5ac8fa" emissiveIntensity={2.6} toneMapped={false} /></mesh>
+      <mesh position={[0.18, 1.3, 0.055]}><boxGeometry args={[0.75, 0.045, 0.01]} /><meshStandardMaterial color="#30d158" emissive="#30d158" emissiveIntensity={2.6} toneMapped={false} /></mesh>
     </group>
   );
 }
@@ -332,13 +340,17 @@ function ServerRack({ p, ry = 0 }: { p: V3; ry?: number }) {
     for (let i = 0; i < 8; i++) {
       out.push(<Box key={`s${i}`} p={[0, 0.35 + i * 0.2, 0.42]} s={[0.62, 0.14, 0.02]} c="#2a2e35" />);
       const col = ["#33d158", "#5aa0e0", "#33d158", "#ffd60a"][i % 4];
-      out.push(<mesh key={`l${i}`} position={[0.24, 0.35 + i * 0.2, 0.44]}><boxGeometry args={[0.04, 0.04, 0.02]} /><meshStandardMaterial color={col} emissive={col} emissiveIntensity={0.8} /></mesh>);
+      // LED — kattaroq + ANCHA yorqinroq. Qora "g'or" polida portlab turadi.
+      // toneMapped=false → ACES tone-mapping'ni chetlab o'tadi, haqiqatan porlaydi.
+      out.push(<mesh key={`l${i}`} position={[0.24, 0.35 + i * 0.2, 0.44]}><boxGeometry args={[0.06, 0.05, 0.02]} /><meshStandardMaterial color={col} emissive={col} emissiveIntensity={3} toneMapped={false} /></mesh>);
     }
     return out;
   }, []);
   return (
     <group position={p} rotation={[0, ry, 0]}>
       <Box p={[0, 1.1, 0]} s={[0.8, 2.2, 0.9]} c="#15181d" rough={0.5} />
+      {/* Vertikal porlash chizig'i — rack'ni qorong'i polda ajratib turadi (1 mesh) */}
+      <mesh position={[-0.3, 1.1, 0.46]}><boxGeometry args={[0.03, 1.9, 0.02]} /><meshStandardMaterial color="#4fa8ff" emissive="#4fa8ff" emissiveIntensity={2.2} toneMapped={false} /></mesh>
       {lights}
     </group>
   );
