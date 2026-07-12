@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { newlyStuck, STUCK_MS } from "../core/attention.js";
+import { newlyStuck, sanitizeName, STUCK_MS } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { OfficeStatusBar } from "./statusBar.js";
@@ -47,6 +47,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     // Yangi agent → personaj yaratish
     this.store.on("agentAdded", (agent: AgentState) => {
       this.logMsg(`+ agent #${agent.id}  folder=${agent.folderName}  role=${agent.role ?? "-"}  session=${agent.sessionId?.slice(0, 8) ?? "-"}  external=${agent.isExternal}`);
+      // Shu sessiyaga avval nom berilganmi — tiklaymiz.
+      const saved = agent.sessionId ? this.loadNames()[agent.sessionId] : undefined;
+      if (saved) agent.customName = saved;
       this.sendOrBuffer({
         type: "agentCreated",
         id: agent.id,
@@ -55,6 +58,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         role: agent.role,
         task: agent.task,
       });
+      if (agent.customName) this.sendOrBuffer({ type: "agentRenamed", id: agent.id, name: agent.customName });
     });
     this.store.on("agentRemoved", (id: number) => {
       this.logMsg(`- agent #${id} yopildi`);
@@ -123,7 +127,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.statusBar.update(
       this.store.values().map((a) => ({
         id: a.id,
-        folderName: a.folderName,
+        folderName: a.customName || a.folderName,
         permissionActive: a.permissionActive,
         blocked: a.blocked,
         reason: a.blockedReason,
@@ -156,7 +160,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     const prev = this.lastNotify.get(id) ?? 0;
     if (now - prev < 4000) return; // throttle
     this.lastNotify.set(id, now);
-    const name = this.store.get(id)?.folderName ?? `Agent #${id}`;
+    const a0 = this.store.get(id);
+    const name = a0?.customName || a0?.folderName || `Agent #${id}`;
     void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, "Ko'rsatish").then((pick) => {
       if (pick === "Ko'rsatish") this.manager.focusAgent(id);
     });
@@ -316,6 +321,51 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "saveMedia":
         void this.saveMedia(msg.kind, msg.data);
         break;
+      case "renameAgent":
+        this.renameAgent(msg.id, msg.name);
+        break;
+    }
+  }
+
+  // ── Agent nomi (qo'lda) ──
+  // Bir repoda ikkita "backend" agent bo'lsa ular bir xil ko'rinardi. Nom
+  // SESSIYA ID bo'yicha saqlanadi: webview qayta ochilsa ham, VS Code qayta
+  // ishga tushsa ham (sessiya davom etayotgan bo'lsa) nom joyida qoladi.
+  private namesPath(): string {
+    return path.join(os.homedir(), ".agent-office", "names.json");
+  }
+  private names: Record<string, string> | null = null;
+  private loadNames(): Record<string, string> {
+    if (this.names) return this.names;
+    try {
+      const o = JSON.parse(fs.readFileSync(this.namesPath(), "utf8"));
+      // Yaroqsiz fayl → ustidan yozmaymiz, shunchaki bo'sh deb qaraymiz.
+      this.names = o && typeof o === "object" && !Array.isArray(o) ? (o as Record<string, string>) : {};
+    } catch {
+      this.names = {};
+    }
+    return this.names;
+  }
+  private renameAgent(id: number, raw: string): void {
+    const agent = this.store.get(id);
+    if (!agent) return;
+    const name = sanitizeName(raw);
+    agent.customName = name || undefined;
+    this.sendOrBuffer({ type: "agentRenamed", id, name });
+    this.refreshStatusBar();
+    // Diskka saqlash — faqat sessiya ID bo'lsa (aks holda kalit yo'q).
+    if (!agent.sessionId) return;
+    const names = this.loadNames();
+    if (name) names[agent.sessionId] = name;
+    else delete names[agent.sessionId];
+    try {
+      const p = this.namesPath();
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      const tmp = `${p}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(names));
+      fs.renameSync(tmp, p); // atomik almashtirish
+    } catch {
+      /* saqlab bo'lmasa — jim (nom ixtiyoriy) */
     }
   }
 

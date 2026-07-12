@@ -22,6 +22,8 @@ export interface AgentState {
   folderName: string;
   /** Aniqlangan rol (research/frontend/...). Terminal faoliyatidan avtomatik. */
   role?: string;
+  /** Foydalanuvchi qo'lda bergan nom (bo'lmasa — papka nomi ko'rsatiladi). */
+  customName?: string;
   /** Rol ballari — tool faoliyatidan yig'iladi (roleInference). */
   roleScores: Record<string, number>;
   /** Boshlang'ich vazifa yorlig'i. */

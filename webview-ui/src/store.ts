@@ -15,9 +15,16 @@ export type AgentStatus =
   | "blocked"
   | "collab";
 
+/** Ko'rsatiladigan nom — qo'lda berilgan nom bo'lsa u, aks holda papka nomi. */
+export function displayName(a: { customName?: string; folderName: string }): string {
+  return a.customName || a.folderName;
+}
+
 export interface AgentView {
   id: number;
   folderName: string;
+  /** Foydalanuvchi bergan nom (bir repodagi agentlarni farqlash uchun). */
+  customName?: string;
   role?: string;
   task?: string;
   isExternal: boolean;
@@ -165,6 +172,7 @@ interface OfficeState {
   setActive(id: number, active: boolean, awaitingInput?: boolean): void;
   setTool(id: number, toolName: string | undefined, label: string): void;
   setRole(id: number, role: string): void;
+  setName(id: number, name: string): void;
   toolDone(id: number): void;
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
@@ -271,7 +279,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
       return {
         agents: { ...s.agents, [meta.id]: recompute(a) },
         order: [...s.order, meta.id],
-        events: pushEvent(s.events, a.folderName, "#5e9bff", { key: "event.joined" }),
+        events: pushEvent(s.events, displayName(a), "#5e9bff", { key: "event.joined" }),
       };
     });
   },
@@ -326,7 +334,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           reading: toolName ? get().readingTools.has(toolName) : false,
         }),
       },
-      events: pushEvent(s.events, a.folderName, "#30d158", { text: label }),
+      events: pushEvent(s.events, displayName(a), "#30d158", { text: label }),
     }));
   },
 
@@ -335,6 +343,13 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a || a.role === role) return;
     // Rol o'zgardi → ko'rinish (skin) + yorliq avtomatik yangilanadi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, role } } }));
+  },
+
+  setName(id, name) {
+    const a = get().agents[id];
+    if (!a) return;
+    const n = name.trim();
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, customName: n || undefined } } }));
   },
 
   sample() {
@@ -391,7 +406,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, permission: on }) },
-      events: on ? pushEvent(s.events, a.folderName, "#ff9f0a", { key: "event.permission" }) : s.events,
+      events: on ? pushEvent(s.events, displayName(a), "#ff9f0a", { key: "event.permission" }) : s.events,
     }));
   },
 
@@ -400,7 +415,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, blocked: on, blockedReason: on ? reason : undefined }) },
-      events: on ? pushEvent(s.events, a.folderName, "#ff453a", { key: "event.blocked" }) : s.events,
+      events: on ? pushEvent(s.events, displayName(a), "#ff453a", { key: "event.blocked" }) : s.events,
     }));
   },
 
@@ -409,7 +424,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a || a.stuck === on) return;
     set((s) => ({
       agents: { ...s.agents, [id]: { ...a, stuck: on } },
-      events: on ? pushEvent(s.events, a.folderName, "#ff9f0a", { key: "event.stuck" }) : s.events,
+      events: on ? pushEvent(s.events, displayName(a), "#ff9f0a", { key: "event.stuck" }) : s.events,
     }));
   },
 
@@ -421,7 +436,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const sub: SubagentView = { key, label: info?.label || undefined, kind: info?.kind, at: now };
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, active: true, ...touchActive(a, true, now), subagents: [...a.subagents, sub] }) },
-      events: pushSubHire(s.events, a.folderName),
+      events: pushSubHire(s.events, displayName(a)),
     }));
   },
 
@@ -438,7 +453,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
       if (!cur || !cur.subagents.some((x) => x.key === key)) return;
       set((s) => ({
         agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x.key !== key) }) },
-        events: pushEvent(s.events, cur.folderName, "#30d158", { key: "event.helperDone" }),
+        events: pushEvent(s.events, displayName(cur), "#30d158", { key: "event.helperDone" }),
       }));
     };
     if (elapsed >= SUBAGENT_MIN_MS) remove();

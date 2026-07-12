@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type Key, useT } from "../i18n";
 import { roleKeyFor, STATUS_COLOR } from "../scene/roles";
 import { matchAgents } from "../search";
-import { useOffice } from "../store";
+import { displayName, useOffice } from "../store";
 import { send } from "../transport";
 
 // ── Agent qidiruvi (🔍 / "/" tugmasi) ────────────────────────
@@ -27,7 +27,8 @@ export default function AgentSearch() {
       .filter(Boolean)
       .map((a) => ({
         id: a.id,
-        folderName: a.folderName,
+        folderName: displayName(a),
+        folderAlt: a.customName ? a.folderName : undefined, // repo nomi bilan ham topilsin
         roleLabel: t(`role.${roleKeyFor(a.role, a.seatIndex)}` as Key),
         statusLabel: t(`status.${a.status}` as Key),
         toolLabel: a.toolLabel,

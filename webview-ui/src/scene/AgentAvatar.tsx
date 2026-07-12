@@ -28,7 +28,9 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const preset = characterFor(agent.role, agent.seatIndex, agent.id);
   // Yorliq — papka nomi (repoда hammasи bir xil) o'rniga ANIQLANGAN rol (tarjimali).
   const t = useT();
-  const roleLabel = t(`role.${roleKeyFor(agent.role, agent.seatIndex)}` as Key);
+  // Yorliq: qo'lda nom berilgan bo'lsa — O'SHA nom (bir repodagi ikki agentni
+  // farqlash uchun aynan shu kerak edi), aks holda aniqlangan rol.
+  const roleLabel = agent.customName || t(`role.${roleKeyFor(agent.role, agent.seatIndex)}` as Key);
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
   const showLabels = useSettings((s) => s.showLabels);

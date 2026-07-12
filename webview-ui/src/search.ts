@@ -6,6 +6,8 @@
 export interface Searchable {
   id: number;
   folderName: string;
+  /** Qo'shimcha nom (masalan nom berilgan agentning repo papkasi) — u bo'yicha ham topiladi. */
+  folderAlt?: string;
   roleLabel: string;
   statusLabel: string;
   toolLabel?: string;
@@ -21,7 +23,10 @@ export function scoreAgent(a: Searchable, q: string): number {
   const role = norm(a.roleLabel);
   const status = norm(a.statusLabel);
   const tool = norm(a.toolLabel ?? "");
+  const alt = norm(a.folderAlt ?? "");
   if (folder.startsWith(n)) return 100;
+  if (alt && alt.startsWith(n)) return 70;
+  if (alt && alt.includes(n)) return 40;
   if (role.startsWith(n)) return 80;
   if (folder.includes(n)) return 60;
   if (role.includes(n)) return 50;

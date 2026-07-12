@@ -8,7 +8,7 @@ import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
-import { needsAttention, newlyStuck, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
+import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
@@ -22,7 +22,7 @@ import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scen
 import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
-import { useOffice } from "../webview-ui/src/store.js";
+import { displayName, useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
 let passed = 0;
@@ -640,6 +640,34 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Agent nomi (qo'lda):");
+test("sanitizeName: bo'shliq/qator tozalanadi, uzuni qirqiladi, bo'sh → \"\"", () => {
+  assert.equal(sanitizeName("  auth  service \n"), "auth service");
+  assert.equal(sanitizeName("a\tb"), "a b");
+  assert.equal(sanitizeName("   "), "", "faqat bo'shliq → nom yo'q (papka nomiga qaytadi)");
+  assert.equal(sanitizeName(undefined), "", "satr bo'lmasa → bo'sh");
+  assert.equal(sanitizeName(42 as unknown as string), "");
+  assert.ok(sanitizeName("x".repeat(100)).length <= MAX_NAME_LEN, "uzun nom qirqiladi");
+});
+test("store: nom berilsa displayName o'zgaradi; bo'sh nom papkaga qaytaradi", () => {
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+  const s = useOffice.getState();
+  s.addAgent({ id: 600, folderName: "monorepo", role: "backend" });
+  assert.equal(displayName(useOffice.getState().agents[600]), "monorepo");
+  s.setName(600, "  auth  ");
+  assert.equal(useOffice.getState().agents[600].customName, "auth", "bo'shliqlar kesiladi");
+  assert.equal(displayName(useOffice.getState().agents[600]), "auth");
+  s.setName(600, "");
+  assert.equal(useOffice.getState().agents[600].customName, undefined);
+  assert.equal(displayName(useOffice.getState().agents[600]), "monorepo", "nom olib tashlandi → papka nomi");
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+});
+test("qidiruv: nom berilgan agent REPO nomi bilan ham topiladi", () => {
+  const list = [{ id: 1, folderName: "auth", folderAlt: "monorepo", roleLabel: "Backend", statusLabel: "Ishlamoqda" }];
+  assert.deepEqual(matchAgents(list, "auth").map((a) => a.id), [1], "yangi nom bo'yicha");
+  assert.deepEqual(matchAgents(list, "monorepo").map((a) => a.id), [1], "eski (repo) nom bo'yicha ham");
 });
 
 console.log("Kesh samaradorligi:");

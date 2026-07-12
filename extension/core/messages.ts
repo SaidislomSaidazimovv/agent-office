@@ -18,6 +18,7 @@ export type ServerMessage =
   | AgentToolPermissionClear
   | AgentBlocked
   | AgentStuck
+  | AgentRenamed
   | AgentRoleDetected
   | SubagentToolStart
   | SubagentToolDone
@@ -37,7 +38,16 @@ export type ClientMessage =
   | CloseAgent
   | SetSoundEnabled
   | SaveLayout
-  | SaveMedia;
+  | SaveMedia
+  | RenameAgent;
+
+/** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
+ *  Bo'sh nom → papka nomiga qaytadi. */
+export interface RenameAgent {
+  type: "renameAgent";
+  id: number;
+  name: string;
+}
 
 /** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
 export interface SaveMedia {
@@ -138,6 +148,12 @@ export interface AgentBlocked {
   blocked: boolean;
   /** Xatoning HAQIQIY matni (qisqartirilgan). Bo'lmasligi mumkin. */
   reason?: string;
+}
+/** Agent nomi o'zgardi (qo'lda). Bo'sh nom → papka nomi ishlatiladi. */
+export interface AgentRenamed {
+  type: "agentRenamed";
+  id: number;
+  name: string;
 }
 /** Agent JUDA uzoq (STUCK_MS) ruxsat kutmoqda — e'tibordan chetda qolgan. */
 export interface AgentStuck {

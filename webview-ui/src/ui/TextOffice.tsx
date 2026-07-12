@@ -4,7 +4,7 @@ import { type Key, useT } from "../i18n";
 import { fmtCost } from "../pricing";
 import { roleKeyFor, STATUS_COLOR } from "../scene/roles";
 import { useSettings } from "../settings";
-import { useOffice } from "../store";
+import { displayName, useOffice } from "../store";
 import { send } from "../transport";
 
 // ── Matn rejimi (a11y) ───────────────────────────────────────
@@ -65,7 +65,7 @@ export default function TextOffice() {
                     onClick={() => select(id)}
                     aria-current={on ? "true" : undefined}
                     // Ekran o'quvchi bitta jumlada hammasini o'qisin
-                    aria-label={`${a.folderName}, ${role}, ${status}${a.toolLabel ? `, ${a.toolLabel}` : ""}`}
+                    aria-label={`${displayName(a)}, ${role}, ${status}${a.toolLabel ? `, ${a.toolLabel}` : ""}`}
                     style={{
                       display: "block", width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 10,
                       cursor: "pointer", color: "#e8ecf2",
@@ -75,7 +75,7 @@ export default function TextOffice() {
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span aria-hidden style={{ width: 9, height: 9, borderRadius: "50%", background: c, flexShrink: 0 }} />
-                      <b style={{ fontSize: 13 }}>{a.folderName}</b>
+                      <b style={{ fontSize: 13 }}>{displayName(a)}</b>
                       <span style={{ fontSize: 12, opacity: 0.65 }}>{role}</span>
                       <span style={{ marginLeft: "auto", fontSize: 12, color: c }}>{status}</span>
                     </div>

@@ -54,6 +54,10 @@ Office-polish work toward the next release (not yet published).
 - **Why an agent is blocked** — the failing tool's own error text now reaches the
   inspector, the status-bar tooltip and the notification, so a red dot finally says
   what went wrong instead of only that something did.
+- **Name your agents** — two agents in the same repo with the same detected role looked
+  identical. Click ✏️ in the inspector to name one "auth" and the other "billing"; the
+  name shows in the office, the list, the feed, search and the report, and it is
+  remembered per session (the folder name is still shown alongside).
 - **Cache efficiency** — the dashboard and the report now show how much of your input
   came from the prompt cache, what it saved, and what the session would have cost
   without it, plus a cost-by-model breakdown. The billed token split was already

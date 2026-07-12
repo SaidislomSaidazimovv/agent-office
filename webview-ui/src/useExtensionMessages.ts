@@ -66,6 +66,9 @@ export function useExtensionMessages(): void {
         case "agentStuck":
           store.setStuck(msg.id, msg.stuck);
           break;
+        case "agentRenamed":
+          store.setName(msg.id, msg.name);
+          break;
         case "subagentToolStart":
           store.addSubagent(msg.id, msg.parentToolId, { label: msg.label, kind: msg.kind });
           break;

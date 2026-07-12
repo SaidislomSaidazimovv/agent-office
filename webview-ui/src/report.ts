@@ -3,7 +3,7 @@ import { fmtDur, fmtTok, shortModel } from "./format";
 import type { Key } from "./i18n";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "./pricing";
 import { roleKeyFor } from "./scene/roles";
-import type { AgentView } from "./store";
+import { type AgentView, displayName } from "./store";
 
 // ── Sessiya hisoboti (markdown) ──────────────────────────────
 // Sof funksiya: DOM'ga, store'ga va i18n store'iga BOG'LIQ EMAS — `t` parametr
@@ -107,7 +107,7 @@ export function buildReport(o: ReportInput): string {
   for (const a of [...agents].sort((x, y) => y.costUsd - x.costUsd)) {
     const at = a.activeMs + (a.activeSince != null ? now - a.activeSince : 0);
     out.push(`| ${[
-      cell(a.folderName),
+      cell(displayName(a)),
       cell(L(`role.${roleKeyFor(a.role, a.seatIndex)}`)),
       a.model ? cell(shortModel(a.model)) : "—",
       cell(L(`status.${a.status}`)),

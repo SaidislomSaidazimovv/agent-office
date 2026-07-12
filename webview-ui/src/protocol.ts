@@ -17,6 +17,7 @@ export type ServerMessage =
   | { type: "agentToolPermissionClear"; id: number }
   | { type: "agentRoleDetected"; id: number; role: string }
   | { type: "agentStuck"; id: number; stuck: boolean }
+  | { type: "agentRenamed"; id: number; name: string }
   | { type: "agentBlocked"; id: number; blocked: boolean; reason?: string }
   | { type: "subagentToolStart"; id: number; parentToolId: string; toolId: string; status: string; label?: string; kind?: string }
   | { type: "subagentToolDone"; id: number; parentToolId: string; toolId: string }
@@ -43,4 +44,5 @@ export type ClientMessage =
   | { type: "closeAgent"; id: number }
   | { type: "setSoundEnabled"; enabled: boolean }
   | { type: "saveLayout"; items: LayoutItem[]; floorColor?: string | null; wallColor?: string | null; packs?: unknown[] }
-  | { type: "saveMedia"; kind: "png" | "webm"; data: string };
+  | { type: "saveMedia"; kind: "png" | "webm"; data: string }
+  | { type: "renameAgent"; id: number; name: string };

@@ -42,6 +42,15 @@ export function needsAttention(a: Attention): boolean {
   return a.waiting > 0 || a.blocked > 0;
 }
 
+/** Foydalanuvchi bergan nom — xavfsiz va ixcham holga keltiradi.
+ *  Bo'sh (yoki faqat bo'shliq) → "" ya'ni nom olib tashlandi, papka nomiga qaytadi. */
+export const MAX_NAME_LEN = 32;
+export function sanitizeName(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const s = raw.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  return s.length > MAX_NAME_LEN ? s.slice(0, MAX_NAME_LEN) : s;
+}
+
 /** STUCK_MS dan uzoq kutayotgan, ammo hali "tiqilgan" deb belgilanmagan agentlar. */
 export function newlyStuck(since: Map<number, number>, already: Set<number>, now: number): number[] {
   const out: number[] = [];

@@ -7,7 +7,7 @@ import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
 import { type Key, translate, useLang, useT } from "../i18n";
 import { useSettings } from "../settings";
-import { useOffice } from "../store";
+import { displayName, useOffice } from "../store";
 import { send } from "../transport";
 import AgentSearch from "./AgentSearch";
 import CaptureButton from "./CaptureButton";
@@ -61,6 +61,9 @@ export default function Hud() {
   const [feed, setFeed] = useState(false);
   const [dash, setDash] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const setName = useOffice((s) => s.setName);
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -128,6 +131,15 @@ export default function Hud() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [order, selectedId, select]);
+  // Nomni saqlash: darhol ko'rinadi (store) + ekstension diskka yozadi (sessiya ID bo'yicha).
+  const commitRename = () => {
+    if (!sel) return;
+    const n = nameDraft.trim().slice(0, 32);
+    setName(sel.id, n);
+    send({ type: "renameAgent", id: sel.id, name: n });
+    setRenaming(false);
+  };
+
   const multiRoot = folders.length > 1;
   const activeFolder = folderPath ?? folders[0]?.path;
 
@@ -469,8 +481,37 @@ export default function Hud() {
             borderRadius: 12, padding: 14, boxShadow: "0 8px 28px rgba(0,0,0,0.5)",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{sel.folderName}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+            {/* Nom — qo'lda o'zgartirsa bo'ladi (bir repoda bir nechta agent
+                bir xil ko'rinmasin). Bo'sh qoldirilsa — papka nomiga qaytadi. */}
+            {renaming ? (
+              <input
+                autoFocus
+                value={nameDraft}
+                maxLength={32}
+                placeholder={sel.folderName}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") { e.stopPropagation(); setRenaming(false); }
+                }}
+                aria-label={t("insp.rename")}
+                style={{ flex: 1, minWidth: 0, padding: "3px 7px", borderRadius: 7, fontSize: 14, fontWeight: 700, color: "#e8ecf2", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,155,255,0.6)", outline: "none" }}
+              />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(sel)}</span>
+                <button
+                  onClick={() => { setNameDraft(sel.customName ?? ""); setRenaming(true); }}
+                  title={t("insp.rename")}
+                  aria-label={t("insp.rename")}
+                  style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 11, padding: "2px 3px", lineHeight: 1 }}
+                >
+                  ✏️
+                </button>
+              </div>
+            )}
             <button
               onClick={() => select(null)}
               title="Yopish"
@@ -482,6 +523,8 @@ export default function Hud() {
           </div>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 1 }}>
             {t(`role.${roleKeyFor(sel.role, sel.seatIndex)}` as Key)}
+            {/* Nom berilgan bo'lsa — qaysi repo ekani baribir ko'rinib tursin */}
+            {sel.customName && <span style={{ opacity: 0.7 }}> · 📁 {sel.folderName}</span>}
           </div>
           <div style={{ fontSize: 12, marginTop: 8 }}>
             <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {t(`status.${sel.status}` as Key)}

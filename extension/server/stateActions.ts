@@ -32,6 +32,7 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   for (const [tid, info] of a.subagentToolIds) {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Task", label: info.label, kind: info.kind });
   }
+  if (a.customName) msgs.push({ type: "agentRenamed", id: a.id, name: a.customName });
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
   if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true, reason: a.blockedReason });
   return msgs;
