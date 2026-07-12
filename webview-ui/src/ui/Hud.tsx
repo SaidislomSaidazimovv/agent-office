@@ -6,6 +6,7 @@ import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene
 import { type Key, translate, useLang, useT } from "../i18n";
 import { useOffice } from "../store";
 import { send } from "../transport";
+import Dashboard from "./Dashboard";
 import SettingsPanel from "./SettingsPanel";
 
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
@@ -53,6 +54,7 @@ export default function Hud() {
   const setEditMode = useLayout((s) => s.setEditMode);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
+  const [dash, setDash] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
@@ -171,7 +173,25 @@ export default function Hud() {
         >
           📜
         </button>
+        {/* Analitika dashboard */}
+        <button
+          onClick={() => setDash((d) => !d)}
+          aria-label={t("dash.open")}
+          aria-pressed={dash}
+          title={t("dash.open")}
+          style={{
+            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
+            cursor: "pointer", fontSize: 12,
+            border: `1px solid ${dash ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.14)"}`,
+            background: dash ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)", color: "#e8ecf2",
+          }}
+        >
+          📊
+        </button>
       </div>
+
+      {/* ── Analitika dashboard ── */}
+      {dash && <Dashboard onClose={() => setDash(false)} />}
 
       {/* ── Faoliyat tasmasi paneli ── */}
       {feed && (
