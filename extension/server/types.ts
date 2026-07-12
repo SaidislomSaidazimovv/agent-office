@@ -2,6 +2,7 @@
 // Har bir kuzatilayotgan Claude Code sessiyasi = bitta AgentState.
 
 import { MAX_CONTEXT_TOKENS } from "../core/constants.js";
+import type { SubagentInfo } from "./stateActions.js";
 
 export interface AgentState {
   /** Monoton o'suvchi butun ID (webview personaji shu bilan kalitlanadi). */
@@ -35,8 +36,8 @@ export interface AgentState {
   isWaiting: boolean;
   /** Faol tool ID'lari. */
   activeToolIds: Set<string>;
-  /** Foydali toollar (sub-agent Task ID'lari). */
-  subagentToolIds: Set<string>;
+  /** Faol sub-agentlar: Task tool ID → uning HAQIQIY tavsifi (description/type). */
+  subagentToolIds: Map<string, SubagentInfo>;
   /** Joriy tool yorlig'i/nomi + ruxsat holati — webview qayta yuklanganda
    *  holatni tiklash uchun saqlanadi. */
   currentToolLabel?: string;
@@ -100,7 +101,7 @@ export function createAgentState(
     hadToolsInTurn: false,
     isWaiting: true,
     activeToolIds: new Set(),
-    subagentToolIds: new Set(),
+    subagentToolIds: new Map(),
     permissionActive: false,
     blocked: false,
     permissionMode: "default", // mode satri ko'rilguncha konservativ (heuristik yoqiq)

@@ -30,8 +30,8 @@ export interface AgentView {
   reading: boolean;
   toolLabel?: string;
   activeToolCount: number;
-  /** Faol sub-agentlar (parentToolId kalitlari) — har biri alohida personaj. */
-  subagents: string[];
+  /** Faol sub-agentlar — har biri alohida personaj + daraxt tuguni. */
+  subagents: SubagentView[];
   inputTokens: number;
   outputTokens: number;
   /** Shu sessiya modeli uchun kontekst oynasi (200k yoki 1M). */
@@ -53,6 +53,19 @@ export interface AgentView {
   toolHistory: { label: string; at: number }[];
   // Hisoblangan
   status: AgentStatus;
+}
+
+// ── Sub-agent (Task tool) ────────────────────────────────────
+// Ma'lumot HAQIQIY: `label` — Task tool'ining `description` maydoni,
+// `kind` — `subagent_type`. Ikkalasi ham bo'lmasligi mumkin (eski transkriptlar,
+// boshqa provayder) — unda UI umumiy "Yordamchi" nomini ko'rsatadi.
+export interface SubagentView {
+  /** parentToolId — barqaror kalit. */
+  key: string;
+  label?: string;
+  kind?: string;
+  /** Yollangan payt (ms). */
+  at: number;
 }
 
 const MAX_TOOL_HISTORY = 24;
@@ -149,7 +162,7 @@ interface OfficeState {
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
   setBlocked(id: number, on: boolean): void;
-  addSubagent(id: number, key: string): void;
+  addSubagent(id: number, key: string, info?: { label?: string; kind?: string }): void;
   clearSubagent(id: number, key: string): void;
   setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
   setCapabilities(readingTools: string[]): void;
@@ -380,19 +393,21 @@ export const useOffice = create<OfficeState>((set, get) => ({
     }));
   },
 
-  addSubagent(id, key) {
+  addSubagent(id, key, info) {
     const a = get().agents[id];
-    if (!a || a.subagents.includes(key)) return;
-    subAddedAt.set(subKey(id, key), Date.now());
+    if (!a || a.subagents.some((s) => s.key === key)) return;
+    const now = Date.now();
+    subAddedAt.set(subKey(id, key), now);
+    const sub: SubagentView = { key, label: info?.label || undefined, kind: info?.kind, at: now };
     set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, active: true, ...touchActive(a, true, Date.now()), subagents: [...a.subagents, key] }) },
+      agents: { ...s.agents, [id]: recompute({ ...a, active: true, ...touchActive(a, true, now), subagents: [...a.subagents, sub] }) },
       events: pushSubHire(s.events, a.folderName),
     }));
   },
 
   clearSubagent(id, key) {
     const a = get().agents[id];
-    if (!a || !a.subagents.includes(key)) return;
+    if (!a || !a.subagents.some((s) => s.key === key)) return;
     // Minimal ko'rinish vaqti — juda tez yopilsa (background), qolgan vaqtga
     // qadar kechiktiramiz (flash bo'lmasin, foydalanuvchi ko'rib ulgursin).
     const k = subKey(id, key);
@@ -400,9 +415,9 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const remove = () => {
       subAddedAt.delete(k);
       const cur = get().agents[id];
-      if (!cur || !cur.subagents.includes(key)) return;
+      if (!cur || !cur.subagents.some((x) => x.key === key)) return;
       set((s) => ({
-        agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x !== key) }) },
+        agents: { ...s.agents, [id]: recompute({ ...cur, subagents: cur.subagents.filter((x) => x.key !== key) }) },
         events: pushEvent(s.events, cur.folderName, "#30d158", { key: "event.helperDone" }),
       }));
     };

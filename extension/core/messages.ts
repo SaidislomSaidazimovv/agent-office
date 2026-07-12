@@ -106,6 +106,10 @@ export interface SubagentToolStart {
   parentToolId: string;
   toolId: string;
   status: string;
+  /** Task tool'ining `description` maydoni ("Find flaky tests"). Bo'lmasligi mumkin. */
+  label?: string;
+  /** Task tool'ining `subagent_type` maydoni ("code-reviewer"). Bo'lmasligi mumkin. */
+  kind?: string;
 }
 export interface SubagentToolDone {
   type: "subagentToolDone";

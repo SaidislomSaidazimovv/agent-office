@@ -8,7 +8,7 @@ import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
-import { permissionDelayFor } from "../extension/server/stateActions.js";
+import { formatSubagent, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
@@ -596,6 +596,45 @@ test("buildReport: jamlar, saralash, model, budjet qatori va | ekranlash", () =>
   const noBudget = buildReport({ agents, now: 1_700_000_000_000, budgetUsd: 0, t: (k) => k });
   assert.ok(!noBudget.includes("budget.title"), "budjet o'chiq bo'lsa qator chiqmasligi kerak");
   useOffice.setState({ agents: {}, order: [], samples: [] });
+});
+
+console.log("Sub-agent daraxti (HAQIQIY tavsif — Task tool'idan):");
+test("formatSubagent: description + subagent_type olinadi, uzuni qirqiladi", () => {
+  const a = formatSubagent({ description: "  Find   flaky  tests ", subagent_type: " Explore ", prompt: "..." });
+  assert.equal(a.label, "Find flaky tests", "bo'shliqlar normallashadi");
+  assert.equal(a.kind, "Explore");
+  const b = formatSubagent({});
+  assert.equal(b.label, "", "tavsif yo'q → bo'sh (o'ylab topilmaydi)");
+  assert.equal(b.kind, undefined);
+  assert.equal(formatSubagent(undefined).label, "");
+  assert.ok(formatSubagent({ description: "x".repeat(200) }).label.length <= 60, "uzun tavsif qirqiladi");
+});
+test("transcript: Task tool → subagentToolStart label/kind bilan (va holatda saqlanadi)", () => {
+  const { store, agent, ev } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({
+    type: "assistant",
+    message: { content: [{ type: "tool_use", id: "t1", name: "Task", input: { description: "Review the diff", subagent_type: "code-reviewer" } }] },
+  }));
+  const m = ev.find((x) => x.type === "subagentToolStart") as (Msg & { label?: string; kind?: string }) | undefined;
+  assert.ok(m, "subagentToolStart yuborilishi kerak");
+  assert.equal(m!.label, "Review the diff");
+  assert.equal(m!.kind, "code-reviewer");
+  // Replay (webview qayta ochilsa) uchun holatda ham turishi shart
+  assert.equal(agent.subagentToolIds.get("t1")?.kind, "code-reviewer");
+  assert.ok(!agent.activeToolIds.has("t1"), "Task oddiy tool sifatida sanalmaydi");
+});
+test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 500, folderName: "par3" });
+  s.addSubagent(500, "k1", { label: "Find flaky tests", kind: "Explore" });
+  s.addSubagent(500, "k1", { label: "takror" }); // bir xil kalit → qo'shilmaydi
+  const subs = useOffice.getState().agents[500].subagents;
+  assert.equal(subs.length, 1, "bir xil kalit ikki marta qo'shilmaydi");
+  assert.equal(subs[0].kind, "Explore");
+  assert.equal(subs[0].label, "Find flaky tests");
+  assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
+  s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
+  assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
 });
 
 console.log("Sozlamalar:");

@@ -64,7 +64,7 @@ export function useExtensionMessages(): void {
           store.setBlocked(msg.id, msg.blocked);
           break;
         case "subagentToolStart":
-          store.addSubagent(msg.id, msg.parentToolId);
+          store.addSubagent(msg.id, msg.parentToolId, { label: msg.label, kind: msg.kind });
           break;
         case "subagentToolDone":
         case "subagentClear":

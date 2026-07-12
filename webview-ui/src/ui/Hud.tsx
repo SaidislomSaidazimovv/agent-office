@@ -485,6 +485,32 @@ export default function Hud() {
               <span style={{ fontSize: 14, fontWeight: 700, color: "#30d158" }}>~{fmtCost(sel.costUsd)}</span>
             </div>
           )}
+          {/* Sub-agent daraxti — ota agent va uning FAOL yordamchilari.
+              Nom/vazifa Task tool'idan olinadi; bo'lmasa umumiy yorliq. */}
+          {sel.subagents.length > 0 && (
+            <div style={{ marginTop: 10, padding: "7px 9px", borderRadius: 8, background: "rgba(255,214,10,0.08)", border: "1px solid rgba(255,214,10,0.28)" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#ffd60a", marginBottom: 5 }}>
+                🌳 {t("insp.subagents")} ({sel.subagents.length})
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.85, lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 600 }}>{sel.folderName}</div>
+                {sel.subagents.map((s, i) => {
+                  const last = i === sel.subagents.length - 1;
+                  return (
+                    <div key={s.key} style={{ display: "flex", gap: 5, minWidth: 0 }}>
+                      <span style={{ opacity: 0.5, fontFamily: "ui-monospace, monospace" }}>{last ? "└─" : "├─"}</span>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.kind && <b style={{ color: "#ffd60a" }}>{s.kind}</b>}
+                        {s.kind && s.label ? " · " : ""}
+                        {s.label || (!s.kind && t("bubble.helper"))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Sessiya statistikasi */}
           <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
             {[

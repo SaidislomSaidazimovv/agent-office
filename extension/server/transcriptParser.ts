@@ -8,7 +8,7 @@ import {
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
-import { formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
+import { formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
 // ── Transcript state machine (Pixel Agents §3a mantiqi) ──────
@@ -161,13 +161,18 @@ export function processTranscriptLine(
         if (detected) store.broadcast({ type: "agentRoleDetected", id: agent.id, role: detected });
 
         if (SUBAGENT_TOOL_NAMES.has(name)) {
-          agent.subagentToolIds.add(toolId);
+          // Sub-agentning HAQIQIY vazifasi (description) + turi (subagent_type) —
+          // formatToolStatus buni ko'rmaydi (u fayl/buyruqqa qaraydi).
+          const info = formatSubagent(tool.input as Record<string, unknown> | undefined);
+          agent.subagentToolIds.set(toolId, info);
           store.broadcast({
             type: "subagentToolStart",
             id: agent.id,
             parentToolId: toolId,
             toolId,
             status,
+            label: info.label,
+            kind: info.kind,
           });
         } else {
           agent.activeToolIds.add(toolId);

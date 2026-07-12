@@ -27,8 +27,10 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
       msgs.push({ type: "agentToolStart", id: a.id, toolId: tid, status: a.currentToolLabel, toolName: a.currentToolName });
     }
   }
-  for (const tid of a.subagentToolIds) {
-    msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Sub-agent" });
+  // Sub-agentlar — saqlangan tavsif bilan qayta tiklanadi (webview qayta ochilsa
+  // ham daraxt to'liq ko'rinadi; avval umumiy "Sub-agent" yozuvi ketardi).
+  for (const [tid, info] of a.subagentToolIds) {
+    msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Task", label: info.label, kind: info.kind });
   }
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
   if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true });
@@ -61,6 +63,25 @@ export function formatToolStatus(name: string, input?: Record<string, unknown>):
     if (typeof other === "string" && other) target = " " + other.replace(/\s+/g, " ").trim().slice(0, 40);
   }
   return (name + target).trim();
+}
+
+/** Sub-agent (Task/Agent tool) haqidagi HAQIQIY ma'lumot — o'ylab topilmaydi. */
+export interface SubagentInfo {
+  /** `description` maydoni ("Find flaky tests"). Bo'lmasa — bo'sh (UI umumiy nom qo'yadi). */
+  label: string;
+  /** `subagent_type` ("code-reviewer", "Explore"). Bo'lmasa — undefined. */
+  kind?: string;
+}
+
+/** Task/Agent tool input'idan sub-agent tavsifini oladi (transcript + hook uchun bir xil). */
+export function formatSubagent(input?: Record<string, unknown>): SubagentInfo {
+  const i = input || {};
+  const d = i.description;
+  const k = i.subagent_type;
+  return {
+    label: typeof d === "string" ? d.replace(/\s+/g, " ").trim().slice(0, 60) : "",
+    kind: typeof k === "string" && k.trim() ? k.trim().slice(0, 32) : undefined,
+  };
 }
 
 export function isReadingTool(name: string): boolean {

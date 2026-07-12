@@ -8,7 +8,7 @@ import { slide } from "./collision";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
-import { contactShadowMat, SHADOW_PLANE } from "./resources";
+import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
 import { type CharSkin, characterFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
@@ -18,6 +18,9 @@ import { useSettings } from "../settings";
 // qiladi — eshiklardan xonalarga kiradi (Pixel Agents kabi).
 
 const SPEED = 1.7;
+// Ota→yordamchi bog'lovchi chiziq (sub-agent "daraxti" shoxi). Sariq — "yollandi"
+// hodisasi bilan bir xil rang. Yorug'lik hisoblanmaydi (basic) → tekin.
+const LINK_MAT = basicMat("#ffd60a", { transparent: true, opacity: 0.55 });
 
 function AgentAvatar({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
@@ -50,22 +53,24 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   // farqi: ketayotgan yordamchini darrov o'chirmay, kichrayib yo'qolgunча
   // saqlaymiz. Slot kalit bo'yicha barqaror — o'rtadagi ketsa qolganlari
   // SAKRAMAYDI (avvalgi index-asosli joylashuv bug'i).
-  const [helpers, setHelpers] = useState<{ key: string; slot: number; leaving: boolean }[]>([]);
-  const subSig = agent.subagents.join(",");
+  // Yorliq/turi yordamchi YARATILGANDA saqlanadi — ketayotganda (store'dan
+  // o'chgach) ham nomi ko'rinib turadi, "Yordamchi"ga sakramaydi.
+  const [helpers, setHelpers] = useState<{ key: string; slot: number; leaving: boolean; label?: string; kind?: string }[]>([]);
+  const subSig = agent.subagents.map((s) => s.key).join(",");
   useEffect(() => {
     const active = agent.subagents;
     setHelpers((prev) => {
       const used = new Set<number>();
       const next = prev.map((h) => {
         used.add(h.slot);
-        return active.includes(h.key) ? (h.leaving ? { ...h, leaving: false } : h) : { ...h, leaving: true };
+        return active.some((s) => s.key === h.key) ? (h.leaving ? { ...h, leaving: false } : h) : { ...h, leaving: true };
       });
-      for (const key of active) {
-        if (!next.some((h) => h.key === key)) {
+      for (const s of active) {
+        if (!next.some((h) => h.key === s.key)) {
           let slot = 0;
           while (used.has(slot)) slot++;
           used.add(slot);
-          next.push({ key, slot, leaving: false });
+          next.push({ key: s.key, slot, leaving: false, label: s.label, kind: s.kind });
         }
       }
       return next;
@@ -313,9 +318,37 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         getState={() => ({ sit: seated.current, moving: movingRef.current, speed: speedRef.current })}
       />
 
-      {/* Sub-agentlar — yonida KICHIK yordamchi personaj (kirish/chiqish anim.) */}
+      {/* Sub-agent daraxti: ota→yordamchi bog'lovchi chiziq (polda, past) —
+          ko'p agent bo'lganda kim kimniki ekani darrov ko'rinadi. */}
+      {helpers.filter((h) => !h.leaving).map((h) => {
+        const s = helperSlot(h.slot);
+        const len = Math.hypot(s.x, s.z);
+        return (
+          <mesh
+            key={`link-${h.key}`}
+            geometry={UNIT_BOX}
+            material={LINK_MAT}
+            position={[s.x / 2, 0.05, s.z / 2]}
+            rotation={[0, Math.atan2(s.x, s.z), 0]}
+            scale={[0.035, 0.01, len]}
+          />
+        );
+      })}
+
+      {/* Sub-agentlar — yonida KICHIK yordamchi personaj (kirish/chiqish anim.).
+          Yorliq FAQAT ota tanlanganda: 3-4 yordamchi bo'lsa yozuvlar bir-birining
+          ustiga tushib, sariq dog'ga aylanib qolardi. Tanlanganda ular pog'onali
+          balandlikda turadi (slot bo'yicha) → hech qachon kesishmaydi. */}
       {helpers.map((h) => (
-        <SubAgent key={h.key} skin={preset} slot={h.slot} leaving={h.leaving} onExited={() => removeHelper(h.key)} />
+        <SubAgent
+          key={h.key}
+          skin={preset}
+          slot={h.slot}
+          leaving={h.leaving}
+          label={h.kind || h.label}
+          showLabel={selected && showLabels}
+          onExited={() => removeHelper(h.key)}
+        />
       ))}
 
       {/* Ijtimoiy imo-ishora (uchrashuvда salom/qahva) */}
@@ -370,14 +403,17 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 // (easeOutBack) bilan kattalashadi, ketganda kichrayib yo'qoladi (leaving),
 // so'ng onExited orqali ro'yxatдан chiqadi. Joyi `slot` bo'yicha barqaror.
 const SUB_TARGET = 0.5;
-function SubAgent({ skin, slot, leaving, onExited }: { skin: CharSkin; slot: number; leaving: boolean; onExited: () => void }) {
+/** Yordamchi joyi — slot bo'yicha BARQAROR (o'rtadagi ketsa qolganlari sakramaydi). */
+export function helperSlot(slot: number): { x: number; z: number } {
+  return { x: 0.9 + (slot % 2) * 0.62, z: 0.45 - Math.floor(slot / 2) * 0.62 };
+}
+function SubAgent({ skin, slot, leaving, label, showLabel, onExited }: { skin: CharSkin; slot: number; leaving: boolean; label?: string; showLabel: boolean; onExited: () => void }) {
   const t = useT();
   const g = useRef<THREE.Group>(null);
   const grow = useRef(0);
   const shrink = useRef(0);
   const done = useRef(false);
-  const px = 0.9 + (slot % 2) * 0.62;
-  const pz = 0.45 - Math.floor(slot / 2) * 0.62;
+  const { x: px, z: pz } = helperSlot(slot);
   useFrame((_, delta) => {
     const gg = g.current;
     if (!gg) return;
@@ -397,9 +433,18 @@ function SubAgent({ skin, slot, leaving, onExited }: { skin: CharSkin; slot: num
   return (
     <group ref={g} position={[px, 0, pz]} scale={0.001}>
       <PixelPerson skin={skin} status="working" pose="stand" detail="low" />
-      <Html position={[0, 1.95, 0]} center style={{ pointerEvents: "none" }}>
-        <div style={{ padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.92)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>{t("bubble.helper")}</div>
-      </Html>
+      {/* Yorliq — sub-agentning HAQIQIY turi/vazifasi (Task tool'idan). Bo'lmasa
+          umumiy "Yordamchi" (o'ylab topilgan nom yozilmaydi).
+          Guruh 0.5ga kichraytirilgan → lokal 6.4 ≈ 3.2m: otaning TANLANGAN (baland)
+          yorlig'idan ham yuqorida. Har slot +1.4 lokal ≈ +0.7m — yozuvlar
+          bir-birining ustiga tushmaydi. */}
+      {showLabel && (
+        <Html position={[0, 6.4 + slot * 1.4, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[90, 0]}>
+          <div style={{ maxWidth: 160, padding: "2px 7px", borderRadius: 7, background: "rgba(255,214,10,0.94)", color: "#1a1500", fontFamily: "system-ui", fontSize: 9.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", boxShadow: "0 1px 5px rgba(0,0,0,0.35)" }}>
+            🔧 {label || t("bubble.helper")}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
