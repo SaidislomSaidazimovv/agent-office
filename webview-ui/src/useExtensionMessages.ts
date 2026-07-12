@@ -61,7 +61,7 @@ export function useExtensionMessages(): void {
           store.setPermission(msg.id, false);
           break;
         case "agentBlocked":
-          store.setBlocked(msg.id, msg.blocked);
+          store.setBlocked(msg.id, msg.blocked, msg.reason);
           break;
         case "agentStuck":
           store.setStuck(msg.id, msg.stuck);

@@ -33,7 +33,7 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Task", label: info.label, kind: info.kind });
   }
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
-  if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true });
+  if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true, reason: a.blockedReason });
   return msgs;
 }
 
@@ -88,11 +88,31 @@ export function isReadingTool(name: string): boolean {
   return READING_TOOLS.has(name);
 }
 
-/** "Bloklangan" holatini o'rnatadi/tozalaydi (xato → qizil status). */
-export function setBlocked(store: AgentStateStore, agent: AgentState, on: boolean): void {
-  if (agent.blocked === on) return;
+/** Xato natijasidan qisqa, o'qiladigan SABAB matni ("npm ERR! 404 …").
+ *  tool_result mazmuni satr ham, bloklar ro'yxati ham bo'lishi mumkin. */
+export const MAX_ERROR_LEN = 180;
+export function formatError(content: unknown): string {
+  let s = "";
+  if (typeof content === "string") {
+    s = content;
+  } else if (Array.isArray(content)) {
+    s = content
+      .map((b) => (b && typeof b === "object" && typeof (b as { text?: unknown }).text === "string" ? (b as { text: string }).text : ""))
+      .join(" ");
+  }
+  s = s.replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  return s.length > MAX_ERROR_LEN ? `${s.slice(0, MAX_ERROR_LEN - 1)}…` : s;
+}
+
+/** "Bloklangan" holatini o'rnatadi/tozalaydi (xato → qizil status).
+ *  `reason` — HAQIQIY xato matni (transkript/hook'dan). Bo'lmasa — undefined. */
+export function setBlocked(store: AgentStateStore, agent: AgentState, on: boolean, reason?: string): void {
+  const r = on ? reason || undefined : undefined;
+  if (agent.blocked === on && agent.blockedReason === r) return;
   agent.blocked = on;
-  store.broadcast({ type: "agentBlocked", id: agent.id, blocked: on });
+  agent.blockedReason = r;
+  store.broadcast({ type: "agentBlocked", id: agent.id, blocked: on, reason: r });
 }
 
 export function setActive(store: AgentStateStore, agent: AgentState): void {

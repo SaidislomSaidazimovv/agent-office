@@ -9,7 +9,7 @@ import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vs
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { needsAttention, newlyStuck, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
-import { formatSubagent, permissionDelayFor } from "../extension/server/stateActions.js";
+import { formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
@@ -639,6 +639,41 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Bloklanish SABABI (xato matni):");
+test("formatError: satr, bloklar ro'yxati, bo'sh va uzun matn", () => {
+  assert.equal(formatError("npm ERR!  404 Not Found"), "npm ERR! 404 Not Found", "bo'shliqlar normallashadi");
+  assert.equal(
+    formatError([{ type: "text", text: "Error:" }, { type: "text", text: "file not found" }]),
+    "Error: file not found",
+    "bloklar birlashtiriladi",
+  );
+  assert.equal(formatError(undefined), "", "mazmun yo'q → bo'sh (o'ylab topilmaydi)");
+  assert.equal(formatError([]), "");
+  const long = formatError("x".repeat(500));
+  assert.ok(long.length <= MAX_ERROR_LEN, "uzun xato qirqiladi");
+  assert.ok(long.endsWith("…"), "qirqilgani bilinib tursin");
+});
+test("transcript: xato natija → bloklandi + SABAB uzatiladi; toza natija → tozalanadi", () => {
+  const { store, agent, ev } = setup();
+  processTranscriptLine(store, agent, JSON.stringify({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "t1", is_error: true, content: "npm ERR! missing script: buld" }] },
+  }));
+  const blocked = ev.find((m) => m.type === "agentBlocked") as (Msg & { blocked?: boolean; reason?: string }) | undefined;
+  assert.ok(blocked?.blocked, "bloklangan bo'lishi kerak");
+  assert.equal(blocked!.reason, "npm ERR! missing script: buld", "sabab aynan xato matni");
+  assert.equal(agent.blockedReason, "npm ERR! missing script: buld", "holatда saqlanadi (replay uchun)");
+
+  ev.length = 0;
+  processTranscriptLine(store, agent, JSON.stringify({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "t2", content: "ok" }] },
+  }));
+  const cleared = ev.find((m) => m.type === "agentBlocked") as (Msg & { blocked?: boolean; reason?: string }) | undefined;
+  assert.equal(cleared?.blocked, false, "toza natija → blok olinadi");
+  assert.equal(agent.blockedReason, undefined, "sabab ham tozalanadi");
 });
 
 console.log("Stol tartibsizligi (manba: tool chaqiruvlari):");

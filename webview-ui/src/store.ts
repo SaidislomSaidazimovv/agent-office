@@ -27,6 +27,8 @@ export interface AgentView {
   awaitingInput: boolean;
   permission: boolean;
   blocked: boolean;
+  /** NEGA bloklandi — xato matni (transkript/hook'dan, qisqartirilgan). */
+  blockedReason?: string;
   /** Ruxsatni JUDA uzoq (3+ daqiqa) kutmoqda — e'tibordan chetda qolgan. */
   stuck: boolean;
   reading: boolean;
@@ -163,7 +165,7 @@ interface OfficeState {
   toolDone(id: number): void;
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
-  setBlocked(id: number, on: boolean): void;
+  setBlocked(id: number, on: boolean, reason?: string): void;
   setStuck(id: number, on: boolean): void;
   addSubagent(id: number, key: string, info?: { label?: string; kind?: string }): void;
   clearSubagent(id: number, key: string): void;
@@ -389,11 +391,11 @@ export const useOffice = create<OfficeState>((set, get) => ({
     }));
   },
 
-  setBlocked(id, on) {
+  setBlocked(id, on, reason) {
     const a = get().agents[id];
     if (!a) return;
     set((s) => ({
-      agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) },
+      agents: { ...s.agents, [id]: recompute({ ...a, blocked: on, blockedReason: on ? reason : undefined }) },
       events: on ? pushEvent(s.events, a.folderName, "#ff453a", { key: "event.blocked" }) : s.events,
     }));
   },

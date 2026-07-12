@@ -452,6 +452,17 @@ export default function Hud() {
             <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {t(`status.${sel.status}` as Key)}
             {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}
           </div>
+          {/* NEGA bloklandi — xatoning HAQIQIY matni (transkriptdan). Bu yerda
+              bo'lmasa, foydalanuvchi qizil nuqtani ko'rib, sababini bilmasdi. */}
+          {sel.blocked && sel.blockedReason && (
+            <div style={{ marginTop: 8, padding: "7px 9px", borderRadius: 8, background: "rgba(255,69,58,0.1)", border: "1px solid rgba(255,69,58,0.3)" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: "#ff453a", marginBottom: 3 }}>⛔ {t("insp.error")}</div>
+              <div style={{ fontSize: 10.5, lineHeight: 1.45, color: "#e8ecf2", opacity: 0.85, fontFamily: "ui-monospace, monospace", maxHeight: 78, overflowY: "auto", wordBreak: "break-word" }}>
+                {sel.blockedReason}
+              </div>
+            </div>
+          )}
+
           {/* Git holati (branch + o'zgargan fayllar) */}
           {(() => {
             const g = gitRepos[sel.folderName];

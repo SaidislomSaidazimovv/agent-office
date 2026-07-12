@@ -47,6 +47,8 @@ export interface AgentState {
    *  hali tiklanmagan — "Bloklangan" (qizil) ko'rsatiladi. Yangi navbat yoki
    *  muvaffaqiyatli tool bilan tozalanadi. */
   blocked: boolean;
+  /** Bloklanish SABABI — xato matni (webview qayta ochilsa ham ko'rinsin). */
+  blockedReason?: string;
   /** Sessiya ruxsat rejimi (transcript `permissionMode`): "default" |
    *  "auto" | "bypassPermissions". Faqat "default"da tool ruxsat so'raydi —
    *  boshqa rejimda heuristik permission-taymer ishlatilmaydi (false-positive

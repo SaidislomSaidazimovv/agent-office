@@ -51,6 +51,9 @@ Office-polish work toward the next release (not yet published).
 - **Desks fill up as work happens** — papers, a second mug, sticky notes and a crumpled
   page appear as an agent's tool count grows. Real signal, not decoration.
 - **Focus mode (⚙)** — dims the office around the selected agent.
+- **Why an agent is blocked** — the failing tool's own error text now reaches the
+  inspector, the status-bar tooltip and the notification, so a red dot finally says
+  what went wrong instead of only that something did.
 
 ### Changed
 

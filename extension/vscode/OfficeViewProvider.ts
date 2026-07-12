@@ -126,6 +126,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         folderName: a.folderName,
         permissionActive: a.permissionActive,
         blocked: a.blocked,
+        reason: a.blockedReason,
         stuck: this.stuck.has(a.id),
       })),
     );
@@ -142,7 +143,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       text = "ruxsat so'radi 🔔";
     } else if (msg.type === "agentBlocked" && msg.blocked) {
       id = msg.id;
-      text = "bloklandi (xato) ⛔";
+      // Sababi bo'lsa — bildirishnomada ham ko'rsatamiz (terminalni ochmasdan bilinadi).
+      text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : "bloklandi (xato) ⛔";
     } else {
       return;
     }

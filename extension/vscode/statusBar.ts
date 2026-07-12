@@ -16,7 +16,7 @@ export class OfficeStatusBar {
   }
 
   /** Agentlar holatini status barда yangilaydi (agent yo'q → yashiriladi). */
-  update(agents: (AttentionAgent & { folderName: string; stuck?: boolean })[]): void {
+  update(agents: (AttentionAgent & { folderName: string; stuck?: boolean; reason?: string })[]): void {
     const on = vscode.workspace.getConfiguration("agent-office").get<boolean>("statusBar", true);
     if (!on || agents.length === 0) {
       this.item.hide();
@@ -32,7 +32,9 @@ export class OfficeStatusBar {
     md.appendMarkdown("**Agent Office**\n\n");
     for (const g of agents) {
       const state = g.blocked ? "⛔ bloklangan" : g.permissionActive ? (g.stuck ? "🙋 uzoq kutmoqda" : "🔔 ruxsat kutmoqda") : "🟢 ishlamoqda";
-      md.appendMarkdown(`- ${g.folderName} — ${state}\n`);
+      // Bloklangan bo'lsa SABABI ham ko'rinsin — status barga qarabоq bilinadi.
+      const why = g.blocked && g.reason ? ` — _${g.reason.slice(0, 90)}_` : "";
+      md.appendMarkdown(`- ${g.folderName} — ${state}${why}\n`);
     }
     md.appendMarkdown("\n_Ofisni ochish uchun bosing_");
     this.item.tooltip = md;

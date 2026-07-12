@@ -114,6 +114,7 @@ const dict = {
   "insp.cost": { uz: "💰 Xarajat", ru: "💰 Стоимость", en: "💰 Cost" },
   "insp.toolHistory": { uz: "🧰 Tool tarixi", ru: "🧰 История инструментов", en: "🧰 Tool history" },
   "insp.subagents": { uz: "Sub-agentlar", ru: "Саб-агенты", en: "Sub-agents" },
+  "insp.error": { uz: "Xato", ru: "Ошибка", en: "Error" },
   "insp.moveTip": { uz: "Boshqa stolga ko'chirish", ru: "Переместить за другой стол", en: "Move to another desk" },
   "move.hint": { uz: "🪑 Yangi stolni tanlang (🟢 bo'sh · 🟠 almashtirish)", ru: "🪑 Выберите новый стол (🟢 свободный · 🟠 обмен)", en: "🪑 Pick a new desk (🟢 free · 🟠 swap)" },
   "common.cancel": { uz: "Bekor", ru: "Отмена", en: "Cancel" },

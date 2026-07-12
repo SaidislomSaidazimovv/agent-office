@@ -8,7 +8,7 @@ import {
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
-import { formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
+import { formatError, formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
 // ── Transcript state machine (Pixel Agents §3a mantiqi) ──────
@@ -213,12 +213,13 @@ export function processTranscriptLine(
     if (Array.isArray(content)) {
       const toolResults = content.filter(
         (b: ToolUseBlock) => b && b.type === "tool_result",
-      ) as Array<ToolUseBlock & { tool_use_id?: string; is_error?: boolean }>;
+      ) as Array<ToolUseBlock & { tool_use_id?: string; is_error?: boolean; content?: unknown }>;
       if (toolResults.length > 0) {
         // Tool natijasi keldi — kutilayotgan ruxsatni bekor qilamiz
         clearPermission(store, agent);
-        // Xato natija → bloklandi; toza natija → tiklandi.
-        setBlocked(store, agent, toolResults.some((tr) => tr.is_error === true));
+        // Xato natija → bloklandi (SABABI bilan); toza natija → tiklandi.
+        const failed = toolResults.find((tr) => tr.is_error === true);
+        setBlocked(store, agent, !!failed, failed ? formatError(failed.content) : undefined);
         for (const tr of toolResults) {
           const toolId = tr.tool_use_id || "";
           if (agent.subagentToolIds.has(toolId)) {

@@ -136,6 +136,8 @@ export interface AgentBlocked {
   type: "agentBlocked";
   id: number;
   blocked: boolean;
+  /** Xatoning HAQIQIY matni (qisqartirilgan). Bo'lmasligi mumkin. */
+  reason?: string;
 }
 /** Agent JUDA uzoq (STUCK_MS) ruxsat kutmoqda — e'tibordan chetda qolgan. */
 export interface AgentStuck {
