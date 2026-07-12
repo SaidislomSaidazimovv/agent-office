@@ -108,6 +108,7 @@ export default function SettingsPanel() {
           <Toggle label={t("settings.daylight")} icon={daylightOn ? "🌗" : "☀️"} on={daylightOn} onClick={toggleDaylight} />
           {flag("showLabels", "settings.labels", "🏷️")}
           {flag("showCost", "settings.showCost", "💵", "settings.showCostHint")}
+          {flag("textMode", "settings.textMode", "📋", "settings.textModeHint")}
 
           {/* Harakat */}
           <Section title={t("settings.groupMotion")} />

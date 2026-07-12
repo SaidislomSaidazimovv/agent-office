@@ -54,6 +54,10 @@ Office-polish work toward the next release (not yet published).
 - **Why an agent is blocked** — the failing tool's own error text now reaches the
   inspector, the status-bar tooltip and the notification, so a red dot finally says
   what went wrong instead of only that something did.
+- **Text mode (📋) and a live region** — a keyboard-navigable list carrying exactly the
+  same information as the office (status, tool, tokens, cost, sub-agents, error), with
+  the 3D scene not rendered at all; and permission, error and long-wait events are
+  announced to screen readers.
 
 ### Changed
 

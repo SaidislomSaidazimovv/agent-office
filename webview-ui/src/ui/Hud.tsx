@@ -53,6 +53,8 @@ export default function Hud() {
   const setEditMode = useLayout((s) => s.setEditMode);
   const budgetUsd = useSettings((s) => s.budgetUsd);
   const showCost = useSettings((s) => s.showCost);
+  const textMode = useSettings((s) => s.textMode);
+  const toggleSetting = useSettings((s) => s.toggle);
   const tour = useTour();
   const notifyEvent = useOffice((s) => s.notifyEvent);
   const [menu, setMenu] = useState(false);
@@ -186,8 +188,23 @@ export default function Hud() {
         <SettingsPanel />
         {/* Agent qidiruvi — ko'p agent bo'lganda chiplar sig'maydi */}
         {order.length > 1 && <AgentSearch />}
-        {/* Surat / klip */}
-        <CaptureButton />
+        {/* Surat / klip — 3D bo'lmasa suratga oladigan narsa ham yo'q */}
+        {!textMode && <CaptureButton />}
+        {/* Matn rejimi (a11y) */}
+        <button
+          onClick={() => toggleSetting("textMode")}
+          aria-label={t("text.toggle")}
+          aria-pressed={textMode}
+          title={t("text.toggle")}
+          style={{
+            pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
+            cursor: "pointer", fontSize: 12,
+            border: `1px solid ${textMode ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.14)"}`,
+            background: textMode ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)", color: "#e8ecf2",
+          }}
+        >
+          📋
+        </button>
         {/* Faoliyat tasmasi toggle */}
         <button
           onClick={() => setFeed((f) => !f)}
@@ -291,7 +308,8 @@ export default function Hud() {
         </div>
       )}
 
-      {/* Kamera rejimi toggle */}
+      {/* Kamera rejimi toggle — matn rejimida 3D yo'q, kamera ham yo'q */}
+      {!textMode && (
       <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
         <button
           onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
@@ -307,8 +325,10 @@ export default function Hud() {
         </button>
       </div>
 
+      )}
+
       {/* Tahrirlash (Layout editor) toggle — faqat iso rejimda */}
-      {cameraMode === "iso" && (
+      {!textMode && cameraMode === "iso" && (
         <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
           <button
             onClick={() => setEditMode(!editMode)}
@@ -327,12 +347,26 @@ export default function Hud() {
       )}
 
       {/* ── Layout editor paneli ── */}
-      {editMode && cameraMode === "iso" && <LayoutEditor />}
+      {!textMode && editMode && cameraMode === "iso" && <LayoutEditor />}
 
       {/* Kamera maslahati (rejimga qarab) */}
+      {!textMode && (
       <div data-tour="camera" style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
         {cameraMode === "fpv" ? t("hint.fpv") : t("hint.iso")}
       </div>
+      )}
+
+      {/* Ekran o'quvchi uchun jonli e'lon — muhim hodisa (ruxsat / xato / uzoq
+          kutish) sodir bo'lsa, panelga qaramasdan ham eshitiladi. */}
+      {(() => {
+        const IMPORTANT: Key[] = ["event.permission", "event.blocked", "event.stuck"];
+        const e = events.find((x) => x.key && IMPORTANT.includes(x.key));
+        return (
+          <div role="status" aria-live="polite" style={{ position: "absolute", width: 1, height: 1, margin: -1, padding: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}>
+            {e ? `${e.who} — ${t(e.key as Key)}` : ""}
+          </div>
+        );
+      })()}
 
       {/* +Agent */}
       <div ref={menuRef} style={{ position: "absolute", top: 12, right: 14, pointerEvents: "auto" }}>
@@ -425,8 +459,9 @@ export default function Hud() {
         </div>
       )}
 
-      {/* Agent inspektor paneli (personaj tanlanganda) */}
-      {sel && (
+      {/* Agent inspektor paneli (personaj tanlanganda) — matn rejimida ro'yxatning
+          o'zida hamma narsa bor, takrorlamaymiz. */}
+      {sel && !textMode && (
         <div
           style={{
             position: "absolute", bottom: 16, left: 16, width: 250, pointerEvents: "auto",

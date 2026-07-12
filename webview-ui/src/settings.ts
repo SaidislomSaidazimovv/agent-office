@@ -42,6 +42,8 @@ export interface SettingsValues {
   followSelected: boolean;
   /** Fokus rejimi: tanlangan agentdan boshqa hamma joy qorayadi (App.tsx). */
   focusMode: boolean;
+  /** Matn rejimi (a11y): 3D o'rniga klaviatura bilan yuriladigan ro'yxat. */
+  textMode: boolean;
   /** Kirish qo'llanmasi ko'rilganmi (Tour.tsx). Sozlamalar orqali qayta ko'rsa bo'ladi. */
   tourDone: boolean;
 }
@@ -60,6 +62,7 @@ const DEFAULTS: SettingsValues = {
   showCost: true,
   followSelected: false,
   focusMode: false,
+  textMode: false,
   tourDone: false,
 };
 

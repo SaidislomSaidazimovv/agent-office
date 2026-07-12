@@ -21,6 +21,7 @@ import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
 import Hud from "./ui/Hud";
 import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
+import TextOffice from "./ui/TextOffice";
 import { useExtensionMessages } from "./useExtensionMessages";
 
 // Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
@@ -141,6 +142,7 @@ export default function App() {
   const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
   const quality = useSettings((s) => s.quality);
+  const textMode = useSettings((s) => s.textMode);
   const focusEl = useRef<HTMLDivElement>(null);
 
   // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
@@ -162,6 +164,18 @@ export default function App() {
   }, [placed]);
 
   if (GALLERY) return <Gallery />;
+
+  // Matn rejimi (a11y): 3D UMUMAN chizilmaydi — ekran o'quvchi uchun WebGL tuvali
+  // mazmunsiz, GPU'ni behuda ishlatishning ham hojati yo'q.
+  if (textMode) {
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", background: "#0d1117" }}>
+        <TextOffice />
+        <CostSampler />
+        <Hud />
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
