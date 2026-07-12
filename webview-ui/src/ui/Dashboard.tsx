@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { budgetState } from "../budget";
+import { fmtDur, fmtTok } from "../format";
 import { useT } from "../i18n";
 import { fmtCost, PRICING_AS_OF } from "../pricing";
+import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
+import { useSettings } from "../settings";
 import { useOffice } from "../store";
 
 // ── Analitika dashboard ──────────────────────────────────────
@@ -33,18 +37,6 @@ const CAT: Record<string, string> = {
   data: "#e66767", // 6 red
 };
 
-function fmtTok(n: number): string {
-  if (n < 1000) return `${n}`;
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
-function fmtDur(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
-}
 function fmtClock(t: number): string {
   const d = new Date(t);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -61,17 +53,23 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-// ── Xarajat — vaqt bo'yicha. Bitta qator → legend YO'Q (sarlavha uni nomlaydi). ──
-function CostChart({ samples }: { samples: { t: number; cost: number }[] }) {
+// ── Xarajat — vaqt bo'yicha. Bitta qator → legend YO'Q (sarlavha uni nomlaydi).
+//    Budjet — uzuq mos-yozuvlar chizig'i (qator emas → legend baribir kerak emas). ──
+function CostChart({ samples, budget }: { samples: { t: number; cost: number }[]; budget: number }) {
   const t = useT();
   const [hover, setHover] = useState<number | null>(null);
   const W = 520, H = 132, PL = 44, PR = 10, PT = 10, PB = 20;
   const iw = W - PL - PR, ih = H - PT - PB;
 
-  const { pts, maxY, path, area } = useMemo(() => {
+  const { pts, maxY, path, area, budgetY } = useMemo(() => {
     const n = samples.length;
-    if (n === 0) return { pts: [] as { x: number; y: number }[], maxY: 0, path: "", area: "" };
-    const max = Math.max(...samples.map((s) => s.cost), 0.0001);
+    if (n === 0) return { pts: [] as { x: number; y: number }[], maxY: 0, path: "", area: "", budgetY: null as number | null };
+    const dataMax = Math.max(...samples.map((s) => s.cost), 0.0001);
+    // Budjet chizig'i domenga qo'shiladi — LEKIN faqat ma'lumotdan 2×dan baland
+    // bo'lmasa. Aks holda egri pastda yassilanib o'qilmay qoladi (mos-yozuvlar
+    // chizig'i uchun qatorning aniqligini qurbon qilmaymiz).
+    const inDomain = budget > 0 && budget <= dataMax * 2;
+    const max = inDomain ? Math.max(dataMax, budget) : dataMax;
     // "Chiroyli" tepa — grid yaxlit sonlarда tursin
     const mag = Math.pow(10, Math.floor(Math.log10(max)));
     const maxY = Math.ceil(max / mag) * mag;
@@ -80,8 +78,8 @@ function CostChart({ samples }: { samples: { t: number; cost: number }[] }) {
     const pts = samples.map((s, i) => ({ x: px(i), y: py(s.cost) }));
     const path = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
     const area = `${path} L${pts[pts.length - 1].x.toFixed(1)},${PT + ih} L${pts[0].x.toFixed(1)},${PT + ih} Z`;
-    return { pts, maxY, path, area };
-  }, [samples, iw, ih, PL, PT]);
+    return { pts, maxY, path, area, budgetY: inDomain ? py(budget) : null };
+  }, [samples, budget, iw, ih, PL, PT]);
 
   if (samples.length < 2) {
     return (
@@ -117,6 +115,18 @@ function CostChart({ samples }: { samples: { t: number; cost: number }[] }) {
       {/* Maydon + chiziq (2px) — bitta qator, sequential ko'k */}
       <path d={area} fill={SERIES} opacity={0.16} />
       <path d={path} fill="none" stroke={SERIES} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      {/* Budjet — uzuq mos-yozuvlar chizig'i, to'g'ridan-to'g'ri yorliq bilan */}
+      {budgetY != null && (() => {
+        const bc = budgetState(samples[samples.length - 1].cost, budget).color;
+        return (
+          <g pointerEvents="none">
+            <line x1={PL} x2={W - PR} y1={budgetY} y2={budgetY} stroke={bc} strokeWidth={1} strokeDasharray="4 3" />
+            <text x={W - PR} y={budgetY - 4} textAnchor="end" fontSize={9.5} fontWeight={600} fill={bc}>
+              {t("budget.title")} {fmtCost(budget)}
+            </text>
+          </g>
+        );
+      })()}
       {/* Vaqt belgilari — faqat chekkalar (har nuqtaga raqam qo'ymaymiz) */}
       <text x={PL} y={H - 6} fontSize={9.5} fill={MUTED}>{fmtClock(samples[0].t)}</text>
       <text x={W - PR} y={H - 6} textAnchor="end" fontSize={9.5} fill={MUTED}>{fmtClock(samples[samples.length - 1].t)}</text>
@@ -156,11 +166,58 @@ function RoleBars({ rows }: { rows: { key: string; label: string; cost: number }
   );
 }
 
+// ── Budjet — sarflangan ulush. Rang SEMANTIK (yashil/sariq/qizil), kategorik
+//    emas: u faqat holatni bildiradi va hech qanday grafikda qayta ishlatilmaydi.
+//    Bar YONIDA doim raqam turadi → ma'no faqat rangда emas (CVD). ──
+function BudgetBar({ spent, limit }: { spent: number; limit: number }) {
+  const t = useT();
+  const b = budgetState(spent, limit);
+  const pct = Math.round(b.frac * 100);
+  const msg = b.level === "over" ? t("budget.overMsg") : b.level === "warn" ? t("budget.warnMsg") : `${fmtCost(b.left)} ${t("budget.left")}`;
+  return (
+    <div style={{ marginBottom: 16, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: `1px solid ${b.level === "ok" ? "rgba(255,255,255,0.08)" : `${b.color}70`}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: INK2 }}>💸 {t("budget.title")}</span>
+        <span style={{ fontSize: 11.5, color: MUTED, fontVariantNumeric: "tabular-nums" }}>
+          <b style={{ color: b.color, fontSize: 12.5 }}>{fmtCost(spent)}</b> / {fmtCost(limit)} · {pct}% {t("budget.used")}
+        </span>
+      </div>
+      <div style={{ height: 8, borderRadius: 5, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <div style={{ width: `${Math.min(100, Math.max(1.5, b.frac * 100))}%`, height: "100%", background: b.color, borderRadius: 5, transition: "width 300ms ease" }} />
+      </div>
+      <div style={{ fontSize: 10.5, color: b.level === "ok" ? MUTED : b.color, marginTop: 5 }}>{msg}</div>
+    </div>
+  );
+}
+
 export default function Dashboard({ onClose }: { onClose: () => void }) {
   const t = useT();
   const agents = useOffice((s) => s.agents);
   const order = useOffice((s) => s.order);
   const samples = useOffice((s) => s.samples);
+  const budgetUsd = useSettings((s) => s.budgetUsd);
+  const [report, setReport] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hisobot BOSILGANDA yaratiladi (jonli emas) — nusxalanayotgan matn foydalanuvchi
+  // ko'rib turgan matn bilan aynan bir xil bo'lsin.
+  const openReport = () => {
+    setCopied(false);
+    setReport(buildReport({ agents: order.map((id) => agents[id]).filter(Boolean), now: Date.now(), budgetUsd, t }));
+  };
+  const copyReport = async () => {
+    if (report == null) return;
+    try {
+      await navigator.clipboard.writeText(report);
+    } catch {
+      // Clipboard API bloklangan bo'lsa (webview siyosati) — eski usul.
+      taRef.current?.select();
+      document.execCommand("copy");
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
 
   const { totalCost, totalTok, activeN, roleRows, agentRows } = useMemo(() => {
     let totalCost = 0, totalTok = 0, activeN = 0;
@@ -204,7 +261,19 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{t("dash.title")}</span>
-        <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!empty && (
+            <button
+              onClick={openReport}
+              title={t("rep.open")}
+              aria-label={t("rep.open")}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
+            >
+              📄 {t("rep.btn")}
+            </button>
+          )}
+          <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        </div>
       </div>
 
       <div style={{ overflowY: "auto", padding: 14 }}>
@@ -219,9 +288,12 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
               <Stat label={t("dash.activeAgents")} value={`${activeN} / ${order.length}`} />
             </div>
 
+            {/* Budjet (sozlamalarda belgilangan bo'lsa) */}
+            {budgetUsd > 0 && <BudgetBar spent={totalCost} limit={budgetUsd} />}
+
             {/* Xarajat — vaqt bo'yicha */}
             <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 7 }}>{t("dash.costOverTime")}</div>
-            <div style={{ marginBottom: 18 }}><CostChart samples={samples} /></div>
+            <div style={{ marginBottom: 18 }}><CostChart samples={samples} budget={budgetUsd} /></div>
 
             {/* Rol bo'yicha */}
             {roleRowsLabeled.length > 0 && (
@@ -263,6 +335,37 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+
+      {/* ── Sessiya hisoboti (markdown) — panel ustidan qoplama ── */}
+      {report !== null && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 8, background: "#0d1117" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{t("rep.panel")}</span>
+            <button onClick={() => setReport(null)} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+          </div>
+          <textarea
+            ref={taRef}
+            value={report}
+            readOnly
+            spellCheck={false}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{ flex: 1, minHeight: 220, resize: "none", boxSizing: "border-box", fontFamily: "ui-monospace, monospace", fontSize: 10.5, lineHeight: 1.5, borderRadius: 8, padding: 10, background: "rgba(0,0,0,0.4)", color: INK2, border: `1px solid ${GRID}`, whiteSpace: "pre", overflow: "auto" }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ flex: 1, fontSize: 10.5, color: MUTED }}>{t("rep.hint")}</span>
+            <button
+              onClick={copyReport}
+              style={{
+                padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#fff",
+                border: `1px solid ${copied ? "rgba(48,209,88,0.6)" : "rgba(94,155,255,0.6)"}`,
+                background: copied ? "rgba(48,209,88,0.22)" : "rgba(94,155,255,0.22)",
+              }}
+            >
+              {copied ? t("rep.copied") : `📋 ${t("rep.copy")}`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LANGS, useLang, useT } from "../i18n";
 import { unlockAudio } from "../notificationSound";
 import { useDaylight } from "../scene/daylight";
+import { useSettings } from "../settings";
 import { useOffice } from "../store";
 import { send } from "../transport";
 
@@ -17,6 +18,11 @@ export default function SettingsPanel() {
   const toggleDaylight = useDaylight((s) => s.toggle);
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
+  const budgetUsd = useSettings((s) => s.budgetUsd);
+  const setBudget = useSettings((s) => s.setBudget);
+  // Kiritish maydoni xom matnda ("" va "0." kabi oraliq holatlar uchun); store'ga
+  // esa faqat yaroqli son yoziladi (yaroqsiz → 0 = o'chiq).
+  const [budgetDraft, setBudgetDraft] = useState(budgetUsd > 0 ? String(budgetUsd) : "");
 
   // Tashqariga bosish / Esc → yopish
   useEffect(() => {
@@ -82,6 +88,24 @@ export default function SettingsPanel() {
           {/* Toggle'lar */}
           <Toggle label={t("settings.daylight")} on={daylightOn} onClick={toggleDaylight} icon={daylightOn ? "🌗" : "☀️"} />
           <Toggle label={t("settings.sound")} on={soundEnabled} onClick={toggleSound} icon={soundEnabled ? "🔊" : "🔇"} />
+
+          {/* Xarajat budjeti — ogohlantirish chegarasi */}
+          <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "10px 0 9px" }} />
+          <label htmlFor="ao-budget" style={{ display: "block", fontSize: 11, opacity: 0.6, marginBottom: 5 }}>💸 {t("budget.label")}</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 9px", borderRadius: 8, border: `1px solid ${budgetUsd > 0 ? "rgba(94,155,255,0.5)" : "rgba(255,255,255,0.12)"}`, background: "rgba(0,0,0,0.25)" }}>
+            <span style={{ fontSize: 12, opacity: 0.55 }}>$</span>
+            <input
+              id="ao-budget"
+              type="number"
+              min={0}
+              step={0.5}
+              value={budgetDraft}
+              placeholder="0"
+              onChange={(e) => { setBudgetDraft(e.target.value); setBudget(parseFloat(e.target.value)); }}
+              style={{ flex: 1, width: "100%", minWidth: 0, padding: "7px 0", border: "none", outline: "none", background: "transparent", color: "#e8ecf2", fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
+            />
+          </div>
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5, lineHeight: 1.35 }}>{t("budget.hint")}</div>
         </div>
       )}
     </div>

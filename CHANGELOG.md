@@ -13,6 +13,17 @@ Office-polish work toward the next release (not yet published).
 - A **wall clock** and two more framed paintings on the side walls.
 - **Hanging pendant lights** over the open office that glow and cast light at night.
 - **Soft contact shadows** beneath each agent so characters no longer look like they float.
+- **Themed districts** — every room now has its own floor colour and signature props:
+  glowing server LEDs, a neon kitchen sign, a lit presentation display, and
+  night-only district lighting for the server room, kitchen and library.
+- **Analytics dashboard (📊)** — cost over time, cost by role and a per-agent table,
+  fed by a 10-second sampler that records the real measured totals.
+- **Cost budget** — set a limit in ⚙ Settings. The top-bar chip, the dashboard bar and
+  the chart's reference line turn amber past 80% and red once the budget is exceeded,
+  and the activity feed logs the crossing. It only *warns*: Agent Office observes and
+  never stops or controls a session.
+- **Markdown session report** — one click renders a summary, a per-agent table and a
+  role breakdown, ready to copy into GitHub, Notion or Jira.
 
 ### Changed
 

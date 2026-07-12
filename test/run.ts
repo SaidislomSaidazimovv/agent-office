@@ -10,6 +10,8 @@ import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
+import { budgetState } from "../webview-ui/src/budget.js";
+import { buildReport } from "../webview-ui/src/report.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
@@ -544,6 +546,55 @@ test("sample(): agent yo'q → namuna yo'q; agentlar bor → JORIY jami yoziladi
   assert.equal(smp[0].outTok, 250, "jami chiqish tokeni 250");
   assert.equal(smp[0].active, 1, "faqat 1 agent faol");
   useOffice.setState({ agents: {}, order: [], samples: [] }); // keyingi testlarga toza qoldiramiz
+});
+
+console.log("Budjet (FAQAT ogohlantirish — hech narsa to'xtatilmaydi):");
+test("budgetState: limit yo'q → o'chiq; 80% → warn; 100% → over", () => {
+  assert.equal(budgetState(5, 0).level, "off", "limit 0 → o'chiq");
+  assert.equal(budgetState(5, -3).level, "off", "manfiy limit → o'chiq");
+  assert.equal(budgetState(0.79, 1).level, "ok");
+  assert.equal(budgetState(0.8, 1).level, "warn", "aynan 80% → ogohlantirish");
+  assert.equal(budgetState(1, 1).level, "over", "aynan 100% → oshgan");
+  assert.equal(budgetState(2, 1).level, "over");
+  const b = budgetState(0.25, 1);
+  assert.ok(Math.abs(b.frac - 0.25) < 1e-9, "ulush 0.25");
+  assert.ok(Math.abs(b.left - 0.75) < 1e-9, "qolgani 0.75");
+  assert.equal(budgetState(3, 1).left, 0, "oshib ketsa qolgani 0 (manfiy emas)");
+});
+
+console.log("Sessiya hisoboti (markdown eksport):");
+test("buildReport: agent yo'q → jadvalsiz bo'sh holat", () => {
+  const md = buildReport({ agents: [], now: 0, budgetUsd: 0, t: (k) => k });
+  assert.ok(md.includes("dash.noData"), "bo'sh holat matni bo'lishi kerak");
+  assert.ok(!md.includes("| ---"), "bo'sh hisobotda jadval bo'lmaydi");
+});
+test("buildReport: jamlar, saralash, model, budjet qatori va | ekranlash", () => {
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+  const s = useOffice.getState();
+  s.addAgent({ id: 400, folderName: "a|b", role: "frontend" }); // | → jadvalni buzmasligi kerak
+  s.addAgent({ id: 401, folderName: "srv", role: "backend" });
+  const a0 = useOffice.getState().agents;
+  useOffice.setState({
+    agents: {
+      400: { ...a0[400], costUsd: 3, inputTokens: 20000, outputTokens: 2000, toolCalls: 7, turns: 2, activeMs: 65000, model: "claude-opus-4-8[1m]" },
+      401: { ...a0[401], costUsd: 1, inputTokens: 5000, outputTokens: 500, toolCalls: 3, turns: 1, activeMs: 0 },
+    },
+  });
+  const st = useOffice.getState();
+  const agents = st.order.map((id) => st.agents[id]);
+  const md = buildReport({ agents, now: 1_700_000_000_000, budgetUsd: 5, t: (k) => k });
+
+  assert.ok(md.includes("a\\|b"), "folderName ichidagi | ekranlanishi kerak");
+  assert.ok(md.includes("~$4.00"), "jami xarajat $4.00");
+  assert.ok(md.includes("$4.00 / $5.00 · 80%"), "budjet qatori 80% ko'rsatishi kerak");
+  assert.ok(md.indexOf("| a\\|b |") < md.indexOf("| srv |"), "qimmatroq agent yuqorida (xarajat bo'yicha saralash)");
+  assert.ok(md.includes("Opus 4.8"), "model qisqa nomga aylanishi kerak");
+  assert.ok(/\| srv \| role\.backend \| — \|/.test(md), "modeli noma'lum agent uchun —");
+  assert.ok(md.includes("| role.frontend | $3.00 | 75% |"), "rol ulushi 75%");
+
+  const noBudget = buildReport({ agents, now: 1_700_000_000_000, budgetUsd: 0, t: (k) => k });
+  assert.ok(!noBudget.includes("budget.title"), "budjet o'chiq bo'lsa qator chiqmasligi kerak");
+  useOffice.setState({ agents: {}, order: [], samples: [] });
 });
 
 console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");

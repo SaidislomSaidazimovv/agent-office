@@ -137,6 +137,8 @@ interface OfficeState {
 
   /** Joriy jamini vaqt qatoriga yozadi (10s'da bir marta chaqiriladi). */
   sample(): void;
+  /** Tizim hodisasi (agentga bog'liq emas) — masalan budjet ogohlantirishi. */
+  notifyEvent(who: string, color: string, key: Key): void;
 
   addAgent(meta: { id: number; folderName?: string; role?: string; task?: string; isExternal?: boolean }): void;
   removeAgent(id: number): void;
@@ -330,6 +332,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
       const next = [...st.samples, smp];
       return { samples: next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next };
     });
+  },
+
+  notifyEvent(who, color, key) {
+    set((s) => ({ events: pushEvent(s.events, who, color, { key }) }));
   },
 
   toolDone(id) {

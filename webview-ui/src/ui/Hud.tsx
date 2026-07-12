@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { type BudgetLevel, budgetState } from "../budget";
+import { shortModel } from "../format";
 import { THEMES, useLayout } from "../layoutStore";
 import { fmtCost, PRICING_AS_OF } from "../pricing";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
 import { type Key, translate, useLang, useT } from "../i18n";
+import { useSettings } from "../settings";
 import { useOffice } from "../store";
 import { send } from "../transport";
 import Dashboard from "./Dashboard";
@@ -18,13 +21,6 @@ function fmtDur(ms: number): string {
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ${s % 60}s`;
   return `${Math.floor(m / 60)}h ${m % 60}m`;
-}
-// Model id → qisqa nom ("claude-opus-4-8[1m]" → "Opus 4.8").
-function shortModel(m: string): string {
-  const s = m.toLowerCase();
-  const fam = s.includes("fable") ? "Fable" : s.includes("mythos") ? "Mythos" : s.includes("haiku") ? "Haiku" : s.includes("sonnet") ? "Sonnet" : s.includes("opus") ? "Opus" : "";
-  const ver = m.match(/(\d+)-(\d+)/);
-  return fam ? `${fam}${ver ? " " + ver[1] + "." + ver[2] : ""}` : m.slice(0, 14);
 }
 // "necha vaqt oldin" (event tasmasi uchun).
 function fmtAgo(at: number, now: number): string {
@@ -52,6 +48,8 @@ export default function Hud() {
   const gitRepos = useOffice((s) => s.gitRepos);
   const editMode = useLayout((s) => s.editMode);
   const setEditMode = useLayout((s) => s.setEditMode);
+  const budgetUsd = useSettings((s) => s.budgetUsd);
+  const notifyEvent = useOffice((s) => s.notifyEvent);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
   const [dash, setDash] = useState(false);
@@ -80,6 +78,22 @@ export default function Hud() {
   const [folderPath, setFolderPath] = useState<string | undefined>(undefined);
   const launchLock = useRef(0);
   const sel = selectedId != null ? agents[selectedId] : undefined;
+
+  // ── Umumiy xarajat + budjet holati ──
+  const totalCost = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
+  const budget = budgetState(totalCost, budgetUsd);
+  // Daraja OSHGANDA bir marta tasmaga yozamiz (har renderда emas). Boshlang'ich
+  // qiymat — joriy daraja: sahifa allaqachon oshib ketgan holatda ochilsa,
+  // eski ogohlantirish qayta chiqmaydi.
+  const prevLevel = useRef<BudgetLevel>(budget.level);
+  useEffect(() => {
+    const prev = prevLevel.current;
+    prevLevel.current = budget.level;
+    if (budget.level === prev) return;
+    if (budget.level === "over") notifyEvent(t("budget.title"), budget.color, "budget.overMsg");
+    else if (budget.level === "warn" && prev === "ok") notifyEvent(t("budget.title"), budget.color, "budget.warnMsg");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat daraja o'zgarishiga reaksiya
+  }, [budget.level]);
 
   // Faol agent tanlanganda "faol vaqt"ni jonli yangilab turamiz (1s).
   useEffect(() => {
@@ -135,15 +149,20 @@ export default function Hud() {
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} {t("hud.agents")}
         </div>
-        {/* Umumiy taxminiy xarajat (barcha agentlar) */}
-        {(() => {
-          const total = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
-          return total > 0 ? (
-            <div title={`${t("hud.costTip")} (${PRICING_AS_OF})`} style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700, background: "rgba(48,209,88,0.16)", color: "#30d158", border: "1px solid rgba(48,209,88,0.4)" }}>
-              ~{fmtCost(total)}
-            </div>
-          ) : null;
-        })()}
+        {/* Umumiy taxminiy xarajat — budjet belgilangan bo'lsa, rang darajani bildiradi */}
+        {totalCost > 0 && (
+          <div
+            title={budgetUsd > 0 ? `${t("budget.tip")} · ${Math.round(budget.frac * 100)}% ${t("budget.used")}` : `${t("hud.costTip")} (${PRICING_AS_OF})`}
+            style={{
+              display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700,
+              background: `${budget.color}29`, color: budget.color, border: `1px solid ${budget.color}66`,
+            }}
+          >
+            {budget.level === "over" ? "🚨" : budget.level === "warn" ? "⚠️" : null}
+            ~{fmtCost(totalCost)}
+            {budgetUsd > 0 && <span style={{ opacity: 0.7, fontWeight: 600 }}>/ {fmtCost(budgetUsd)}</span>}
+          </div>
+        )}
         {/* Aniqlash rejimi — jonli hook yoki JSONL zaxira */}
         <div
           title={hookActive ? t("hud.hookTip") : t("hud.jsonlTip")}
