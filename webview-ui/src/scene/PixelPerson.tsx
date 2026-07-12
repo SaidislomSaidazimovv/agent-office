@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
+import { useSettings } from "../settings";
 import type { AgentStatus } from "../store";
 import type { Accessory as AccessoryType, CharSkin, HairStyle } from "./roles";
 import { STATUS_COLOR } from "./roles";
@@ -147,7 +148,11 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     // harakat/joylashuv AgentAvatar'da, bunga bog'liq emas). damp() eksponensial
     // bo'lgani uchun qayta ko'ринganda silliq davom etadi (sakramaydi).
     if (rootRef.current && !visibleObject(rootRef.current)) return;
-    t.current += dt;
+    // Kamaytirilgan harakat: vaqtni oldinga surmaymiz → nafas, yozish tebranishi,
+    // bosh chayqalishi va pirpirash to'xtaydi. Poza (o'tirish/turish) va YURISH
+    // baribir ishlaydi — ular mazmunли, bezak emas.
+    const rm = useSettings.getState().reducedMotion;
+    t.current += rm ? 0 : dt;
     const tt = t.current;
     const st = getState ? getState() : { sit: pose === "sit", moving };
     const sit = st.sit;
@@ -157,7 +162,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
 
     // Vaqti-vaqti bilan cho'zilish — faqat HAQIQIY bo'sh (idle) turganда
     // (ishlayotgan yordamchi subagentlar cho'zilmasin).
-    const standingIdle = !sit && !st.moving && status === "idle";
+    const standingIdle = !sit && !st.moving && status === "idle" && !rm;
     if (standingIdle) {
       if (stretchLeft.current <= 0) {
         stretchCd.current -= dt;
@@ -218,7 +223,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
     // Bo'sh/o'ylanayotganда gohida yon-yonga qaraydi
-    if (!working) {
+    if (!working && !rm) {
       glanceCd.current -= dt;
       if (glanceCd.current <= 0) {
         headYaw.current = (Math.random() - 0.5) * 0.7;
@@ -232,7 +237,9 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
 
     // Ko'z pirpirash — har ~2-6s tez yumilib ochiladi (eng kuchli "tirik" belgisi)
-    if (blinkLeft.current <= 0) {
+    if (rm) {
+      blinkLeft.current = 0; // kamaytirilgan harakat — ko'z ochiq turadi
+    } else if (blinkLeft.current <= 0) {
       blinkCd.current -= dt;
       if (blinkCd.current <= 0) { blinkLeft.current = 0.12; blinkCd.current = 2 + Math.random() * 5; }
     } else {

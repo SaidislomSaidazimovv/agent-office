@@ -49,6 +49,7 @@ export default function Hud() {
   const editMode = useLayout((s) => s.editMode);
   const setEditMode = useLayout((s) => s.setEditMode);
   const budgetUsd = useSettings((s) => s.budgetUsd);
+  const showCost = useSettings((s) => s.showCost);
   const notifyEvent = useOffice((s) => s.notifyEvent);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
@@ -149,8 +150,10 @@ export default function Hud() {
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} {t("hud.agents")}
         </div>
-        {/* Umumiy taxminiy xarajat — budjet belgilangan bo'lsa, rang darajani bildiradi */}
-        {totalCost > 0 && (
+        {/* Umumiy taxminiy xarajat — budjet belgilangan bo'lsa, rang darajani bildiradi.
+            Sozlamada yashirilsa ko'rinmaydi (ekran ulashishда qulay) — lekin budjet
+            ogohlantirishi baribir tasmaga tushadi. */}
+        {showCost && totalCost > 0 && (
           <div
             title={budgetUsd > 0 ? `${t("budget.tip")} · ${Math.round(budget.frac * 100)}% ${t("budget.used")}` : `${t("hud.costTip")} (${PRICING_AS_OF})`}
             style={{
@@ -476,7 +479,7 @@ export default function Hud() {
             );
           })()}
           {/* Taxminiy xarajat + model */}
-          {sel.costUsd > 0 && (
+          {showCost && sel.costUsd > 0 && (
             <div title={`${t("insp.costTip")} (${PRICING_AS_OF})`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(48,209,88,0.1)", border: "1px solid rgba(48,209,88,0.25)" }}>
               <span style={{ fontSize: 11, opacity: 0.75 }}>{t("insp.cost")}{sel.model ? ` · ${shortModel(sel.model)}` : ""}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#30d158" }}>~{fmtCost(sel.costUsd)}</span>

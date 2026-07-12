@@ -24,6 +24,12 @@ Office-polish work toward the next release (not yet published).
   never stops or controls a session.
 - **Markdown session report** — one click renders a summary, a per-agent table and a
   role breakdown, ready to copy into GitHub, Notion or Jira.
+- **Expanded settings (⚙)**, grouped into Appearance / Motion / Performance / Cost —
+  agent labels, hide cost (for screen sharing; analytics still shows it), reduced
+  motion (defaults to your system preference), idle wandering, meetings, a camera that
+  follows the selected agent, and a Saver quality mode (lower pixel density and fewer
+  shadow updates). Every switch changes real behaviour, and **↺ Reset** restores the
+  defaults.
 
 ### Changed
 

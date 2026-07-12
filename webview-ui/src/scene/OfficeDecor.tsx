@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
 import { useLayout } from "../layoutStore";
+import { useSettings } from "../settings";
 import { useDaylight } from "./daylight";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
@@ -128,6 +129,11 @@ export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   useFrame((state) => {
     const g = leaves.current;
     if (!g) return;
+    // Kamaytirilgan harakat — barglar tik turadi (bir marta nolga qaytariladi).
+    if (useSettings.getState().reducedMotion) {
+      if (g.rotation.z !== 0 || g.rotation.x !== 0) { g.rotation.z = 0; g.rotation.x = 0; }
+      return;
+    }
     if (!visiblePoint(p[0], 0.6, p[2])) return; // ekrandan tashqari — tebranishni o'tkazamiz
     const t = state.clock.elapsedTime;
     g.rotation.z = Math.sin(t * 1.1 + ph) * 0.05;

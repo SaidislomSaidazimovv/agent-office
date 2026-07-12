@@ -12,6 +12,7 @@ import { permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
+import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
@@ -595,6 +596,34 @@ test("buildReport: jamlar, saralash, model, budjet qatori va | ekranlash", () =>
   const noBudget = buildReport({ agents, now: 1_700_000_000_000, budgetUsd: 0, t: (k) => k });
   assert.ok(!noBudget.includes("budget.title"), "budjet o'chiq bo'lsa qator chiqmasligi kerak");
   useOffice.setState({ agents: {}, order: [], samples: [] });
+});
+
+console.log("Sozlamalar:");
+test("sifat rejimi: tejamkor → past dpr + kamroq soya yangilanishi", () => {
+  assert.equal(dprFor("high"), 1);
+  assert.ok(dprFor("low") < 1, "tejamkor rejimda piksel zichligi pasayadi");
+  assert.ok(shadowEvery("low") > shadowEvery("high"), "tejamkor rejimda soya kamroq yangilanadi");
+});
+test("toggle/reset/budjet: yaroqsiz budjet → 0 (o'chiq), reset standartga qaytaradi", () => {
+  const s = useSettings.getState();
+  s.setBudget(-5);
+  assert.equal(useSettings.getState().budgetUsd, 0, "manfiy budjet → o'chiq");
+  s.setBudget(NaN);
+  assert.equal(useSettings.getState().budgetUsd, 0, "NaN → o'chiq");
+  s.setBudget(7.5);
+  assert.equal(useSettings.getState().budgetUsd, 7.5);
+
+  assert.equal(useSettings.getState().showLabels, true, "yorliqlar standart holatda yoqiq");
+  useSettings.getState().toggle("showLabels");
+  assert.equal(useSettings.getState().showLabels, false, "toggle faqat o'sha kalitni o'zgartiradi");
+  assert.equal(useSettings.getState().wander, true, "boshqa sozlamalarga tegmaydi");
+
+  useSettings.getState().setQuality("low");
+  useSettings.getState().reset();
+  const r = useSettings.getState();
+  assert.equal(r.showLabels, true);
+  assert.equal(r.quality, "high");
+  assert.equal(r.budgetUsd, 0, "reset budjetni ham o'chiradi");
 });
 
 console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");

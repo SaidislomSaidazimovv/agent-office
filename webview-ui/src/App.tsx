@@ -1,6 +1,7 @@
 import { Html, OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
@@ -8,6 +9,8 @@ import { setActiveSeats, setPlacedRects } from "./scene/collision";
 import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
+import { presenceOf } from "./scene/presence";
+import { dprFor, shadowEvery, useSettings } from "./settings";
 import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
@@ -23,7 +26,7 @@ import { useExtensionMessages } from "./useExtensionMessages";
 // Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
 // harakatlanadi, shuning uchun 15Hz soya ko'zga ilinmaydi — lekin har freym
 // butun sahnani soya-o'tishда qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
-function ShadowThrottle() {
+function ShadowThrottle({ every }: { every: number }) {
   const gl = useThree((s) => s.gl);
   const f = useRef(0);
   useEffect(() => {
@@ -32,7 +35,25 @@ function ShadowThrottle() {
   }, [gl]);
   useFrame((state) => {
     updateFrustum(state.camera); // perf culling — har agent shundan foydalanadi
-    if (f.current++ % 4 === 0) gl.shadowMap.needsUpdate = true;
+    if (f.current++ % every === 0) gl.shadowMap.needsUpdate = true;
+  });
+  return null;
+}
+
+// Kamera tanlangan agentni kuzatadi (sozlamada yoqilsa). OrbitControls nishonini
+// silliq surib boramiz — foydalanuvchi aylantirish/masshtabni baribir boshqaradi.
+function CameraFollow() {
+  const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update(): void } | null;
+  const follow = useSettings((s) => s.followSelected);
+  const selectedId = useOffice((s) => s.selectedId);
+  useFrame((_, delta) => {
+    if (!follow || selectedId == null || !controls) return;
+    const p = presenceOf(selectedId); // jonli joylashuv (presence reyestri)
+    if (!p) return;
+    const k = 1 - Math.exp(-3 * Math.min(delta, 0.05));
+    controls.target.x += (p.x - controls.target.x) * k;
+    controls.target.z += (p.z - controls.target.z) * k;
+    controls.update();
   });
   return null;
 }
@@ -93,6 +114,7 @@ export default function App() {
   const select = useOffice((s) => s.select);
   const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
+  const quality = useSettings((s) => s.quality);
 
   // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
   // yasamasin). Faqat o'rindiqlar to'plami o'zgarganda yangilanadi.
@@ -118,16 +140,17 @@ export default function App() {
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
         shadows
-        dpr={1}
+        dpr={dprFor(quality)}
         gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
-        <ShadowThrottle />
+        <ShadowThrottle every={shadowEvery(quality)} />
         {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>
             <OrthographicCamera makeDefault position={[34, 27, 34]} zoom={20} near={-300} far={800} />
-            <OrbitControls enabled={!dragging} target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
+            <OrbitControls makeDefault enabled={!dragging} target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
+            <CameraFollow />
           </>
         ) : (
           <FirstPersonView />

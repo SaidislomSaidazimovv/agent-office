@@ -11,6 +11,7 @@ import PixelPerson from "./PixelPerson";
 import { contactShadowMat, SHADOW_PLANE } from "./resources";
 import { type CharSkin, characterFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
+import { useSettings } from "../settings";
 
 // ── Agent personaji (dunyo darajasida, navigatsiya bilan) ────
 // Ishlaganda stolda o'tiradi; bo'sh (idle) turganda ofis bo'ylab sayr
@@ -26,6 +27,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const roleLabel = t(`role.${roleKeyFor(agent.role, agent.seatIndex)}` as Key);
   const select = useOffice((s) => s.select);
   const selected = useOffice((s) => s.selectedId === agent.id);
+  const showLabels = useSettings((s) => s.showLabels);
   const color = STATUS_COLOR[agent.status];
   const tok = tokenBar(agent.inputTokens, agent.contextWindow);
 
@@ -101,8 +103,16 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     const dt = Math.min(delta, 0.05);
     const g = group.current;
     if (!g) return;
-    const desiredSit = statusRef.current !== "idle";
+    // Sozlamalarni HAR FREYM store'dan o'qiymiz (reaktiv obuna emas — o'zgarish
+    // darhol ta'sir qiladi, lekin qayta render qilinmaydi).
+    const cfg = useSettings.getState();
+    // Sayr o'chirilgan bo'lsa — bo'sh agent ham stolida qoladi.
+    const desiredSit = statusRef.current !== "idle" || !cfg.wander;
     const p = pos.current;
+
+    // Uchrashuvlar o'chirilgan bo'lsa — boshlanganini ham tozalaymiz (yarim
+    // yo'lda qotib qolmasin) va yangisini izlamaymiz.
+    if (!cfg.social && meetingOf(agent.id)) { clearMeeting(agent.id); metAt.current = 0; }
 
     // Rejim o'zgarsa — joriy tugunga yetib qayta rejalaymiz (uzoq aylanmasin)
     if (desiredSit !== prevDesired.current) {
@@ -118,7 +128,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     // Ijtimoiy izlash — HAR freym (sayr davomida ham). Cooldown tugagach bo'sh
     // sherik topilsa, joriy yo'lni tashlab hub'ga yo'naladi (keyingi freym
     // meet-tarmog'i boshqaradi). Aks holda tez-tez qayta urinadi.
-    if (!desiredSit && !meetingOf(agent.id)) {
+    if (!desiredSit && cfg.social && !meetingOf(agent.id)) {
       if (seekCd.current > 0) seekCd.current -= dt;
       else {
         const m = seekMeeting(agent.id, p.x, p.z, performance.now() / 1000);
@@ -330,7 +340,9 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       )}
 
       {/* Yorliq — tanlanganda to'liq, aks holda IXCHAM (ko'p agentda ustma-ust
-          bo'lmasin: faqat nuqta + nom). */}
+          bo'lmasin: faqat nuqta + nom). Sozlamada o'chirilsa — ko'rinmaydi
+          (ruxsat/sub-agent pufaklari esa signal, ular baribir chiqadi). */}
+      {showLabels && (
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
         {selected ? (
           <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
@@ -349,6 +361,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           </div>
         )}
       </Html>
+      )}
     </group>
   );
 }
