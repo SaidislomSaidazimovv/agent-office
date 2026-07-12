@@ -12,6 +12,7 @@ import { formatSubagent, permissionDelayFor } from "../extension/server/stateAct
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
+import { matchAgents } from "../webview-ui/src/search.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -636,6 +637,24 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Agent qidiruvi:");
+test("matchAgents: papka nomi boshidan mos → yuqorida; rol/tool/holat ham topiladi", () => {
+  const list = [
+    { id: 1, folderName: "web-shop", roleLabel: "Frontend", statusLabel: "Ishlamoqda", toolLabel: "Edit cart.tsx" },
+    { id: 2, folderName: "api", roleLabel: "Backend", statusLabel: "Bloklangan", toolLabel: "Bash npm test" },
+    { id: 3, folderName: "shop-admin", roleLabel: "QA / Review", statusLabel: "Kutmoqda" },
+  ];
+  const byFolder = matchAgents(list, "shop");
+  assert.equal(byFolder.length, 2, "ikkala 'shop' topilishi kerak");
+  assert.equal(byFolder[0].id, 3, "nomi 'shop' bilan BOSHLANGANI yuqorida");
+  assert.deepEqual(matchAgents(list, "backend").map((a) => a.id), [2], "rol bo'yicha");
+  assert.deepEqual(matchAgents(list, "cart").map((a) => a.id), [1], "joriy tool bo'yicha");
+  assert.deepEqual(matchAgents(list, "blok").map((a) => a.id), [2], "holat bo'yicha");
+  assert.equal(matchAgents(list, "yo'q").length, 0, "mos kelmasa — bo'sh");
+  assert.equal(matchAgents(list, "  ").length, 3, "bo'sh so'rov → hammasi, tartib saqlanadi");
+  assert.deepEqual(matchAgents(list, "API").map((a) => a.id), [2], "registrga sezgir emas");
 });
 
 console.log("Emotsiyalar (har biri KUZATILGAN holatdan):");

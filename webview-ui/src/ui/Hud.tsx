@@ -9,6 +9,7 @@ import { type Key, translate, useLang, useT } from "../i18n";
 import { useSettings } from "../settings";
 import { useOffice } from "../store";
 import { send } from "../transport";
+import AgentSearch from "./AgentSearch";
 import Dashboard from "./Dashboard";
 import SettingsPanel from "./SettingsPanel";
 import Tour, { useTour } from "./Tour";
@@ -182,6 +183,8 @@ export default function Hud() {
         {/* Ovoz + kun/tun endi FAQAT sozlamalar panelida (⚙) */}
         {/* Sozlamalar (til + toggle'lar) */}
         <SettingsPanel />
+        {/* Agent qidiruvi — ko'p agent bo'lganda chiplar sig'maydi */}
+        {order.length > 1 && <AgentSearch />}
         {/* Faoliyat tasmasi toggle */}
         <button
           onClick={() => setFeed((f) => !f)}

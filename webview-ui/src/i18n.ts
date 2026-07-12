@@ -162,6 +162,11 @@ const dict = {
   "rep.activeTime": { uz: "Faol vaqt", ru: "Активное время", en: "Active time" },
   "rep.share": { uz: "Ulush", ru: "Доля", en: "Share" },
   "rep.footer": { uz: "Taxminiy — rasmiy Claude narxlari. Agent Office faqat kuzatadi, hech narsani boshqarmaydi.", ru: "Примерно — офиц. цены Claude. Agent Office только наблюдает и ничем не управляет.", en: "Estimate — official Claude prices. Agent Office only observes; it controls nothing." },
+  // Agent qidiruvi
+  "search.open": { uz: "Agent qidirish", ru: "Поиск агента", en: "Find an agent" },
+  "search.placeholder": { uz: "Papka, rol, holat yoki tool…", ru: "Папка, роль, статус или инструмент…", en: "Folder, role, status or tool…" },
+  "search.none": { uz: "Mos agent topilmadi", ru: "Агент не найден", en: "No matching agent" },
+  "search.hint": { uz: "↑↓ tanlash · Enter — ochish · Esc — yopish", ru: "↑↓ выбор · Enter — открыть · Esc — закрыть", en: "↑↓ to move · Enter to open · Esc to close" },
   // Kirish qo'llanmasi (onboarding)
   "tour.title": { uz: "Kirish qo'llanmasi", ru: "Знакомство", en: "Getting started" },
   "tour.next": { uz: "Keyingi", ru: "Далее", en: "Next" },
