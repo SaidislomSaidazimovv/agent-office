@@ -37,6 +37,18 @@ function ShadowThrottle() {
   return null;
 }
 
+// Xarajat/token vaqt qatori — har 10s bir namuna (dashboard grafigi uchun).
+// Sof ma'lumot yig'ish: render ham, 3D ham yo'q.
+function CostSampler() {
+  const sample = useOffice((s) => s.sample);
+  useEffect(() => {
+    sample(); // darrov birinchi nuqta
+    const t = setInterval(sample, 10000);
+    return () => clearInterval(t);
+  }, [sample]);
+  return null;
+}
+
 // Debug/galereya rejimlari (o'zim tekshirish uchun)
 const Q = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
 const GALLERY = Q.has("gallery");
@@ -135,6 +147,7 @@ export default function App() {
         })}
         {PERF_ENABLED && <PerfProbe />}
       </Canvas>
+      <CostSampler />
       <Hud />
       {PERF_ENABLED && <PerfOverlay />}
     </div>

@@ -519,6 +519,33 @@ test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   assert.equal(useOffice.getState().agents[202].status, "working", "tozalansa asl status");
 });
 
+console.log("Xarajat vaqt qatori (dashboard grafigi uchun):");
+test("sample(): agent yo'q → namuna yo'q; agentlar bor → JORIY jami yoziladi", () => {
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+  // Agent yo'q — grafikni bo'sh nollar bilan to'ldirmasligi kerak.
+  useOffice.getState().sample();
+  assert.equal(useOffice.getState().samples.length, 0, "agent yo'q — namuna olinmasligi kerak");
+
+  const s = useOffice.getState();
+  s.addAgent({ id: 300, folderName: "p" });
+  s.addAgent({ id: 301, folderName: "p" });
+  const a = useOffice.getState().agents;
+  useOffice.setState({
+    agents: {
+      300: { ...a[300], costUsd: 1.5, inputTokens: 1000, outputTokens: 200, active: true },
+      301: { ...a[301], costUsd: 0.5, inputTokens: 300, outputTokens: 50, active: false },
+    },
+  });
+  useOffice.getState().sample();
+  const smp = useOffice.getState().samples;
+  assert.equal(smp.length, 1, "bitta namuna bo'lishi kerak");
+  assert.ok(Math.abs(smp[0].cost - 2.0) < 1e-9, "jami xarajat 2.0 bo'lishi kerak");
+  assert.equal(smp[0].inTok, 1300, "jami kirish tokeni 1300");
+  assert.equal(smp[0].outTok, 250, "jami chiqish tokeni 250");
+  assert.equal(smp[0].active, 1, "faqat 1 agent faol");
+  useOffice.setState({ agents: {}, order: [], samples: [] }); // keyingi testlarga toza qoldiramiz
+});
+
 console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");
 test("band overflow stol bloklangan; BO'SH o'rindiq fantom devor yasamaydi", () => {
   setActiveSeats([0, 5, 13]); // faqat shu o'rindiqlar band

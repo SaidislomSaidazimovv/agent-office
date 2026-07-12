@@ -99,10 +99,30 @@ function computeStatus(a: AgentView): AgentStatus {
 
 export type CameraMode = "iso" | "fpv";
 
+// ── Xarajat/token vaqt qatori (dashboard grafigi uchun) ──────
+// MUAMMO: store faqat JORIY jamini biladi — "vaqt bo'yicha xarajat" grafigi
+// uchun TARIX kerak, u esa yo'q edi. YECHIM: davriy namuna olish (ring buffer).
+// Bu HAQIQIY o'lchangan ma'lumot — hech narsa to'qib chiqarilmaydi.
+export interface CostSample {
+  /** Namuna olingan payt (ms). */
+  t: number;
+  /** Jami taxminiy xarajat ($) — shu paytдa. */
+  cost: number;
+  /** Jami kirish / chiqish tokenlari. */
+  inTok: number;
+  outTok: number;
+  /** Shu paytдa faol agentlar soni. */
+  active: number;
+}
+/** ~1 soat (10s oralig'ida 360 namuna). Ring buffer — eskisi tushib ketadi. */
+const MAX_SAMPLES = 360;
+
 interface OfficeState {
   agents: Record<number, AgentView>;
   order: number[];
   events: OfficeEvent[];
+  /** Xarajat/token vaqt qatori (10s'da bir namuna). */
+  samples: CostSample[];
   selectedId: number | null;
   movingId: number | null;
   seatCount: number;
@@ -114,6 +134,9 @@ interface OfficeState {
   gitRepos: Record<string, { branch?: string; changed: number }>;
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
+
+  /** Joriy jamini vaqt qatoriga yozadi (10s'da bir marta chaqiriladi). */
+  sample(): void;
 
   addAgent(meta: { id: number; folderName?: string; role?: string; task?: string; isExternal?: boolean }): void;
   removeAgent(id: number): void;
@@ -173,6 +196,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   agents: {},
   order: [],
   events: [],
+  samples: [],
   selectedId: null,
   movingId: null,
   seatCount: SEAT_COUNT,
@@ -285,6 +309,27 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a || a.role === role) return;
     // Rol o'zgardi → ko'rinish (skin) + yorliq avtomatik yangilanadi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, role } } }));
+  },
+
+  sample() {
+    const s = get();
+    // Agent yo'q bo'lsa namuna olmaymiz — grafikni bo'sh nollar bilan
+    // to'ldirmaslik uchun (aks holda "0$" tekislik cho'ziladi).
+    if (s.order.length === 0) return;
+    let cost = 0, inTok = 0, outTok = 0, active = 0;
+    for (const id of s.order) {
+      const a = s.agents[id];
+      if (!a) continue;
+      cost += a.costUsd;
+      inTok += a.inputTokens;
+      outTok += a.outputTokens;
+      if (a.active) active++;
+    }
+    const smp: CostSample = { t: Date.now(), cost, inTok, outTok, active };
+    set((st) => {
+      const next = [...st.samples, smp];
+      return { samples: next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next };
+    });
   },
 
   toolDone(id) {
