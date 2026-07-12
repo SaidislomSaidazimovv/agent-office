@@ -124,6 +124,11 @@
           "type": "boolean",
           "default": true,
           "description": "Agent ruxsat so'raganda yoki bloklanganda (xato) VS Code bildirishnomasini ko'rsatish."
+        },
+        "agent-office.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Status barда agentlar sonini va e'tibor kutayotganlarini ko'rsatish (ofis paneli yopiq bo'lsa ham)."
         }
       }
     }

@@ -8,6 +8,7 @@ import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
+import { needsAttention, newlyStuck, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { formatSubagent, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
@@ -637,6 +638,39 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("E'tibor (status bar + tiqilib qolish):");
+test("summarize + statusText: tinch holatda toza, e'tibor kerak bo'lsa nishon qo'shiladi", () => {
+  const calm = summarize([
+    { id: 1, permissionActive: false, blocked: false },
+    { id: 2, permissionActive: false, blocked: false },
+  ]);
+  assert.deepEqual(calm, { total: 2, waiting: 0, blocked: 0 });
+  assert.equal(statusText(calm), "$(organization) 2", "tinch holatda faqat sanoq");
+  assert.equal(needsAttention(calm), false);
+
+  const busy = summarize([
+    { id: 1, permissionActive: true, blocked: false },
+    { id: 2, permissionActive: false, blocked: true },
+    { id: 3, permissionActive: false, blocked: false },
+  ]);
+  assert.deepEqual(busy, { total: 3, waiting: 1, blocked: 1 });
+  assert.equal(statusText(busy), "$(organization) 3 $(bell) 1 $(error) 1");
+  assert.equal(needsAttention(busy), true, "sariq fon kerak");
+});
+test("newlyStuck: faqat 3 daqiqadan oshganlar, va faqat BIR marta", () => {
+  const now = 1_000_000;
+  const since = new Map<number, number>([
+    [1, now - STUCK_MS - 1000], // oshgan
+    [2, now - 30_000],          // hali yosh
+    [3, now - STUCK_MS],        // aynan chegara
+  ]);
+  const already = new Set<number>();
+  const first = newlyStuck(since, already, now);
+  assert.deepEqual(first.sort(), [1, 3], "chegaraga yetgan ham hisoblanadi");
+  first.forEach((id) => already.add(id));
+  assert.deepEqual(newlyStuck(since, already, now), [], "takroriy ogohlantirish yo'q");
 });
 
 console.log("Agent qidiruvi:");

@@ -5,6 +5,7 @@ import type { AgentStatus } from "../store";
 // topilmaydi. Agent "xursand" yoki "charchagan" emas; u BLOKLANGAN, KONTEKSTI
 // TO'LGAN, UZOQ O'YLAYAPTI yoki ISHNI TUGATDI. Har birining manbasi:
 //   😖 blocked  → tool xato natija qaytardi (transkript: is_error)
+//   🙋 stuck    → 3+ daqiqadan beri ruxsat kutmoqda (extension o'lchaydi)
 //   🥵 hot      → kirish tokenlari kontekst oynasining 85%+ ini egalladi
 //   🤔 think    → 25s+ uzluksiz "thinking" holatida
 //   😌 done     → ish/o'ylash tugab, bo'sh holatga o'tdi
@@ -26,16 +27,19 @@ export interface EmoteInput {
   /** Uchrashuv emotsiyasi (bo'lsa — eng ustuvor: agent hozir gaplashyapti). */
   meeting?: string;
   status: AgentStatus;
+  /** 3+ daqiqadan beri ruxsat kutmoqda — SIZNING javobingiz kerak. */
+  stuck?: boolean;
   /** Kontekst yaqinda 85% dan oshdi (vaqtinchalik). */
   hot?: boolean;
   /** Taymer bilan qo'yilgan emotsiya (🤔 uzoq o'ylash / 😌 tugatdi). */
   timed?: string;
 }
 
-/** Ustuvorlik: uchrashuv → bloklangan → kontekst to'ldi → taymerli. */
+/** Ustuvorlik: uchrashuv → bloklangan → uzoq kutmoqda → kontekst to'ldi → taymerli. */
 export function emoteFor(o: EmoteInput): string {
   if (o.meeting) return o.meeting;
   if (o.status === "blocked") return "😖";
+  if (o.stuck) return "🙋"; // qo'l ko'targan — "meni unutdingiz"
   if (o.hot) return "🥵";
   return o.timed || "";
 }

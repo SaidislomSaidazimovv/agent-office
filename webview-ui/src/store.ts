@@ -27,6 +27,8 @@ export interface AgentView {
   awaitingInput: boolean;
   permission: boolean;
   blocked: boolean;
+  /** Ruxsatni JUDA uzoq (3+ daqiqa) kutmoqda — e'tibordan chetda qolgan. */
+  stuck: boolean;
   reading: boolean;
   toolLabel?: string;
   activeToolCount: number;
@@ -162,6 +164,7 @@ interface OfficeState {
   clearTools(id: number): void;
   setPermission(id: number, on: boolean): void;
   setBlocked(id: number, on: boolean): void;
+  setStuck(id: number, on: boolean): void;
   addSubagent(id: number, key: string, info?: { label?: string; kind?: string }): void;
   clearSubagent(id: number, key: string): void;
   setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
@@ -244,6 +247,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         awaitingInput: false,
         permission: false,
         blocked: false,
+        stuck: false,
         reading: false,
         activeToolCount: 0,
         subagents: [],
@@ -292,7 +296,8 @@ export const useOffice = create<OfficeState>((set, get) => ({
           active,
           awaitingInput,
           ...touchActive(a, active, Date.now()),
-          ...(active ? {} : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false }),
+          // Yangi navbat boshlandi → ruxsat kutish (va "tiqilib qolgan" holati) tugadi.
+          ...(active ? { stuck: false } : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false, stuck: false }),
         }),
       },
     }));
@@ -390,6 +395,15 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set((s) => ({
       agents: { ...s.agents, [id]: recompute({ ...a, blocked: on }) },
       events: on ? pushEvent(s.events, a.folderName, "#ff453a", { key: "event.blocked" }) : s.events,
+    }));
+  },
+
+  setStuck(id, on) {
+    const a = get().agents[id];
+    if (!a || a.stuck === on) return;
+    set((s) => ({
+      agents: { ...s.agents, [id]: { ...a, stuck: on } },
+      events: on ? pushEvent(s.events, a.folderName, "#ff9f0a", { key: "event.stuck" }) : s.events,
     }));
   },
 

@@ -17,6 +17,7 @@ export type ServerMessage =
   | AgentToolPermission
   | AgentToolPermissionClear
   | AgentBlocked
+  | AgentStuck
   | AgentRoleDetected
   | SubagentToolStart
   | SubagentToolDone
@@ -135,6 +136,12 @@ export interface AgentBlocked {
   type: "agentBlocked";
   id: number;
   blocked: boolean;
+}
+/** Agent JUDA uzoq (STUCK_MS) ruxsat kutmoqda — e'tibordan chetda qolgan. */
+export interface AgentStuck {
+  type: "agentStuck";
+  id: number;
+  stuck: boolean;
 }
 export interface AgentRoleDetected {
   type: "agentRoleDetected";

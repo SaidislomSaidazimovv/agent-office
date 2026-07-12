@@ -96,6 +96,7 @@ const dict = {
   "event.left": { uz: "ofisdan chiqdi", ru: "покинул офис", en: "left the office" },
   "event.permission": { uz: "ruxsat so'radi 🔔", ru: "запросил разрешение 🔔", en: "requested permission 🔔" },
   "event.blocked": { uz: "bloklandi (xato) ⛔", ru: "заблокирован (ошибка) ⛔", en: "blocked (error) ⛔" },
+  "event.stuck": { uz: "3 daqiqadan beri ruxsat kutmoqda 🙋", ru: "ждёт разрешения уже 3 минуты 🙋", en: "has been waiting for approval for 3 minutes 🙋" },
   "event.helperDone": { uz: "yordamchi tugatdi ✓", ru: "помощник завершил ✓", en: "helper finished ✓" },
   "event.subHire": { uz: "sub-agent yolladi 🔧", ru: "нанял саб-агента 🔧", en: "hired a sub-agent 🔧" },
   // Agent pufaklari

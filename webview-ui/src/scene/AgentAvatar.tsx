@@ -342,7 +342,16 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   });
 
   // Ko'rsatiladigan yagona emotsiya (ustuvorlik bilan).
-  const face = emoteFor({ meeting: emote, status: agent.status, hot, timed });
+  const face = emoteFor({ meeting: emote, status: agent.status, stuck: agent.stuck, hot, timed });
+  // ── Boshdagi qatlamlar ZINASI ────────────────────────────────
+  // Yorliq → ruxsat pufagi → "yordamchi yolladi" pufagi → emoji. Har biri
+  // pastdagisining ustidan chiqadi. Avval barchasi qat'iy balandlikda edi va
+  // ular bir-birini yopib qo'yardi (ruxsat pufagi rol yorlig'ini, 🙋 esa ruxsat
+  // pufagini). Tanlangan agentning yorlig'i balandroq — shuni ham hisobga olamiz.
+  const labelTop = selected ? 2.55 : 2.28;
+  const permY = labelTop + 0.3;
+  const hireY = (agent.permission ? permY : labelTop) + 0.34;
+  const faceY = (hiring ? hireY : agent.permission ? permY : labelTop) + 0.52;
 
   return (
     <group ref={group} position={[sit.current.x, 0, sit.current.z]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
@@ -389,24 +398,23 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 
       {/* Emotsiya — uchrashuv imo-ishorasi yoki holat belgisi (😖 🥵 🤔 😌).
           Ustuvorlik emotes.ts'da; hech biri o'ylab topilmagan. */}
-      {/* Balandligi yorliqqa qarab: tanlanganda yorliq baland (3 qatorli) →
-          emoji uning ustidan chiqadi, ustiga tushmaydi. */}
+      {/* Balandligi yorliq/pufaklarga qarab (faceY) — hech qachon ustma-ust tushmaydi. */}
       {face && (
-        <Html position={[0, selected ? 3.02 : 2.62, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, faceY, 0]} center style={{ pointerEvents: "none" }}>
           <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
         </Html>
       )}
 
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
       {hiring && (
-        <Html position={[0, 2.62, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, hireY, 0]} center style={{ pointerEvents: "none" }}>
           <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ffd60a", color: "#1a1500", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.subHire")}</div>
         </Html>
       )}
 
       {/* Ruxsat pufagi */}
       {agent.permission && (
-        <Html position={[0, 2.35, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, permY, 0]} center style={{ pointerEvents: "none" }}>
           <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.permission")}</div>
         </Html>
       )}

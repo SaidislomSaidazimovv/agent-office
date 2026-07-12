@@ -2,8 +2,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { newlyStuck, STUCK_MS } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
+import { OfficeStatusBar } from "./statusBar.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
 import { gitInfoForPath } from "./gitInfo.js";
@@ -33,6 +35,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
+  private statusBar = new OfficeStatusBar();
   readonly log = vscode.window.createOutputChannel("Agent Office");
 
   private logMsg(m: string): void {
@@ -62,7 +65,70 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       this.logBroadcast(msg);
       this.sendOrBuffer(msg);
       this.maybeNotify(msg);
+      this.trackAttention(msg);
+      this.refreshStatusBar();
     });
+    this.store.on("agentAdded", () => this.refreshStatusBar());
+    this.store.on("agentRemoved", (id: number) => {
+      this.waitingSince.delete(id);
+      this.stuck.delete(id);
+      this.refreshStatusBar();
+    });
+    // "Tiqilib qolgan" tekshiruvi — arzon (30s'da bir marta, faqat sanoq).
+    this.stuckTimer = setInterval(() => this.checkStuck(), 30_000);
+  }
+
+  // ── E'tibor: kim, qachondan beri kutmoqda ──
+  // Ruxsat holati bir necha joyda o'rnatiladi (transcript taymeri, hook), shuning
+  // uchun uni BITTA joyda — broadcast oqimida kuzatamiz (parser kodiga tegmaymiz).
+  private waitingSince = new Map<number, number>();
+  private stuck = new Set<number>();
+  private stuckTimer?: ReturnType<typeof setInterval>;
+
+  private trackAttention(msg: ServerMessage): void {
+    if (msg.type === "agentToolPermission") {
+      if (!this.waitingSince.has(msg.id)) this.waitingSince.set(msg.id, Date.now());
+      return;
+    }
+    // Ruxsat tozalandi / yangi navbat boshlandi → kutish tugadi
+    const cleared =
+      msg.type === "agentToolPermissionClear" ||
+      msg.type === "agentToolsClear" ||
+      (msg.type === "agentStatus" && msg.status === "active");
+    if (!cleared) return;
+    const id = (msg as { id: number }).id;
+    this.waitingSince.delete(id);
+    if (this.stuck.delete(id)) this.sendOrBuffer({ type: "agentStuck", id, stuck: false });
+  }
+
+  private checkStuck(): void {
+    const now = Date.now();
+    for (const id of newlyStuck(this.waitingSince, this.stuck, now)) {
+      const a = this.store.get(id);
+      if (!a?.permissionActive) { this.waitingSince.delete(id); continue; } // holat o'zgargan
+      this.stuck.add(id);
+      this.sendOrBuffer({ type: "agentStuck", id, stuck: true });
+      this.logMsg(`  #${id} ${Math.round(STUCK_MS / 60000)} daqiqadan beri ruxsat kutmoqda`);
+      // Eskalatsiya — panel ochiq bo'lsa ham (3 daqiqa e'tiborsiz qolgan).
+      if (vscode.workspace.getConfiguration("agent-office").get<boolean>("notifications", true)) {
+        void vscode.window
+          .showWarningMessage(`Agent Office — ${a.folderName}: ${Math.round(STUCK_MS / 60000)} daqiqadan beri ruxsat kutmoqda 🙋`, "Ko'rsatish")
+          .then((pick) => { if (pick === "Ko'rsatish") this.manager.focusAgent(id); });
+      }
+    }
+    this.refreshStatusBar();
+  }
+
+  private refreshStatusBar(): void {
+    this.statusBar.update(
+      this.store.values().map((a) => ({
+        id: a.id,
+        folderName: a.folderName,
+        permissionActive: a.permissionActive,
+        blocked: a.blocked,
+        stuck: this.stuck.has(a.id),
+      })),
+    );
   }
 
   /** Ruxsat/blok holatlarida VS Code toast bildirishnomasi (sozlanadi,
@@ -367,6 +433,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     for (const a of agents) {
       for (const msg of agentSnapshotMessages(a)) this.post(msg);
     }
+    // "Tiqilib qolgan" — provider darajasidagi holat (AgentState'da emas), shuning
+    // uchun snapshot'dan keyin alohida qayta yuboriladi.
+    for (const id of this.stuck) this.post({ type: "agentStuck", id, stuck: true });
     // Snapshot joriy holatni to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];
   }
@@ -398,6 +467,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   dispose(): void {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     if (this.gitTimer) clearInterval(this.gitTimer);
+    if (this.stuckTimer) clearInterval(this.stuckTimer);
+    this.statusBar.dispose();
     this.watcher.stop();
     this.manager.dispose();
     this.hookServer.stop();
