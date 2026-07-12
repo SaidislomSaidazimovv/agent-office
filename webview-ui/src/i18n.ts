@@ -162,6 +162,12 @@ const dict = {
   "rep.activeTime": { uz: "Faol vaqt", ru: "Активное время", en: "Active time" },
   "rep.share": { uz: "Ulush", ru: "Доля", en: "Share" },
   "rep.footer": { uz: "Taxminiy — rasmiy Claude narxlari. Agent Office faqat kuzatadi, hech narsani boshqarmaydi.", ru: "Примерно — офиц. цены Claude. Agent Office только наблюдает и ничем не управляет.", en: "Estimate — official Claude prices. Agent Office only observes; it controls nothing." },
+  // Surat / klip eksporti
+  "cap.open": { uz: "Surat yoki klip", ru: "Снимок или клип", en: "Snapshot or clip" },
+  "cap.png": { uz: "Rasm (PNG)", ru: "Изображение (PNG)", en: "Image (PNG)" },
+  "cap.clip": { uz: "Klip — 6s (WebM)", ru: "Клип — 6с (WebM)", en: "Clip — 6s (WebM)" },
+  "cap.stop": { uz: "Yozishni to'xtatish", ru: "Остановить запись", en: "Stop recording" },
+  "cap.hint": { uz: "O'zingiz tanlagan joyga saqlanadi — hech qayerga jo'natilmaydi.", ru: "Сохраняется туда, куда вы укажете — никуда не отправляется.", en: "Saved where you choose — never sent anywhere." },
   // Agent qidiruvi
   "search.open": { uz: "Agent qidirish", ru: "Поиск агента", en: "Find an agent" },
   "search.placeholder": { uz: "Papka, rol, holat yoki tool…", ru: "Папка, роль, статус или инструмент…", en: "Folder, role, status or tool…" },

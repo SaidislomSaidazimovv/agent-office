@@ -38,6 +38,12 @@ Office-polish work toward the next release (not yet published).
   the generic label stays.
 - **Emotions with a cause** — 😖 a tool errored · 🥵 the context window passed 85% ·
   🤔 25s+ of unbroken thinking · 😌 a work burst just ended.
+- **A six-step tour** on first open, replayable from ⚙ Settings.
+- **Agent search (🔍 or `/`)** — find an agent by folder, role, status or current tool;
+  Enter jumps to its terminal.
+- **Snapshot & clip export (📸)** — a PNG of the current frame, or a 6-second WebM of
+  the office. Saved only where you choose; nothing is ever uploaded. (WebM rather than
+  GIF: the browser encodes it natively, so no extra dependency and a smaller file.)
 
 ### Changed
 

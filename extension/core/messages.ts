@@ -35,7 +35,16 @@ export type ClientMessage =
   | FocusAgent
   | CloseAgent
   | SetSoundEnabled
-  | SaveLayout;
+  | SaveLayout
+  | SaveMedia;
+
+/** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
+export interface SaveMedia {
+  type: "saveMedia";
+  kind: "png" | "webm";
+  /** base64 (data: prefiksisiz). */
+  data: string;
+}
 
 export type AgentActivityStatus = "active" | "waiting";
 

@@ -141,7 +141,9 @@ export default function App() {
       <Canvas
         shadows
         dpr={dprFor(quality)}
-        gl={{ antialias: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
+        // preserveDrawingBuffer — 📸 surat olish uchun shart (aks holda toDataURL
+        // bo'sh kadr qaytaradi). Narxi kichik: bufer freym oxirida tozalanmaydi.
+        gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
         <ShadowThrottle every={shadowEvery(quality)} />

@@ -10,6 +10,7 @@ import { useSettings } from "../settings";
 import { useOffice } from "../store";
 import { send } from "../transport";
 import AgentSearch from "./AgentSearch";
+import CaptureButton from "./CaptureButton";
 import Dashboard from "./Dashboard";
 import SettingsPanel from "./SettingsPanel";
 import Tour, { useTour } from "./Tour";
@@ -185,6 +186,8 @@ export default function Hud() {
         <SettingsPanel />
         {/* Agent qidiruvi — ko'p agent bo'lganda chiplar sig'maydi */}
         {order.length > 1 && <AgentSearch />}
+        {/* Surat / klip */}
+        <CaptureButton />
         {/* Faoliyat tasmasi toggle */}
         <button
           onClick={() => setFeed((f) => !f)}

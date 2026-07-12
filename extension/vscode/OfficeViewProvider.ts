@@ -245,6 +245,31 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "saveLayout":
         this.saveLayout(msg.items, msg.floorColor ?? null, msg.wallColor ?? null, msg.packs ?? []);
         break;
+      case "saveMedia":
+        void this.saveMedia(msg.kind, msg.data);
+        break;
+    }
+  }
+
+  /** Ofis surati/klipi — FOYDALANUVCHI tanlagan joyga (saqlash oynasi). Sukut
+   *  bo'yicha hech qayerga yozilmaydi va hech qayerga yuborilmaydi. */
+  private async saveMedia(kind: "png" | "webm", data: string): Promise<void> {
+    // Faqat base64 belgilariga ruxsat — buzuq/xavfli kirish yozilmasin.
+    if (typeof data !== "string" || !/^[A-Za-z0-9+/=]+$/.test(data) || data.length > 80_000_000) return;
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const name = `agent-office-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${kind}`;
+    const dir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(path.join(dir, name)),
+      filters: kind === "png" ? { Image: ["png"] } : { Video: ["webm"] },
+    });
+    if (!uri) return; // foydalanuvchi bekor qildi
+    try {
+      fs.writeFileSync(uri.fsPath, Buffer.from(data, "base64"));
+      vscode.window.showInformationMessage(`Agent Office: ${path.basename(uri.fsPath)}`);
+    } catch (e) {
+      vscode.window.showErrorMessage(`Agent Office: ${(e as Error).message}`);
     }
   }
 
