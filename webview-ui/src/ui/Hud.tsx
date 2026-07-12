@@ -11,6 +11,7 @@ import { useOffice } from "../store";
 import { send } from "../transport";
 import Dashboard from "./Dashboard";
 import SettingsPanel from "./SettingsPanel";
+import Tour, { useTour } from "./Tour";
 
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
 
@@ -50,6 +51,7 @@ export default function Hud() {
   const setEditMode = useLayout((s) => s.setEditMode);
   const budgetUsd = useSettings((s) => s.budgetUsd);
   const showCost = useSettings((s) => s.showCost);
+  const tour = useTour();
   const notifyEvent = useOffice((s) => s.notifyEvent);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
@@ -198,6 +200,7 @@ export default function Hud() {
         {/* Analitika dashboard */}
         <button
           onClick={() => setDash((d) => !d)}
+          data-tour="dash"
           aria-label={t("dash.open")}
           aria-pressed={dash}
           title={t("dash.open")}
@@ -251,6 +254,7 @@ export default function Hud() {
       {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) */}
       {order.length > 0 && (
         <div
+          data-tour="agents"
           style={{
             position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
             display: "flex", gap: 6, maxWidth: "60vw", overflowX: "auto", padding: 4, pointerEvents: "auto",
@@ -320,7 +324,7 @@ export default function Hud() {
       {editMode && cameraMode === "iso" && <LayoutEditor />}
 
       {/* Kamera maslahati (rejimga qarab) */}
-      <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
+      <div data-tour="camera" style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", padding: "6px 14px", borderRadius: 10, background: "rgba(16,20,27,0.85)", color: "#c9d0da", fontSize: 12, whiteSpace: "nowrap", opacity: 0.9 }}>
         {cameraMode === "fpv" ? t("hint.fpv") : t("hint.iso")}
       </div>
 
@@ -329,6 +333,7 @@ export default function Hud() {
         <button
           onClick={() => setMenu((m) => !m)}
           title={t("agent.addTitle")}
+          data-tour="add-agent"
           aria-label={t("agent.addTitle")}
           style={{
             padding: "7px 14px", borderRadius: 9, cursor: "pointer",
@@ -579,6 +584,9 @@ export default function Hud() {
           </div>
         </div>
       )}
+
+      {/* Kirish qo'llanmasi — birinchi ochilishda (yoki sozlamadan qayta) */}
+      {tour.open && <Tour onClose={tour.close} />}
 
       {/* Ko'chirish maslahati */}
       {movingId != null && (

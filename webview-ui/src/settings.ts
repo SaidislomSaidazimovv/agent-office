@@ -40,6 +40,8 @@ export interface SettingsValues {
   showCost: boolean;
   /** Kamera tanlangan agentni kuzatadi (App.tsx). */
   followSelected: boolean;
+  /** Kirish qo'llanmasi ko'rilganmi (Tour.tsx). Sozlamalar orqali qayta ko'rsa bo'ladi. */
+  tourDone: boolean;
 }
 
 export type BoolSetting = {
@@ -55,24 +57,29 @@ const DEFAULTS: SettingsValues = {
   social: true,
   showCost: true,
   followSelected: false,
+  tourDone: false,
 };
 
 interface SettingsState extends SettingsValues {
   setBudget(v: number): void;
   setQuality(q: Quality): void;
   toggle(key: BoolSetting): void;
+  setTourDone(v: boolean): void;
   reset(): void;
 }
 
 export const useSettings = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...DEFAULTS,
       // Manfiy / NaN kiritilsa → 0 (o'chiq). Saqlangan qiymat hech qachon yaroqsiz bo'lmaydi.
       setBudget: (v) => set({ budgetUsd: Number.isFinite(v) && v > 0 ? v : 0 }),
       setQuality: (quality) => set({ quality }),
       toggle: (key) => set((s) => ({ [key]: !s[key] }) as Pick<SettingsValues, BoolSetting>),
-      reset: () => set({ ...DEFAULTS, reducedMotion: prefersReducedMotion() }),
+      setTourDone: (tourDone) => set({ tourDone }),
+      // "Standart" qo'llanmani QAYTA ochmaydi (bezovta qilmaslik uchun) — uni
+      // sozlamalardagi alohida tugma qayta ishga tushiradi.
+      reset: () => set({ ...DEFAULTS, reducedMotion: prefersReducedMotion(), tourDone: get().tourDone }),
     }),
     { name: "agent-office.settings" },
   ),

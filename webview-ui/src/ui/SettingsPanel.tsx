@@ -23,7 +23,7 @@ export default function SettingsPanel() {
   const setSound = useOffice((s) => s.setSound);
 
   const cfg = useSettings();
-  const { budgetUsd, quality, setBudget, setQuality, toggle, reset } = cfg;
+  const { budgetUsd, quality, setBudget, setQuality, toggle, reset, setTourDone } = cfg;
   // Kiritish maydoni xom matnda ("" va "0." kabi oraliq holatlar uchun); store'ga
   // esa faqat yaroqli son yoziladi (yaroqsiz → 0 = o'chiq).
   const [budgetDraft, setBudgetDraft] = useState(budgetUsd > 0 ? String(budgetUsd) : "");
@@ -47,6 +47,7 @@ export default function SettingsPanel() {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
+        data-tour="settings"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("settings.open")}
         aria-pressed={open}
@@ -153,6 +154,14 @@ export default function SettingsPanel() {
             />
           </div>
           <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5, lineHeight: 1.35 }}>{t("budget.hint")}</div>
+
+          {/* Qo'llanmani qayta ishga tushirish */}
+          <button
+            onClick={() => { setTourDone(false); setOpen(false); }}
+            style={{ width: "100%", marginTop: 12, padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, color: "#e8ecf2", border: "1px solid rgba(255,255,255,0.12)", background: "transparent" }}
+          >
+            🎓 {t("tour.replay")}
+          </button>
         </div>
       )}
     </div>
