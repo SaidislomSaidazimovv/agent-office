@@ -31,6 +31,14 @@ Office-polish work toward the next release (not yet published).
   shadow updates). Every switch changes real behaviour, and **↺ Reset** restores the
   defaults.
 
+- **Sub-agent tree** — helpers now show what they are *actually* doing. The Task tool's
+  `description` and `subagent_type` reach the UI, so the inspector draws the parent and
+  its live helpers as a tree, the scene labels each helper with its real type, and a
+  floor link ties every helper to its parent. Nothing is invented: with no description,
+  the generic label stays.
+- **Emotions with a cause** — 😖 a tool errored · 🥵 the context window passed 85% ·
+  🤔 25s+ of unbroken thinking · 😌 a work burst just ended.
+
 ### Changed
 
 - Agent **monitor screens glow brighter at night** so desks read as lit-up in the dark.
