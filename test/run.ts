@@ -13,6 +13,7 @@ import { formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
+import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
@@ -639,6 +640,29 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Kesh samaradorligi:");
+test("cacheStats: kesh o'qish tejaydi, yozish qimmatroq; hech narsa yo'q → nol", () => {
+  // Opus: kirish $5/M, chiqish $25/M. Kesh o'qish 0.1×, yozish 1.25×.
+  const s = cacheStats("claude-opus-4-8", { input: 0, cacheWrite: 0, cacheRead: 1_000_000, output: 0 });
+  assert.ok(Math.abs(s.actual - 0.5) < 1e-9, "1M kesh o'qish = $0.50");
+  assert.ok(Math.abs(s.naive - 5) < 1e-9, "keshsiz o'sha token $5 bo'lardi");
+  assert.ok(Math.abs(s.saved - 4.5) < 1e-9, "tejam $4.50");
+  assert.ok(Math.abs(s.hit - 1) < 1e-9, "hammasi keshdan → 100%");
+
+  // Kesh yozildi, lekin O'QILMADI → tejam MANFIY (yozish 25% qimmat). Yashirmaymiz.
+  const w = cacheStats("claude-opus-4-8", { input: 0, cacheWrite: 1_000_000, cacheRead: 0, output: 0 });
+  assert.ok(w.saved < 0, "faqat yozilgan kesh — zarar");
+  assert.equal(w.hit, 0);
+
+  const zero = cacheStats("claude-opus-4-8", { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 });
+  assert.equal(zero.hit, 0, "token yo'q → 0 (nolga bo'lish yo'q)");
+  assert.equal(zero.saved, 0);
+
+  // Aralash: yarmi keshdan
+  const m = cacheStats("claude-opus-4-8", { input: 500_000, cacheWrite: 0, cacheRead: 500_000, output: 0 });
+  assert.ok(Math.abs(m.hit - 0.5) < 1e-9, "yarmi keshdan → 50%");
 });
 
 console.log("Bloklanish SABABI (xato matni):");

@@ -1,7 +1,7 @@
 import { budgetState } from "./budget";
 import { fmtDur, fmtTok, shortModel } from "./format";
 import type { Key } from "./i18n";
-import { fmtCost, PRICING_AS_OF } from "./pricing";
+import { cacheStats, fmtCost, PRICING_AS_OF } from "./pricing";
 import { roleKeyFor } from "./scene/roles";
 import type { AgentView } from "./store";
 
@@ -39,8 +39,14 @@ export function buildReport(o: ReportInput): string {
   const L = (k: string) => t(k as Key);
 
   let cost = 0, inTok = 0, outTok = 0, tools = 0, turns = 0, ms = 0, active = 0;
+  // Kesh — har agentning o'z modeli narxi bo'yicha, keyin jamlanadi.
+  let cacheRead = 0, allInput = 0, naive = 0;
   const byRole = new Map<string, number>();
   for (const a of agents) {
+    const cs = cacheStats(a.model, a.billed);
+    naive += cs.naive;
+    cacheRead += a.billed.cacheRead;
+    allInput += a.billed.input + a.billed.cacheWrite + a.billed.cacheRead;
     cost += a.costUsd;
     inTok += a.inputTokens;
     outTok += a.outputTokens;
@@ -77,6 +83,13 @@ export function buildReport(o: ReportInput): string {
     [L("dash.colTurns"), `${turns}`],
     [L("rep.activeTime"), fmtDur(ms)],
   ];
+  if (allInput > 0) {
+    const saved = naive - cost;
+    rows.push([
+      L("dash.cache"),
+      `${Math.round((cacheRead / allInput) * 100)}% · ${L("dash.cacheSaved")} ~${saved >= 0 ? fmtCost(saved) : `−${fmtCost(-saved)}`}`,
+    ]);
+  }
   if (budgetUsd > 0) {
     const b = budgetState(cost, budgetUsd);
     rows.push([L("budget.title"), `${fmtCost(cost)} / ${fmtCost(budgetUsd)} · ${Math.round(b.frac * 100)}%`]);

@@ -143,6 +143,14 @@ const dict = {
   "dash.colTools": { uz: "Tool", ru: "Инстр.", en: "Tools" },
   "dash.colActive": { uz: "Faol", ru: "Активно", en: "Active" },
   "dash.estimate": { uz: "Taxminiy — rasmiy Claude narxlari", ru: "Примерно — офиц. цены Claude", en: "Estimate — official Claude prices" },
+  // Kesh samaradorligi
+  "dash.cache": { uz: "Kesh samaradorligi", ru: "Эффективность кэша", en: "Cache efficiency" },
+  "dash.cacheHit": { uz: "Kirish tokenlarining keshdan kelgani", ru: "Доля входных токенов из кэша", en: "Input tokens served from cache" },
+  "dash.cacheSaved": { uz: "Kesh tejadi", ru: "Кэш сэкономил", en: "Cache saved" },
+  "dash.cacheNaive": { uz: "Keshsiz bo'lardi", ru: "Было бы без кэша", en: "Would cost without cache" },
+  "dash.cacheActual": { uz: "haqiqiy:", ru: "фактически:", en: "actual:" },
+  "dash.cacheNegative": { uz: "Kesh yozildi, lekin o'qilmadi (yozish 25% qimmat)", ru: "Кэш записан, но не прочитан (запись на 25% дороже)", en: "Cache was written but never read (writing costs 25% more)" },
+  "dash.byModel": { uz: "Model bo'yicha xarajat", ru: "Затраты по моделям", en: "Cost by model" },
   // Xarajat budjeti (FAQAT ogohlantirish — hech narsa to'xtatilmaydi)
   "budget.title": { uz: "Budjet", ru: "Бюджет", en: "Budget" },
   "budget.label": { uz: "Xarajat budjeti ($)", ru: "Бюджет затрат ($)", en: "Cost budget ($)" },

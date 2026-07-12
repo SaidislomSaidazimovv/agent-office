@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Key } from "./i18n";
-import { estimateCost } from "./pricing";
+import { type BilledTokens, estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
 
 // ── Sahna agent holati ───────────────────────────────────────
@@ -44,6 +44,9 @@ export interface AgentView {
   model?: string;
   /** Taxminiy sessiya xarajati ($, billing tokenlaridan hisoblangan). */
   costUsd: number;
+  /** Billing tokenlari — kesh samaradorligini hisoblash uchun SAQLANADI
+   *  (avval xarajatga aylantirilib, tashlab yuborilardi). */
+  billed: BilledTokens;
   // ── Sessiya statistikasi ──
   /** Umumiy tool chaqiruvlari (sessiya davomida). */
   toolCalls: number;
@@ -257,6 +260,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         outputTokens: 0,
         contextWindow: MAX_CONTEXT_TOKENS,
         costUsd: 0,
+        billed: { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 },
         toolCalls: 0,
         turns: 0,
         activeMs: 0,
@@ -445,10 +449,11 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const a = get().agents[id];
     if (!a) return;
     const model = cost?.model ?? a.model;
-    const costUsd = cost
-      ? estimateCost(model, { input: cost.billedInput ?? 0, cacheWrite: cost.billedCacheWrite ?? 0, cacheRead: cost.billedCacheRead ?? 0, output })
-      : a.costUsd;
-    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow, model, costUsd } } }));
+    const billed: BilledTokens = cost
+      ? { input: cost.billedInput ?? 0, cacheWrite: cost.billedCacheWrite ?? 0, cacheRead: cost.billedCacheRead ?? 0, output }
+      : a.billed;
+    const costUsd = cost ? estimateCost(model, billed) : a.costUsd;
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow, model, costUsd, billed } } }));
   },
 
   select(id) {

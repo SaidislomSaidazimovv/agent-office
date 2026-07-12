@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
-import { fmtDur, fmtTok } from "../format";
+import { fmtDur, fmtTok, shortModel } from "../format";
 import { useT } from "../i18n";
-import { fmtCost, PRICING_AS_OF } from "../pricing";
+import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
 import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
@@ -147,7 +147,8 @@ function CostChart({ samples, budget }: { samples: { t: number; cost: number }[]
 
 // ── Rol bo'yicha xarajat — gorizontal bar. Pie EMAS. Har barда to'g'ridan-to'g'ri
 //    yorliq (rol + $) → shaxsiyat faqat rangda emas (CVD floor-band talabi). ──
-function RoleBars({ rows }: { rows: { key: string; label: string; cost: number }[] }) {
+function RoleBars({ rows, colors }: { rows: { key: string; label: string; cost: number }[]; colors?: Record<string, string> }) {
+  const pal = colors ?? CAT;
   const max = Math.max(...rows.map((r) => r.cost), 0.0001);
   const BAR = 18, GAP = 8; // 2px spacer talabidan kengroq — yorliq sig'sin
   return (
@@ -157,7 +158,7 @@ function RoleBars({ rows }: { rows: { key: string; label: string; cost: number }
           <div style={{ width: 86, fontSize: 11, color: INK2, textAlign: "right", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.label}</div>
           <div style={{ flex: 1, height: BAR, position: "relative", background: "rgba(255,255,255,0.04)", borderRadius: 4 }}>
             {/* 4px yumaloq ma'lumot-uchi, asosga bog'langan */}
-            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(2, (r.cost / max) * 100)}%`, background: CAT[r.key] ?? SERIES, borderRadius: 4 }} />
+            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(2, (r.cost / max) * 100)}%`, background: pal[r.key] ?? SERIES, borderRadius: 4 }} />
           </div>
           <div style={{ width: 62, fontSize: 11, fontWeight: 600, color: INK, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtCost(r.cost)}</div>
         </div>
@@ -219,9 +220,13 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
     setTimeout(() => setCopied(false), 1800);
   };
 
-  const { totalCost, totalTok, activeN, roleRows, agentRows } = useMemo(() => {
+  const { totalCost, totalTok, activeN, roleRows, agentRows, cache, modelRows } = useMemo(() => {
     let totalCost = 0, totalTok = 0, activeN = 0;
+    // Kesh: har agentning O'Z modeli bo'yicha hisoblanadi (narxlar farq qiladi),
+    // keyin jamlanadi — umumiy o'rtacha narx bilan taxmin qilmaymiz.
+    let cacheRead = 0, allInput = 0, naive = 0, actual = 0;
     const byRole = new Map<string, number>();
+    const byModel = new Map<string, number>();
     const agentRows: { id: number; roleKey: string; cost: number; tok: number; turns: number; tools: number; ms: number }[] = [];
     const now = Date.now();
     for (const id of order) {
@@ -234,8 +239,21 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
       totalTok += tok;
       if (a.active) activeN++;
       byRole.set(rk, (byRole.get(rk) ?? 0) + a.costUsd);
+      const cs = cacheStats(a.model, a.billed);
+      naive += cs.naive;
+      actual += cs.actual;
+      cacheRead += a.billed.cacheRead;
+      allInput += a.billed.input + a.billed.cacheWrite + a.billed.cacheRead;
+      if (a.costUsd > 0) {
+        const m = a.model ? shortModel(a.model) : "—";
+        byModel.set(m, (byModel.get(m) ?? 0) + a.costUsd);
+      }
       agentRows.push({ id, roleKey: rk, cost: a.costUsd, tok, turns: a.turns, tools: a.toolCalls, ms });
     }
+    const cache = { hit: allInput > 0 ? cacheRead / allInput : 0, naive, actual, saved: naive - actual, any: allInput > 0 };
+    const modelRows = [...byModel.entries()]
+      .map(([key, cost]) => ({ key, label: key, cost }))
+      .sort((a, b) => b.cost - a.cost);
     // RANG rolga (shaxsga) qat'iy bog'langan — reytingga EMAS: CAT[key] hech
     // qachon o'zgarmaydi. QATORLAR esa kattalik bo'yicha saralanadi — bu
     // magnitude-chart uchun o'qishni osonlashtiradi va jadval bilan mos keladi.
@@ -243,8 +261,13 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
       .map((k) => ({ key: k as string, label: "", cost: byRole.get(k)! }))
       .sort((a, b) => b.cost - a.cost);
     agentRows.sort((a, b) => b.cost - a.cost);
-    return { totalCost, totalTok, activeN, roleRows, agentRows };
+    return { totalCost, totalTok, activeN, roleRows, agentRows, cache, modelRows };
   }, [agents, order]);
+
+  // Model ranglari — TARTIB bo'yicha (eng qimmatdan), tasdiqlangan kategorik palitradan.
+  const MODEL_PAL = [CAT.research, CAT.frontend, CAT.backend, CAT.qa, CAT.docs, CAT.data];
+  const modelColors: Record<string, string> = {};
+  modelRows.forEach((r, i) => { modelColors[r.key] = MODEL_PAL[i % MODEL_PAL.length]; });
 
   const roleRowsLabeled = roleRows.map((r) => ({ ...r, label: t(`role.${r.key}` as never) }));
   const empty = order.length === 0;
@@ -300,6 +323,40 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
               <>
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 9 }}>{t("dash.byRole")}</div>
                 <div style={{ marginBottom: 18 }}><RoleBars rows={roleRowsLabeled} /></div>
+              </>
+            )}
+
+            {/* Kesh samaradorligi — ma'lumot billing tokenlaridan (kesh o'qish
+                kirish narxining 10%i, yozish 125%i). Tejam MANFIY ham bo'lishi
+                mumkin (kesh yozilgan-u, o'qilmagan) — yashirmaymiz. */}
+            {cache.any && (
+              <>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 7 }}>{t("dash.cache")}</div>
+                <div style={{ marginBottom: 18, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11.5, color: INK2 }}>♻️ {t("dash.cacheHit")}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: INK, fontVariantNumeric: "tabular-nums" }}>{Math.round(cache.hit * 100)}%</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 5, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                    <div style={{ width: `${Math.max(1, cache.hit * 100)}%`, height: "100%", background: SERIES, borderRadius: 5 }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <Stat
+                      label={t("dash.cacheSaved")}
+                      value={cache.saved >= 0 ? `~${fmtCost(cache.saved)}` : `−${fmtCost(-cache.saved)}`}
+                      sub={cache.saved < 0 ? t("dash.cacheNegative") : undefined}
+                    />
+                    <Stat label={t("dash.cacheNaive")} value={`~${fmtCost(cache.naive)}`} sub={`${t("dash.cacheActual")} ~${fmtCost(cache.actual)}`} />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Model bo'yicha xarajat */}
+            {modelRows.length > 0 && (
+              <>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 9 }}>{t("dash.byModel")}</div>
+                <div style={{ marginBottom: 18 }}><RoleBars rows={modelRows} colors={modelColors} /></div>
               </>
             )}
 
