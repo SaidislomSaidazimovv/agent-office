@@ -17,6 +17,7 @@ import { matchAgents } from "../webview-ui/src/search.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
+import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
 import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
@@ -638,6 +639,22 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Stol tartibsizligi (manba: tool chaqiruvlari):");
+test("clutterLevel: yangi stol toza; chegaralarda daraja oshadi; tepasi cheklangan", () => {
+  assert.equal(clutterLevel(0), 0, "sessiya boshida stol toza");
+  assert.equal(clutterLevel(CLUTTER_TIERS[0] - 1), 0, "chegaraga yetmasa — o'zgarmaydi");
+  assert.equal(clutterLevel(CLUTTER_TIERS[0]), 1, "aynan chegara → birinchi buyum");
+  assert.equal(clutterLevel(CLUTTER_TIERS[2]), 3);
+  assert.equal(clutterLevel(10_000), MAX_CLUTTER, "cheksiz o'smaydi — tepasi bor");
+  // Monoton: hech qachon kamaymaydi (ish qaytmaydi)
+  let prev = 0;
+  for (let n = 0; n <= 100; n++) {
+    const c = clutterLevel(n);
+    assert.ok(c >= prev, "daraja kamaymasligi kerak");
+    prev = c;
+  }
 });
 
 console.log("E'tibor (status bar + tiqilib qolish):");

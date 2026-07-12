@@ -2,8 +2,9 @@ import { memo } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
+import { clutterLevel } from "./clutter";
 import { useDaylight } from "./daylight";
-import { basicMat, cyl, stdMat, UNIT_BOX } from "./resources";
+import { basicMat, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { seatFor, STATUS_COLOR } from "./roles";
 
 // ── Agent ish joyi — MEBEL (personaj AgentAvatar'da, alohida) ──
@@ -21,6 +22,10 @@ const MON_M = stdMat("#12151a", { roughness: 0.3 });
 const STAND_M = stdMat("#3a3f47");
 const KEY_M = stdMat("#e2e2e0", { roughness: 0.6 });
 const MUG_M = stdMat("#ffffff", { roughness: 0.4 });
+// Tartibsizlik buyumlari (toolCalls o'sgan sari qo'shiladi)
+const PAPER_M = stdMat("#f7f5ef", { roughness: 0.9 });
+const MUG2_M = stdMat("#c96a4e", { roughness: 0.5 });
+const NOTE_M = stdMat("#ffd60a", { roughness: 0.85 });
 const CHAIR_M = stdMat("#2c313a", { roughness: 0.6 });
 const ARM_M = stdMat("#1c2027");
 const POST_M = stdMat("#8b929c", { roughness: 0.35, metalness: 0.85 });
@@ -35,6 +40,7 @@ function Workstation({ agent }: { agent: AgentView }) {
   // Ekran porlashi kechаsi kuchayadi (qorong'uда monitorlar ko'proq ajralib turadi).
   const lampsOn = useDaylight((s) => s.params.lamps);
   const glowOpacity = lampsOn ? 0.4 : 0.2;
+  const clutter = clutterLevel(agent.toolCalls);
 
   return (
     <group position={[seat.x, 0, seat.z]} rotation={[0, seat.ry, 0]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
@@ -58,6 +64,26 @@ function Workstation({ agent }: { agent: AgentView }) {
       {/* Klaviatura + krujka */}
       <B p={[0, DESK_TOP + 0.04, 0.14]} s={[0.5, 0.02, 0.16]} m={KEY_M} />
       <mesh position={[0.55, DESK_TOP + 0.08, 0.05]} castShadow geometry={cyl(0.05, 0.045, 0.1, 12)} material={MUG_M} />
+
+      {/* ── Tartibsizlik — ISH BELGISI, bezak emas (manba: toolCalls) ──
+          Har daraja bir buyum qo'shadi: qog'oz → 2-krujka → stiker+qog'oz uyumi
+          → g'ijimlangan qog'oz. Toza stol = yangi sessiya. */}
+      {clutter >= 1 && <B p={[-0.48, DESK_TOP + 0.04, 0.12]} s={[0.28, 0.012, 0.34]} m={PAPER_M} />}
+      {clutter >= 2 && <mesh position={[-0.6, DESK_TOP + 0.09, -0.12]} castShadow geometry={cyl(0.055, 0.05, 0.12, 12)} material={MUG2_M} />}
+      {clutter >= 3 && (
+        <>
+          <B p={[-0.44, DESK_TOP + 0.07, 0.15]} s={[0.26, 0.05, 0.32]} m={PAPER_M} />
+          {/* Monitor chetidagi stiker */}
+          <B p={[0.4, DESK_TOP + 0.4, -0.2]} s={[0.13, 0.13, 0.006]} m={NOTE_M} cast={false} />
+        </>
+      )}
+      {clutter >= 4 && (
+        <>
+          <mesh position={[0.34, DESK_TOP + 0.09, 0.24]} castShadow geometry={sphere(0.06, 6, 5)} material={PAPER_M} />
+          <B p={[-0.2, DESK_TOP + 0.05, -0.24]} s={[0.24, 0.02, 0.28]} m={PAPER_M} />
+          <B p={[0.28, DESK_TOP + 0.4, -0.2]} s={[0.11, 0.11, 0.006]} m={NOTE_M} cast={false} />
+        </>
+      )}
 
       {/* Zamonaviy ergonomik kursi (5-yulduzli baza) */}
       <group position={[0, 0, 0.62]}>

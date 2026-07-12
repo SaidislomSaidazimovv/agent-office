@@ -115,6 +115,7 @@ export default function SettingsPanel() {
           {flag("wander", "settings.wander", "🚶")}
           {flag("social", "settings.social", "💬", "settings.socialHint")}
           {flag("followSelected", "settings.follow", "🎥")}
+          {flag("focusMode", "settings.focus", "🔦", "settings.focusHint")}
 
           {/* Unumdorlik */}
           <Section title={t("settings.groupPerf")} />

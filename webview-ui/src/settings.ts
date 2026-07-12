@@ -40,6 +40,8 @@ export interface SettingsValues {
   showCost: boolean;
   /** Kamera tanlangan agentni kuzatadi (App.tsx). */
   followSelected: boolean;
+  /** Fokus rejimi: tanlangan agentdan boshqa hamma joy qorayadi (App.tsx). */
+  focusMode: boolean;
   /** Kirish qo'llanmasi ko'rilganmi (Tour.tsx). Sozlamalar orqali qayta ko'rsa bo'ladi. */
   tourDone: boolean;
 }
@@ -57,6 +59,7 @@ const DEFAULTS: SettingsValues = {
   social: true,
   showCost: true,
   followSelected: false,
+  focusMode: false,
   tourDone: false,
 };
 

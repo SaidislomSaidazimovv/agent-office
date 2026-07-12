@@ -40,6 +40,32 @@ function ShadowThrottle({ every }: { every: number }) {
   return null;
 }
 
+// Fokus rejimi — tanlangan agent atrofi yorug', qolgani qorayadi. Yorug'lik
+// BILAN emas, DOM qoplamasi bilan qilinadi: hech qanday material qayta
+// kompilyatsiya qilinmaydi va sahna narxi o'zgarmaydi (radial gradient — tekin).
+const _v = new THREE.Vector3();
+function FocusSpot({ el }: { el: React.RefObject<HTMLDivElement | null> }) {
+  const focus = useSettings((s) => s.focusMode);
+  const selectedId = useOffice((s) => s.selectedId);
+  const cameraMode = useOffice((s) => s.cameraMode);
+  const size = useThree((s) => s.size);
+  useFrame(({ camera }) => {
+    const d = el.current;
+    if (!d) return;
+    const p = focus && cameraMode === "iso" && selectedId != null ? presenceOf(selectedId) : undefined;
+    if (!p) {
+      if (d.style.opacity !== "0") d.style.opacity = "0";
+      return;
+    }
+    _v.set(p.x, 1.1, p.z).project(camera); // ko'krak balandligi
+    const x = (_v.x * 0.5 + 0.5) * size.width;
+    const y = (-_v.y * 0.5 + 0.5) * size.height;
+    d.style.opacity = "1";
+    d.style.background = `radial-gradient(circle at ${x.toFixed(0)}px ${y.toFixed(0)}px, rgba(0,0,0,0) 96px, rgba(0,0,0,0.66) 300px)`;
+  });
+  return null;
+}
+
 // Kamera tanlangan agentni kuzatadi (sozlamada yoqilsa). OrbitControls nishonini
 // silliq surib boramiz — foydalanuvchi aylantirish/masshtabni baribir boshqaradi.
 function CameraFollow() {
@@ -115,6 +141,7 @@ export default function App() {
   const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
   const quality = useSettings((s) => s.quality);
+  const focusEl = useRef<HTMLDivElement>(null);
 
   // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
   // yasamasin). Faqat o'rindiqlar to'plami o'zgarganda yangilanadi.
@@ -153,6 +180,7 @@ export default function App() {
             <OrthographicCamera makeDefault position={[34, 27, 34]} zoom={20} near={-300} far={800} />
             <OrbitControls makeDefault enabled={!dragging} target={[0, 0.8, 0]} enablePan minZoom={12} maxZoom={70} maxPolarAngle={Math.PI * 0.44} minPolarAngle={Math.PI * 0.18} />
             <CameraFollow />
+            <FocusSpot el={focusEl} />
           </>
         ) : (
           <FirstPersonView />
@@ -172,6 +200,10 @@ export default function App() {
         })}
         {PERF_ENABLED && <PerfProbe />}
       </Canvas>
+      {/* Fokus qoplamasi — FocusSpot uni har freym yangilaydi (React render'siz).
+          DOM tartibi muhim: Canvas'dan KEYIN (sahnani qoraytiradi), HUD'dan OLDIN
+          (boshqaruv elementlari qorayib qolmaydi). */}
+      <div ref={focusEl} style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0, transition: "opacity 220ms ease" }} />
       <CostSampler />
       <Hud />
       {PERF_ENABLED && <PerfOverlay />}

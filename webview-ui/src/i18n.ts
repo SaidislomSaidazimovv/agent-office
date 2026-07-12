@@ -61,6 +61,8 @@ const dict = {
   "settings.social": { uz: "Uchrashuvlar", ru: "Встречи", en: "Meetings" },
   "settings.socialHint": { uz: "Sayr o'chiq bo'lsa ta'sir qilmaydi.", ru: "Не действует, если прогулки выключены.", en: "No effect while wandering is off." },
   "settings.follow": { uz: "Kamera tanlanganni kuzatadi", ru: "Камера следит за выбранным", en: "Camera follows selection" },
+  "settings.focus": { uz: "Fokus rejimi", ru: "Режим фокуса", en: "Focus mode" },
+  "settings.focusHint": { uz: "Agent tanlanganda qolgan ofis qorayadi.", ru: "При выборе агента остальной офис затемняется.", en: "Dims the rest of the office around the selected agent." },
   "settings.qualityHigh": { uz: "Yuqori", ru: "Высокое", en: "High" },
   "settings.qualityLow": { uz: "Tejamkor", ru: "Экономный", en: "Saver" },
   "settings.qualityHint": { uz: "Tejamkor: past piksel zichligi + kamroq soya yangilanishi.", ru: "Экономный: ниже плотность пикселей + реже обновление теней.", en: "Saver: lower pixel density + fewer shadow updates." },

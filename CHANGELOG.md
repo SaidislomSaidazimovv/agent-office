@@ -44,6 +44,13 @@ Office-polish work toward the next release (not yet published).
 - **Snapshot & clip export (📸)** — a PNG of the current frame, or a 6-second WebM of
   the office. Saved only where you choose; nothing is ever uploaded. (WebM rather than
   GIF: the browser encodes it natively, so no extra dependency and a smaller file.)
+- **Status bar** — agent count and what needs you (🔔 awaiting approval, ⛔ blocked),
+  visible with the office panel closed; click to open it.
+- **Forgotten agents raise a hand** — an approval left unanswered for three minutes
+  shows 🙋 in the office, lands in the feed, and re-notifies once.
+- **Desks fill up as work happens** — papers, a second mug, sticky notes and a crumpled
+  page appear as an agent's tool count grows. Real signal, not decoration.
+- **Focus mode (⚙)** — dims the office around the selected agent.
 
 ### Changed
 
