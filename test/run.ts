@@ -15,6 +15,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
+import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
 import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { useOffice } from "../webview-ui/src/store.js";
@@ -635,6 +636,20 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Emotsiyalar (har biri KUZATILGAN holatdan):");
+test("emoteFor ustuvorligi: uchrashuv > bloklangan > kontekst > taymerli", () => {
+  assert.equal(emoteFor({ meeting: "👋", status: "blocked", hot: true, timed: "🤔" }), "👋", "uchrashuv eng ustun");
+  assert.equal(emoteFor({ status: "blocked", hot: true, timed: "🤔" }), "😖", "bloklangan kontekstdan ustun");
+  assert.equal(emoteFor({ status: "working", hot: true, timed: "🤔" }), "🥵");
+  assert.equal(emoteFor({ status: "thinking", timed: "🤔" }), "🤔");
+  assert.equal(emoteFor({ status: "idle" }), "", "sababsiz emotsiya yo'q");
+});
+test("contextHot: 85% chegara; kontekst oynasi noma'lum → false", () => {
+  assert.equal(contextHot(84_999, 100_000), false);
+  assert.equal(contextHot(85_000, 100_000), true, "aynan 85% → qizigan");
+  assert.equal(contextHot(999_999, 0), false, "oyna 0 → bo'lish yo'q, false");
 });
 
 console.log("Sozlamalar:");

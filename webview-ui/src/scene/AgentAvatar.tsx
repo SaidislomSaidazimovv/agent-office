@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { slide } from "./collision";
+import { contextHot, EMOTE_MS, emoteFor, LONG_THINK_MS } from "./emotes";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
@@ -78,6 +79,38 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subSig]);
   const removeHelper = (key: string) => setHelpers((prev) => prev.filter((h) => h.key !== key));
+
+  // ── Emotsiyalar (holatdan kelib chiqadi — o'ylab topilmaydi, emotes.ts'ga qarang) ──
+  // Taymerli emotsiya: 🤔 uzoq o'ylash · 😌 ishni tugatdi.
+  const [timed, setTimed] = useState("");
+  const prevStatus = useRef(agent.status);
+  useEffect(() => {
+    const prev = prevStatus.current;
+    prevStatus.current = agent.status;
+    setTimed("");
+    if (agent.status === "idle" && (prev === "working" || prev === "thinking" || prev === "collab")) {
+      setTimed("😌"); // navbat tugadi — yengil nafas (qisqa)
+      const t = setTimeout(() => setTimed(""), EMOTE_MS.done);
+      return () => clearTimeout(t);
+    }
+    if (agent.status === "thinking") {
+      const t = setTimeout(() => setTimed("🤔"), LONG_THINK_MS); // uzoq o'ylanish
+      return () => clearTimeout(t);
+    }
+  }, [agent.status]);
+
+  // Kontekst 85% dan OSHGAN payt — qisqa ogohlantirish (doim turmaydi).
+  const hotNow = contextHot(agent.inputTokens, agent.contextWindow);
+  const [hot, setHot] = useState(false);
+  const prevHot = useRef(hotNow);
+  useEffect(() => {
+    const was = prevHot.current;
+    prevHot.current = hotNow;
+    if (!hotNow || was) return;
+    setHot(true);
+    const t = setTimeout(() => setHot(false), EMOTE_MS.hot);
+    return () => clearTimeout(t);
+  }, [hotNow]);
 
   // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
   const sit = useRef<WP>({ ...sitPoint(seat) });
@@ -308,6 +341,9 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     }
   });
 
+  // Ko'rsatiladigan yagona emotsiya (ustuvorlik bilan).
+  const face = emoteFor({ meeting: emote, status: agent.status, hot, timed });
+
   return (
     <group ref={group} position={[sit.current.x, 0, sit.current.z]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
       {/* Yumshoq contact-shadow — agentni yerga bog'laydi (yassi, radial) */}
@@ -351,10 +387,13 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         />
       ))}
 
-      {/* Ijtimoiy imo-ishora (uchrashuvда salom/qahva) */}
-      {emote && (
-        <Html position={[0, 2.25, 0]} center style={{ pointerEvents: "none" }}>
-          <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{emote}</div>
+      {/* Emotsiya — uchrashuv imo-ishorasi yoki holat belgisi (😖 🥵 🤔 😌).
+          Ustuvorlik emotes.ts'da; hech biri o'ylab topilmagan. */}
+      {/* Balandligi yorliqqa qarab: tanlanganda yorliq baland (3 qatorli) →
+          emoji uning ustidan chiqadi, ustiga tushmaydi. */}
+      {face && (
+        <Html position={[0, selected ? 3.02 : 2.62, 0]} center style={{ pointerEvents: "none" }}>
+          <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
         </Html>
       )}
 
