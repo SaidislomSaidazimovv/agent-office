@@ -403,6 +403,15 @@ function ReadingTable({ p }: { p: V3 }) {
   );
 }
 
+// District tungi nuri — FAQAT kechаsi mavjud bo'ladi (kunduzда `null` qaytaradi,
+// ya'ni pointLight umuman yaratilmaydi → kunduzги perf narxi NOL). Tunda jami
+// 9 pointLight (2 torsher + 4 pendant + 3 district) — xavfsiz chegara.
+function DistrictLight({ p, c, intensity = 9, distance = 14 }: { p: V3; c: string; intensity?: number; distance?: number }) {
+  const lampsOn = useDaylight((s) => s.params.lamps);
+  if (!lampsOn) return null;
+  return <pointLight position={p} color={c} intensity={intensity} distance={distance} decay={2} />;
+}
+
 // ── District palitrasi (0.1.5) ───────────────────────────────
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
 // bej/kul bo'lib ko'rinardi ("generic quti" hissi). Yechim: har xonaga
@@ -432,11 +441,15 @@ export default function OfficeDecor() {
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15.4]} />)}
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={`b${x}`} p={[x, 0, -11]} ry={Math.PI} />)}
       <CoolingUnit p={[-22.6, 0, -13]} ry={Math.PI / 2} />
+      {/* Tunда: sovuq ko'k "ma'lumot g'ori" hovuzi */}
+      <DistrictLight p={[-16, 2.2, -12.8]} c="#4fa8ff" intensity={10} distance={15} />
 
       {/* OSHXONA [-9,-1] */}
       <Floor x0={-9} x1={-1} z0={-16} z1={-9.5} c={DISTRICT.kitchen} />
       <WallX x0={-9} x1={-1} z={-9.5} door={2} />
       <Kitchen p={[-5, 0, -15.5]} />
+      {/* Tunда: neon yozuvdan taralayotgan pushti porlash */}
+      <DistrictLight p={[-5, 1.9, -14.3]} c="#ff5c9d" intensity={7} distance={11} />
 
       {/* MAJLIS [-1,8] */}
       <Floor x0={-1} x1={8} z0={-16} z1={-9.5} c={DISTRICT.meeting} />
@@ -466,6 +479,8 @@ export default function OfficeDecor() {
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
+      {/* Tunда: to'q yog'och ustidа iliq amber "sobor" nuri */}
+      <DistrictLight p={[-17, 2.2, 13]} c="#ffb463" intensity={10} distance={15} />
 
       {/* FOKUS [-11,-3] */}
       <Floor x0={-11} x1={-3} z0={9.5} z1={16} c={DISTRICT.focus} />
