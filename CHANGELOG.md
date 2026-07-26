@@ -9,6 +9,11 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **The office has a roof now.** The top was open, so from above the ceiling lights
+  floated in the void. There's now a ceiling that behaves like the four walls — a
+  see-through ghost from the top-down view (you still see everyone, and clicks pass
+  straight through it) and solid from inside first-person — so the building reads as
+  enclosed and the lights sit in a real ceiling.
 - **Ceiling lights over the open office.** The two floor lamps are gone; recessed ceiling
   panels now light the outer desks from above (where only the central pendants reached
   before), glowing warm at night. The floor lamp in the furniture catalog also got its

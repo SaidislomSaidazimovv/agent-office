@@ -58,6 +58,9 @@ function Daylight() {
 // qaragani uchun ular QATTIQ fon bo'lib turadi. FPV'da hammasi zich.
 const GHOST = 0.16; // ochiq (near) devor shaffofligi
 const SOLID = 1.0; // yopiq (far) devor
+// Shift butun ichkini QOPLAYDI — shuning uchun devor GHOST'idan pastroq (aks
+// holda butun ofis xira ko'rinardi). Faqat "yopiq bino" hissi + lampalar joyi.
+const CEIL_GHOST = 0.28;
 const FADE = 7; // silliq o'tish oralig'i (kamera koordinatasi bo'yicha)
 function smoothstep(e0: number, e1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
@@ -87,6 +90,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
   const frontM = useRef<THREE.MeshStandardMaterial>(null);
   const leftM = useRef<THREE.MeshStandardMaterial>(null);
   const rightM = useRef<THREE.MeshStandardMaterial>(null);
+  const ceilM = useRef<THREE.MeshStandardMaterial>(null);
 
   useFrame(({ camera }) => {
     if (fpv) {
@@ -94,8 +98,14 @@ export default function Room({ mode }: { mode: CameraMode }) {
         const m = r.current;
         if (m) { m.opacity = 1; m.transparent = false; m.depthWrite = true; }
       }
+      // FPV'da ichkаridan yuqoriga qaralganда shift QATTIQ ko'rinsin.
+      if (ceilM.current) { ceilM.current.opacity = 1; ceilM.current.transparent = false; ceilM.current.depthWrite = true; }
       return;
     }
+    // Shift — iso'da kamera DOIM undan yuqorida (tashqi yuzi bizga qaragan) →
+    // devorlardagi "near" holat kabi hamisha GHOST. Shunda ofis yopiq bino'dek
+    // ko'rinadi va lampalar shiftga o'rnashadi, lekin ichi baribir ko'rinadi.
+    if (ceilM.current) { ceilM.current.opacity = CEIL_GHOST; ceilM.current.transparent = true; ceilM.current.depthWrite = false; }
     const cx = camera.position.x, cz = camera.position.z;
     // Devor FAQAT kamera uning TASHQARISIGA (±D/2 / ±W/2) o'tганда shaffof
     // bo'ladi (tashqi yuzi ko'ringanда). Aks holda ichki yuzi ko'rinadi → qattiq
@@ -141,10 +151,12 @@ export default function Room({ mode }: { mode: CameraMode }) {
         <meshStandardMaterial ref={rightM} color={sideWall} roughness={1} transparent opacity={GHOST} depthWrite={false} />
       </mesh>
 
-      {/* Shift — faqat FPV (ichki ko'rinish yopiq bo'lsin) */}
-      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]} visible={fpv}>
+      {/* Shift (tepa yuza) — devorlar kabi dollhouse: iso'da GHOST (ichini
+          ko'rasiz), FPV'da qattiq. raycast=null → butun ichkini qoplasa ham
+          agent/stol bosishlariga xalaqit bermaydi (bosish undan o'tib ketadi). */}
+      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#eae4d6" roughness={1} side={2} />
+        <meshStandardMaterial ref={ceilM} color="#eae4d6" roughness={1} side={2} transparent opacity={CEIL_GHOST} depthWrite={false} />
       </mesh>
     </group>
   );
