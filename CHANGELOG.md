@@ -9,6 +9,11 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Ceiling lights over the open office.** The two floor lamps are gone; recessed ceiling
+  panels now light the outer desks from above (where only the central pendants reached
+  before), glowing warm at night. The floor lamp in the furniture catalog also got its
+  hollow, open-ended shade closed with a lit disc so a placed lamp no longer looks
+  half-finished.
 - **Desks are always there; agents move in.** The open-plan desks now stand whether or
   not anyone is at them — an empty desk reads as a free workstation (dark screen), and
   when an agent joins it *sits down* at one (screen lights up, clutter builds) instead of

@@ -314,6 +314,9 @@ export function StandingLamp({ p }: { p: V3 }) {
       <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh>
       <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh>
       <mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={lampsOn ? 1.7 : 0.35} side={2} /></mesh>
+      {/* Shade ostini yopadigan yorug' disk — ilgari konus OCHIQ edi, ichi
+          ko'rinib "tugallanmagandek" turardi. Endi u yerdan nur chiqadi. */}
+      <mesh position={[0, 1.6, 0]} rotation={[Math.PI / 2, 0, 0]}><circleGeometry args={[0.25, 16]} /><meshStandardMaterial color="#fff4d0" emissive="#ffe6a0" emissiveIntensity={lampsOn ? 2.2 : 0.6} side={2} toneMapped={false} /></mesh>
       {/* Tunda yumshoq porlash + haqiqiy nur */}
       {lampsOn && <>
         <mesh position={[0, 1.7, 0]}><sphereGeometry args={[0.36, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.22} depthWrite={false} /></mesh>
@@ -335,6 +338,25 @@ export function PendantLight({ p }: { p: V3 }) {
         <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.32, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.2} depthWrite={false} /></mesh>
         <pointLight position={[0, 1.78, 0]} intensity={5} distance={5} decay={2} color="#ffd98a" />
       </>}
+    </group>
+  );
+}
+
+// Shift yoritgich paneli (recessed office light) — pol lampasi o'rniga. Ofisdek
+// tepadan yoritadi: yassi porlab turgan panel + qora ramka, WH=3.4 shift ostida.
+// Emissive TEKIN (yorug' hisoblanmaydi); haqiqiy pointLight faqat kechаsi.
+export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: number }) {
+  const lampsOn = useDaylight((s) => s.params.lamps);
+  return (
+    <group position={p}>
+      {/* Ramka — pastroq va bir oz kengroq (tepadan qaraganда chekka ko'rinadi) */}
+      <Box p={[0, 3.3, 0]} s={[w + 0.14, 0.05, d + 0.14]} c="#2a2e35" rough={0.4} />
+      {/* Porlab turgan panel — ustida (tepadan ham, pastdan ham porlaydi) */}
+      <mesh position={[0, 3.34, 0]}>
+        <boxGeometry args={[w, 0.05, d]} />
+        <meshStandardMaterial color="#fff8ec" emissive="#fff2d4" emissiveIntensity={lampsOn ? 2.3 : 0.85} toneMapped={false} />
+      </mesh>
+      {lampsOn && <pointLight position={[0, 2.9, 0]} intensity={6} distance={7.5} decay={2} color="#ffe9c0" />}
     </group>
   );
 }
@@ -525,11 +547,14 @@ export default function OfficeDecor() {
       </group>
       {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
           Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
-      {/* Printer, lampalar, o'simliklar */}
-      {/* Chiroq/o'simliklar — nav-qirralaridan chetda (agent ular ustidan
-          o'tmasin), collision.ts da kichik to'siqlari bor. */}
-      <StandingLamp p={[-7, 0, 5]} />
-      <StandingLamp p={[7, 0, -5]} />
+      {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
+          Markazdagi pendant'larга tegmaydi (x=±4); bular tashqi stollar (x=±13)
+          ustida — ilgari u yer yoritilmagan edi. */}
+      <CeilingPanel p={[-12, 0, -3.2]} />
+      <CeilingPanel p={[-12, 0, 3.2]} />
+      <CeilingPanel p={[12, 0, -3.2]} />
+      <CeilingPanel p={[12, 0, 3.2]} />
+      {/* o'simliklar */}
       <Plant p={[-16, 0, 6]} scale={1.1} />
       <Plant p={[16, 0, 6]} scale={1.1} />
       <Plant p={[-16, 0, -6]} scale={1.1} />
