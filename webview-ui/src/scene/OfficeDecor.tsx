@@ -327,16 +327,21 @@ export function StandingLamp({ p }: { p: V3 }) {
   );
 }
 
-// Shift chirog'i (pendant) — ochiq ofis ustida osilgan, kechаsi porlaydi.
+// Shift chirog'i (pendant) — ochiq ofis ustida osilgan. Bulb KUNDUZ ham porlaydi
+// (ilgari to'q konus + o'chiq bulb → "qora uzunchoq" ko'rinardi). Shade iliq och
+// rangда, bulb har doim yorug' (toneMapped=false → haqiqatan porlaydi).
 export function PendantLight({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   return (
     <group position={p}>
       <mesh position={[0, 2.35, 0]}><cylinderGeometry args={[0.012, 0.012, 0.9, 6]} />{M("#2a2e35")}</mesh>
-      <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#33383f" roughness={0.5} side={2} /></mesh>
-      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.09, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.4 : 0.4} /></mesh>
+      {/* Shade — iliq och (lampa abajurıdek), to'q emas */}
+      <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#e6dcc8" roughness={0.6} side={2} /></mesh>
+      {/* Bulb — kunduz ham yonib turadi */}
+      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.095, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.6 : 1.5} toneMapped={false} /></mesh>
+      {/* Yumshoq halo — kunduz nozik, kechаsi kuchli */}
+      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.3, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={lampsOn ? 0.22 : 0.12} depthWrite={false} /></mesh>
       {lampsOn && <>
-        <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.32, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.2} depthWrite={false} /></mesh>
         <pointLight position={[0, 1.78, 0]} intensity={5} distance={5} decay={2} color="#ffd98a" />
       </>}
     </group>
