@@ -69,6 +69,17 @@ function Accessory({ type }: { type: AccessoryType }) {
       </group>
     );
   }
+  if (type === "beanie") {
+    // Jun shapka — kepkadan farqli: kozirоksiz, boshni ko'proq yopadi, pastда
+    // qatlam (buklama). Iliq jun rangi.
+    const bm = stdMat("#7a5a8c", { roughness: 0.98 });
+    return (
+      <group position={[0, 0.15, 0]}>
+        <VB s={[0.345, 0.17, 0.345]} m={bm} />
+        <VB p={[0, -0.085, 0]} s={[0.365, 0.055, 0.365]} m={bm} />
+      </group>
+    );
+  }
   return null;
 }
 

@@ -21,7 +21,7 @@ import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
 import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
-import { seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
+import { characterFor, seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { displayName, useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
@@ -640,6 +640,19 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Personaj — rol imzo aksessuari:");
+test("characterFor: rol bo'yicha ustuvor aksessuar + id bo'yicha xilma-xillik", () => {
+  // Ustuvor (id 0) — rolni bir qarashda tanitadi
+  assert.equal(characterFor("backend", 0, 0).accessory, "headphones", "Backend — naushnik");
+  assert.equal(characterFor("docs", 0, 0).accessory, "glasses", "Hujjatlar — ko'zoynak");
+  assert.equal(characterFor("qa", 0, 0).accessory, "cap", "QA — kepka");
+  assert.equal(characterFor("research", 0, 0).accessory, "glasses", "Tadqiqot — ko'zoynak");
+  // Bir xil rolli, boshqa id → variant farqlanadi (aynan bir xil emas)
+  assert.equal(characterFor("backend", 0, 2).accessory, "cap", "3-Backend boshqacha aksessuar");
+  // Rol yo'q → seat fallback ishlaydi, crash bo'lmaydi
+  assert.doesNotThrow(() => characterFor(undefined, 3, 5));
 });
 
 console.log("Agent nomi (qo'lda):");

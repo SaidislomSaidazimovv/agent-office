@@ -9,6 +9,10 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Roles you can tell apart at a glance.** Each role now has a signature accessory —
+  headphones for the heads-down coders (backend, data), glasses for the scholars
+  (research, docs), a cap for QA — with a new knit beanie in the mix, and a little
+  per-agent variation so two people in the same role still aren't identical.
 - **The office has a roof now.** The top was open, so from above the ceiling lights
   floated in the void. There's now a ceiling that behaves like the four walls — a
   see-through ghost from the top-down view (you still see everyone, and clicks pass

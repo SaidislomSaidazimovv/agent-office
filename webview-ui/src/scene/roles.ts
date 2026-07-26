@@ -3,7 +3,7 @@
 // har birini voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
 export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
-export type Accessory = "glasses" | "headphones" | "cap" | null;
+export type Accessory = "glasses" | "headphones" | "cap" | "beanie" | null;
 
 export interface CharSkin {
   label: string;
@@ -47,9 +47,19 @@ export function roleKeyFor(role: string | undefined, seatIndex: number): string 
   return ROLE_KEYS[seatIndex % ROLE_KEYS.length];
 }
 
-// Har agentga (id bo'yicha) noyob ko'rinish — bir xil rolli agentlar ham
-// farqlansin: aksessuar + soch rangi/kiyim soyasида nozik variatsiya.
-const ACCESSORIES: Accessory[] = [null, null, "glasses", "headphones", null, "cap", "glasses", null];
+// Har ROLning IMZO aksessuari — rol bir qarashda tanilsin (siluetdan). Har
+// rolда 4 variant: birinchisi ustuvor (rol identifikatori), qolganlari id
+// bo'yicha xilma-xillik (bir xil rolli 2 agent aynan bir xil bo'lmasin).
+//   Tadqiqot/Hujjatlar — olim → ko'zoynak · Backend/Ma'lumot — koder → naushnik
+//   QA — tester → kepka · Frontend — erkin uslub.
+const ROLE_ACCESSORY: Record<string, Accessory[]> = {
+  research: ["glasses", "glasses", "beanie", null],
+  frontend: [null, "beanie", "headphones", null],
+  backend: ["headphones", "headphones", "cap", "beanie"],
+  qa: ["cap", "cap", "glasses", "headphones"],
+  docs: ["glasses", "glasses", "glasses", "beanie"],
+  data: ["headphones", "glasses", "headphones", "cap"],
+};
 
 /** Kichik rang siljishi (och/to'q) — bir xil rolli agentlarni ajratish uchun. */
 function shade(hex: string, amt: number): string {
@@ -64,7 +74,10 @@ function shade(hex: string, amt: number): string {
 /** Agent uchun personaj ko'rinishi (rol preseti + id bo'yicha variatsiya). */
 export function characterFor(role: string | undefined, seatIndex: number, id: number): CharSkin {
   const base = presetFor(role, seatIndex);
-  const accessory = ACCESSORIES[id % ACCESSORIES.length];
+  // Rol imzo aksessuari — id bo'yicha 4 variantdan biri (rol identifikatori
+  // ustuvor, lekin bir xil rolli agentlar ozgina farqlansin).
+  const set = ROLE_ACCESSORY[roleKeyFor(role, seatIndex)] ?? [null];
+  const accessory = set[id % set.length];
   const d = ((id * 37) % 5) - 2; // -2..+2
   return {
     ...base,
