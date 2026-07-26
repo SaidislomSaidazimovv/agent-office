@@ -61,6 +61,18 @@ const ROLE_ACCESSORY: Record<string, Accessory[]> = {
   data: ["headphones", "glasses", "headphones", "cap"],
 };
 
+// Rol "energiyasi" — bo'sh vaqtдagi jonlilik (atrofga qarash chastotasi). Olimlar
+// (Tadqiqot/Hujjatlar) xotirjam, Frontend/QA faolroq. Faqat mavjud animatsiyani
+// shkalalaydi (PixelPerson).
+const ROLE_ENERGY: Record<string, number> = {
+  research: 0.75, docs: 0.75,
+  backend: 0.95, data: 0.95,
+  frontend: 1.3, qa: 1.25,
+};
+export function energyFor(role: string | undefined, seatIndex: number): number {
+  return ROLE_ENERGY[roleKeyFor(role, seatIndex)] ?? 1;
+}
+
 /** Kichik rang siljishi (och/to'q) — bir xil rolli agentlarni ajratish uchun. */
 function shade(hex: string, amt: number): string {
   const n = parseInt(hex.slice(1), 16);

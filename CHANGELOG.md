@@ -9,6 +9,9 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Roles carry themselves a little differently.** Idle agents glance around at a pace
+  set by the role — the scholars (research, docs) sit calmer, frontend and QA are livelier
+  — a subtle scaling of the existing motion, nothing that touches the model.
 - **Each role keeps a signature thing on its desk** — a rubber debugging duck for the
   backend, a stack of books for research, a paper-and-book pile for docs, a little bar
   chart for data, a checklist clipboard for QA, a colour palette for frontend.

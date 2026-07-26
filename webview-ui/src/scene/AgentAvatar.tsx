@@ -10,7 +10,7 @@ import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } 
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
-import { type CharSkin, characterFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
+import { type CharSkin, characterFor, energyFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
 
@@ -362,6 +362,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       <PixelPerson
         skin={preset}
         status={agent.status}
+        energy={energyFor(agent.role, agent.seatIndex)}
         getState={() => ({ sit: seated.current, moving: movingRef.current, speed: speedRef.current })}
       />
 

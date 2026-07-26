@@ -33,6 +33,10 @@ interface Props {
   detail?: "high" | "low";
   /** Har freym o'qiladi (re-render'siz poza/harakatni yangilash uchun). */
   getState?: () => { sit: boolean; moving: boolean; speed?: number };
+  /** Rol "energiyasi" (~0.7 xotirjam … 1.3 faol) — bo'sh vaqtда qanchalik
+   *  tez-tez atrofga qaraydi/qimirlaydi. Faqat mavjud harakatlarni shkalalaydi
+   *  (geometriyaga tegmaydi). Standart 1. */
+  energy?: number;
 }
 
 function damp(c: number, t: number, l: number, dt: number): number {
@@ -125,8 +129,9 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
   }
 }
 
-export default function PixelPerson({ skin: s, status, pose = "sit", moving = false, detail = "high", getState }: Props) {
+export default function PixelPerson({ skin: s, status, pose = "sit", moving = false, detail = "high", getState, energy = 1 }: Props) {
   const lod = detail === "low";
+  const en = Math.max(0.5, Math.min(1.6, energy)); // xavfsiz oraliq
   const rootRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null); // tos+yuqori (balandligi poza bilan)
   const upperRef = useRef<THREE.Group>(null);
@@ -236,12 +241,13 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     else if (thinking) { tilt = 0.2; nod = -0.06; }
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
-    // Bo'sh/o'ylanayotganда gohida yon-yonga qaraydi
+    // Bo'sh/o'ylanayotganда gohida yon-yonga qaraydi. Faol rollar (yuqori energiya)
+    // tez-tez va kengroq qaraydi; xotirjam olimlar kamroq.
     if (!working && !rm) {
       glanceCd.current -= dt;
       if (glanceCd.current <= 0) {
-        headYaw.current = (Math.random() - 0.5) * 0.7;
-        glanceCd.current = 2.5 + Math.random() * 4;
+        headYaw.current = (Math.random() - 0.5) * 0.7 * (0.7 + 0.3 * en);
+        glanceCd.current = (2.5 + Math.random() * 4) / en;
       }
     } else headYaw.current = 0;
     if (headRef.current) {
