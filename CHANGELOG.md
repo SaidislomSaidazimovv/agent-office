@@ -9,6 +9,12 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Desks are always there; agents move in.** The open-plan desks now stand whether or
+  not anyone is at them — an empty desk reads as a free workstation (dark screen), and
+  when an agent joins it *sits down* at one (screen lights up, clutter builds) instead of
+  furniture appearing from nowhere. The office looks like a real office that fills with
+  people, not props.
+
 - **Decorative rugs** under the furniture in the lounge, library and meeting rooms.
 - A **wall clock** and two more framed paintings on the side walls.
 - **Hanging pendant lights** over the open office that glow and cast light at night.

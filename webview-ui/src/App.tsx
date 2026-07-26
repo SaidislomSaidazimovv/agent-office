@@ -15,7 +15,7 @@ import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
-import { ROLE_PRESETS } from "./scene/roles";
+import { ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
@@ -145,11 +145,16 @@ export default function App() {
   const textMode = useSettings((s) => s.textMode);
   const focusEl = useRef<HTMLDivElement>(null);
 
-  // Collision faqat BAND stollar uchun bo'lsin (bo'sh o'rindiqlar fantom devor
-  // yasamasin). Faqat o'rindiqlar to'plami o'zgarganda yangilanadi.
+  // Collision: 10 ta ASOSIY stol endi DOIM turadi (band bo'lmasa ham) — shuning
+  // uchun ular doim to'siq. Overflow (10+) agentlarning stollari esa faqat band
+  // bo'lganда qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatда tekshirilgan.)
   const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
   useEffect(() => {
-    setActiveSeats(order.map((id) => agents[id]?.seatIndex).filter((i): i is number => typeof i === "number"));
+    const base = Array.from({ length: SEAT_COUNT }, (_, i) => i);
+    const overflow = order
+      .map((id) => agents[id]?.seatIndex)
+      .filter((i): i is number => typeof i === "number" && i >= SEAT_COUNT);
+    setActiveSeats([...base, ...overflow]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seatKey]);
 
@@ -204,10 +209,17 @@ export default function App() {
         <OfficeDecor />
         <PlacedFurniture />
         <SeatMarkers />
-        {order.map((id) => {
-          const a = agents[id];
-          return a ? <Workstation key={id} agent={a} /> : null;
+        {/* 10 ta ASOSIY stol DOIM turadi (band bo'lsa yonadi, bo'sh bo'lsa
+            o'chiq) — ofis haqiqiy ofisdek to'la ko'rinadi, agent mebel emas,
+            ODAM bo'lib "ishga keladi". */}
+        {Array.from({ length: SEAT_COUNT }, (_, i) => {
+          const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
+          return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
         })}
+        {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
+        {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
+          <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
+        ))}
         {order.map((id) => {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;
