@@ -91,19 +91,22 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
     case "short":
       return (<group>{cap}<VB p={[0, 0.02, 0.13]} s={[0.33, 0.3, 0.09]} m={hm} /></group>);
     case "long":
+      // Yon tutamlar biroz ORQAROQ (z=0.05) — oldiда yuzни kesib o'tmasin.
       return (
         <group>{cap}
-          {[-0.185, 0.185].map((x) => <VB key={x} p={[x, -0.14, 0]} s={[0.06, 0.4, 0.32]} m={hm} />)}
-          <VB p={[0, -0.11, 0.15]} s={[0.34, 0.5, 0.08]} m={hm} />
+          {[-0.185, 0.185].map((x) => <VB key={x} p={[x, -0.14, 0.05]} s={[0.06, 0.4, 0.32]} m={hm} />)}
+          <VB p={[0, -0.11, 0.16]} s={[0.34, 0.5, 0.08]} m={hm} />
         </group>
       );
     case "afro":
-      return (<mesh position={[0, 0.14, 0.01]} castShadow geometry={sphere(0.25, 12, 10)} material={hm2} />);
+      // Shar ORQAGA surildi (z=0.1) va kichraytirildi — oldi z≈-0.12'da tugaydi,
+      // ko'zlar (z=-0.151) OLDIда qoladi → yuz ko'rinadi (avval afro yuzni yopardi).
+      return (<mesh position={[0, 0.15, 0.1]} castShadow geometry={sphere(0.22, 12, 10)} material={hm2} />);
     case "curly":
       return (
         <group>
-          <mesh position={[0, 0.15, 0.01]} castShadow geometry={sphere(0.215, 12, 10)} material={hm2} />
-          {[-0.16, 0.16].map((x) => <mesh key={x} position={[x, -0.02, 0]} castShadow geometry={sphere(0.1, 8, 8)} material={hm2} />)}
+          <mesh position={[0, 0.15, 0.1]} castShadow geometry={sphere(0.2, 12, 10)} material={hm2} />
+          {[-0.17, 0.17].map((x) => <mesh key={x} position={[x, 0, 0.04]} castShadow geometry={sphere(0.095, 8, 8)} material={hm2} />)}
         </group>
       );
     case "spiky":
