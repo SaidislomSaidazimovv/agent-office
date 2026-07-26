@@ -5,7 +5,7 @@ import { useOffice } from "../store";
 import { clutterLevel } from "./clutter";
 import { useDaylight } from "./daylight";
 import { basicMat, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
-import { seatFor, STATUS_COLOR } from "./roles";
+import { roleKeyFor, seatFor, STATUS_COLOR } from "./roles";
 
 // ── Ish joyi — MEBEL (personaj AgentAvatar'da, alohida) ──────
 // Stollar OLDINDAN turadi (bo'sh yoki band). Bo'sh stol = qorong'i ekran, toza
@@ -37,6 +37,67 @@ const POST_M = stdMat("#8b929c", { roughness: 0.35, metalness: 0.85 });
 const STAR_M = stdMat("#3a3f47", { roughness: 0.4, metalness: 0.6 });
 const SCREEN_G = new THREE.PlaneGeometry(0.64, 0.36);
 const GLOW_G = new THREE.PlaneGeometry(0.98, 0.66);
+
+// ── Rol stol odati — har rolning belgili buyumi (stolда, o'ng-orqa burchakда) ──
+// Backend — debug o'rdagi 🦆 · Tadqiqot — kitob uyumi · Hujjatlar — qog'oz+kitob
+// Ma'lumot — mini grafik (bar) · QA — checklist planshet · Frontend — rang palitrasi.
+const DUCK_M = stdMat("#f2c94c", { roughness: 0.6 });
+const BEAK_M = stdMat("#e8913a", { roughness: 0.6 });
+const CLIP_M = stdMat("#eceae4", { roughness: 0.7 });
+const CLIPTOP_M = stdMat("#3a3f47", { roughness: 0.5 });
+const BAR_M = [stdMat("#3987e5"), stdMat("#e66767"), stdMat("#199e70"), stdMat("#c98500")];
+const BOOK_M = [stdMat("#c0392b"), stdMat("#2f6bd6"), stdMat("#27ae60"), stdMat("#8a5a2b")];
+const SWATCH_M = [stdMat("#e0518a"), stdMat("#3fb4c6"), stdMat("#f2c94c"), stdMat("#7d5ae0")];
+function DeskProp({ roleKey }: { roleKey: string }) {
+  const y = DESK_TOP + 0.05;
+  switch (roleKey) {
+    case "backend": // debug o'rdagi
+      return (
+        <group position={[0.5, y, -0.16]} scale={0.85}>
+          <mesh position={[0, 0.05, 0]} castShadow geometry={sphere(0.075, 10, 8)} material={DUCK_M} />
+          <mesh position={[0, 0.14, -0.05]} castShadow geometry={sphere(0.05, 10, 8)} material={DUCK_M} />
+          <B p={[0, 0.13, -0.11]} s={[0.04, 0.025, 0.05]} m={BEAK_M} cast={false} />
+        </group>
+      );
+    case "research": // kitob uyumi
+      return (
+        <group position={[0.52, y, -0.14]}>
+          {[0, 1, 2].map((i) => <B key={i} p={[i * 0.01, 0.02 + i * 0.04, 0]} s={[0.26, 0.035, 0.19]} m={BOOK_M[i]} />)}
+        </group>
+      );
+    case "docs": // qog'oz uyumi + kitob
+      return (
+        <group position={[0.5, y, -0.14]}>
+          <B p={[0, 0.02, 0]} s={[0.24, 0.035, 0.3]} m={CLIP_M} />
+          <B p={[0.02, 0.06, -0.02]} s={[0.22, 0.04, 0.16]} m={BOOK_M[3]} />
+        </group>
+      );
+    case "data": // mini grafik (barlar)
+      return (
+        <group position={[0.52, y, -0.15]}>
+          <B p={[0, 0.09, 0.02]} s={[0.28, 0.18, 0.02]} m={CLIPTOP_M} />
+          {[0, 1, 2, 3].map((i) => <B key={i} p={[-0.09 + i * 0.06, 0.04 + i * 0.02, 0.03]} s={[0.035, 0.05 + i * 0.04, 0.01]} m={BAR_M[i]} cast={false} />)}
+        </group>
+      );
+    case "qa": // checklist planshet
+      return (
+        <group position={[0.5, y, -0.12]} rotation={[0.2, 0, 0]}>
+          <B p={[0, 0.09, 0]} s={[0.24, 0.32, 0.02]} m={CLIP_M} />
+          <B p={[0, 0.24, 0.02]} s={[0.1, 0.045, 0.02]} m={CLIPTOP_M} />
+          {[0, 1, 2].map((i) => <B key={i} p={[-0.05, 0.15 - i * 0.06, 0.02]} s={[0.03, 0.03, 0.01]} m={BAR_M[2]} cast={false} />)}
+        </group>
+      );
+    case "frontend": // rang palitrasi
+      return (
+        <group position={[0.5, y, -0.14]} rotation={[0.25, 0, 0]}>
+          <B p={[0, 0.03, 0]} s={[0.3, 0.02, 0.22]} m={CLIP_M} />
+          {[0, 1, 2, 3].map((i) => <B key={i} p={[-0.09 + (i % 2) * 0.18, 0.045, -0.05 + Math.floor(i / 2) * 0.1]} s={[0.07, 0.02, 0.07]} m={SWATCH_M[i]} cast={false} />)}
+        </group>
+      );
+    default:
+      return null;
+  }
+}
 
 function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentView }) {
   const seat = seatFor(seatIndex);
@@ -80,6 +141,8 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
 
       {/* Klaviatura — doim (stolning bir qismi) */}
       <B p={[0, DESK_TOP + 0.04, 0.14]} s={[0.5, 0.02, 0.16]} m={KEY_M} />
+      {/* Rol stol odati — faqat band stolда (kimningdir buyumi) */}
+      {agent && <DeskProp roleKey={roleKeyFor(agent.role, agent.seatIndex)} />}
       {/* Krujka — faqat band stolда (kimningdir shaxsiy buyumi) */}
       {occupied && <mesh position={[0.55, DESK_TOP + 0.08, 0.05]} castShadow geometry={cyl(0.05, 0.045, 0.1, 12)} material={MUG_M} />}
 

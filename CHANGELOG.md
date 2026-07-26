@@ -9,6 +9,9 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Each role keeps a signature thing on its desk** — a rubber debugging duck for the
+  backend, a stack of books for research, a paper-and-book pile for docs, a little bar
+  chart for data, a checklist clipboard for QA, a colour palette for frontend.
 - **Roles you can tell apart at a glance.** Each role now has a signature accessory —
   headphones for the heads-down coders (backend, data), glasses for the scholars
   (research, docs), a cap for QA — with a new knit beanie in the mix, and a little
