@@ -4,6 +4,7 @@ import type { JSX } from "react";
 import * as THREE from "three";
 import { useLayout } from "../layoutStore";
 import { useSettings } from "../settings";
+import { useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
@@ -347,15 +348,23 @@ export function PendantLight({ p }: { p: V3 }) {
 // Emissive TEKIN (yorug' hisoblanmaydi); haqiqiy pointLight faqat kechаsi.
 export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
+  // Fixtura FAQAT ichkaridan (FPV) ko'rinadi — shift kabi tepadan (iso) yashirin
+  // (ilgari oq panel bo'shliqда "osilib" ko'rinardi). Iso'da faqat pol yorug'ligi
+  // (pointLight, kechаsi) qoladi — bu aynan recessed downlight ko'rinishi.
+  const fpv = useOffice((s) => s.cameraMode === "fpv");
   return (
     <group position={p}>
-      {/* Ramka — pastroq va bir oz kengroq (tepadan qaraganда chekka ko'rinadi) */}
-      <Box p={[0, 3.3, 0]} s={[w + 0.14, 0.05, d + 0.14]} c="#2a2e35" rough={0.4} />
-      {/* Porlab turgan panel — ustida (tepadan ham, pastdan ham porlaydi) */}
-      <mesh position={[0, 3.34, 0]}>
-        <boxGeometry args={[w, 0.05, d]} />
-        <meshStandardMaterial color="#fff8ec" emissive="#fff2d4" emissiveIntensity={lampsOn ? 2.3 : 0.85} toneMapped={false} />
-      </mesh>
+      {fpv && (
+        <>
+          {/* Ramka */}
+          <Box p={[0, 3.3, 0]} s={[w + 0.14, 0.05, d + 0.14]} c="#2a2e35" rough={0.4} />
+          {/* Porlab turgan panel */}
+          <mesh position={[0, 3.34, 0]}>
+            <boxGeometry args={[w, 0.05, d]} />
+            <meshStandardMaterial color="#fff8ec" emissive="#fff2d4" emissiveIntensity={lampsOn ? 2.3 : 0.85} toneMapped={false} />
+          </mesh>
+        </>
+      )}
       {lampsOn && <pointLight position={[0, 2.9, 0]} intensity={6} distance={7.5} decay={2} color="#ffe9c0" />}
     </group>
   );
