@@ -3,9 +3,11 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.1.5] — 2026-07-27
 
-Office-polish work toward the next release (not yet published).
+A smarter, more alive office — desks that fill with people, role-readable
+characters, ready-made styles, a session story, and insights that spot what a
+single session can't.
 
 ### Added
 
