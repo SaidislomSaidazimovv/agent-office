@@ -246,6 +246,14 @@ const dict = {
   "theme.slate": { uz: "Tungi", ru: "Ночная", en: "Night" },
   "theme.forest": { uz: "O'rmon", ru: "Лес", en: "Forest" },
   "theme.rose": { uz: "Pushti", ru: "Розовая", en: "Rose" },
+  "theme.loft": { uz: "Loft", ru: "Лофт", en: "Loft" },
+  "theme.nordic": { uz: "Nordik", ru: "Нордик", en: "Nordic" },
+  "theme.sunset": { uz: "Shafaq", ru: "Закат", en: "Sunset" },
+  "theme.ocean": { uz: "Dengiz", ru: "Океан", en: "Ocean" },
+  // Ofis uslubi galereyasi (sozlamalar)
+  "settings.groupStyle": { uz: "Ofis uslubi", ru: "Стиль офиса", en: "Office style" },
+  "settings.styleHint": { uz: "Tayyor uslub tanlang — Tahrirдa yana moslashtirsangiz bo'ladi.", ru: "Выберите готовый стиль — детали настраиваются в режиме правки.", en: "Pick a ready-made style — fine-tune it further in Edit mode." },
+  "settings.styleCustom": { uz: "Maxsus (qo'lda o'zgartirilgan)", ru: "Свой (изменён вручную)", en: "Custom (hand-tweaked)" },
 } as const;
 
 export type Key = keyof typeof dict;

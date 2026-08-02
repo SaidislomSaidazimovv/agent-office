@@ -25,13 +25,19 @@ export interface LayoutSnapshot {
 }
 
 // ── Ofis mavzulari (pol + devor palitrasi) ───────────────────
-export interface Theme { key: string; label: string; floor: string; wall: string }
+export interface Theme { key: string; label: string; floor: string; wall: string; emoji: string }
+// Tayyor ofis uslublari — pol + devor rangi. Tanlab, so'ng qo'lda ham
+// moslashtirsa bo'ladi (rang tanlagichlar). Agentlar avtomatik moslashadi.
 export const THEMES: Theme[] = [
-  { key: "warm", label: "Iliq", floor: "#d8c7a8", wall: "#dcd3c2" }, // standart
-  { key: "cool", label: "Salqin", floor: "#c4cfd8", wall: "#d4d9df" },
-  { key: "slate", label: "Tungi", floor: "#40454e", wall: "#4c525b" },
-  { key: "forest", label: "O'rmon", floor: "#bcc6ac", wall: "#ced4c3" },
-  { key: "rose", label: "Pushti", floor: "#e1cec9", wall: "#e7dad5" },
+  { key: "warm", label: "Iliq", emoji: "🏡", floor: "#d8c7a8", wall: "#dcd3c2" }, // standart
+  { key: "cool", label: "Salqin", emoji: "🧊", floor: "#c4cfd8", wall: "#d4d9df" },
+  { key: "slate", label: "Tungi", emoji: "🌙", floor: "#40454e", wall: "#4c525b" },
+  { key: "forest", label: "O'rmon", emoji: "🌲", floor: "#bcc6ac", wall: "#ced4c3" },
+  { key: "rose", label: "Pushti", emoji: "🌸", floor: "#e1cec9", wall: "#e7dad5" },
+  { key: "loft", label: "Loft", emoji: "☕", floor: "#c7a880", wall: "#b8a794" }, // yog'och loft
+  { key: "nordic", label: "Nordik", emoji: "❄️", floor: "#e6e4de", wall: "#f1efea" }, // yorug', havodor
+  { key: "sunset", label: "Shafaq", emoji: "🌇", floor: "#e0b489", wall: "#d9b6a0" }, // iliq terrakota
+  { key: "ocean", label: "Dengiz", emoji: "🌊", floor: "#a9c8cc", wall: "#c2d6d8" }, // salqin teal
 ];
 
 interface LayoutState {

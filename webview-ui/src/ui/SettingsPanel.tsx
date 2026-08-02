@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { type Key, LANGS, useLang, useT } from "../i18n";
+import { THEMES, useLayout } from "../layoutStore";
 import { unlockAudio } from "../notificationSound";
 import { useDaylight } from "../scene/daylight";
 import { type BoolSetting, useSettings } from "../settings";
@@ -21,6 +22,9 @@ export default function SettingsPanel() {
   const toggleDaylight = useDaylight((s) => s.toggle);
   const soundEnabled = useOffice((s) => s.soundEnabled);
   const setSound = useOffice((s) => s.setSound);
+  const floorColor = useLayout((s) => s.floorColor);
+  const wallColor = useLayout((s) => s.wallColor);
+  const applyTheme = useLayout((s) => s.applyTheme);
 
   const cfg = useSettings();
   const { budgetUsd, quality, setBudget, setQuality, toggle, reset, setTourDone } = cfg;
@@ -102,6 +106,42 @@ export default function SettingsPanel() {
               </button>
             ))}
           </div>
+
+          {/* Ofis uslubi — tayyor uslub galereyasi (pol + devor) */}
+          <Section title={t("settings.groupStyle")} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+            {THEMES.map((th) => {
+              const active = floorColor === th.floor && wallColor === th.wall;
+              return (
+                <button
+                  key={th.key}
+                  onClick={() => applyTheme(th.key)}
+                  aria-pressed={active}
+                  title={t(`theme.${th.key}` as Key)}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "5px 3px 4px",
+                    borderRadius: 8, cursor: "pointer", fontSize: 9.5, fontWeight: 600, color: "#e8ecf2",
+                    border: `1px solid ${active ? "rgba(94,155,255,0.7)" : "rgba(255,255,255,0.12)"}`,
+                    background: active ? "rgba(94,155,255,0.2)" : "transparent",
+                  }}
+                >
+                  {/* Ikki tomonlama swatch — pol + devor */}
+                  <span style={{ display: "flex", width: "100%", height: 22, borderRadius: 5, overflow: "hidden", border: "1px solid rgba(0,0,0,0.25)" }}>
+                    <span style={{ flex: 1, background: th.floor }} />
+                    <span style={{ flex: 1, background: th.wall }} />
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 11 }}>{th.emoji}</span>{t(`theme.${th.key}` as Key)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {/* Hech qaysi tayyor uslubga to'liq mos kelmasa — maxsus deb belgilaymiz */}
+          {(floorColor || wallColor) && !THEMES.some((th) => floorColor === th.floor && wallColor === th.wall) && (
+            <div style={{ fontSize: 9.5, opacity: 0.5, marginTop: 5 }}>✎ {t("settings.styleCustom")}</div>
+          )}
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5, lineHeight: 1.35 }}>{t("settings.styleHint")}</div>
 
           {/* Ko'rinish */}
           <Section title={t("settings.groupLook")} />

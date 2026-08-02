@@ -9,6 +9,10 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Ready-made office styles.** A new gallery in ⚙ Settings lets you re-skin the whole
+  office in a click — warm, cool, night, forest, rose, loft, nordic, sunset or ocean —
+  each a floor-and-wall preset shown as a two-tone swatch, and you can still hand-tune
+  the colours in Edit mode afterwards. The agents just carry on at their desks.
 - **Roles carry themselves a little differently.** Idle agents glance around at a pace
   set by the role — the scholars (research, docs) sit calmer, frontend and QA are livelier
   — a subtle scaling of the existing motion, nothing that touches the model.
