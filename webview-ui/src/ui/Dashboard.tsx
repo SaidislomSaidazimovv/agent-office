@@ -6,7 +6,8 @@ import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
 import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
-import { useOffice } from "../store";
+import { buildStory } from "../story";
+import { type AgentView, useOffice } from "../store";
 
 // ── Analitika dashboard ──────────────────────────────────────
 // Chart kutubxonasi yo'q — SVG qo'lда. Dizayn `dataviz` qo'llanmasi bo'yicha:
@@ -199,6 +200,7 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   const budgetUsd = useSettings((s) => s.budgetUsd);
   const [report, setReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showStory, setShowStory] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Hisobot BOSILGANDA yaratiladi (jonli emas) — nusxalanayotgan matn foydalanuvchi
@@ -286,14 +288,24 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
         <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{t("dash.title")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!empty && (
-            <button
-              onClick={openReport}
-              title={t("rep.open")}
-              aria-label={t("rep.open")}
-              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
-            >
-              📄 {t("rep.btn")}
-            </button>
+            <>
+              <button
+                onClick={() => setShowStory(true)}
+                title={t("story.open")}
+                aria-label={t("story.open")}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
+              >
+                📖 {t("story.btn")}
+              </button>
+              <button
+                onClick={openReport}
+                title={t("rep.open")}
+                aria-label={t("rep.open")}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
+              >
+                📄 {t("rep.btn")}
+              </button>
+            </>
           )}
           <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
@@ -423,6 +435,54 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
+
+      {/* ── Sessiya hikoyasi — o'qiladigan hikoya (kartalar) ── */}
+      {showStory && <StoryPanel agents={order.map((id) => agents[id]).filter(Boolean)} onClose={() => setShowStory(false)} />}
+    </div>
+  );
+}
+
+// ── Sessiya hikoyasi paneli — har agent nima qilgani (o'lchangan ma'lumotdan) ──
+function StoryPanel({ agents, onClose }: { agents: AgentView[]; onClose: () => void }) {
+  const t = useT();
+  const stories = useMemo(() => buildStory(agents, Date.now()), [agents]);
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 6, background: "#0d1117" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{t("story.title")}</span>
+        <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+      </div>
+      <div style={{ fontSize: 10.5, color: MUTED, marginBottom: 2 }}>{t("story.hint")}</div>
+      <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+        {stories.map((s) => {
+          const col = CAT[s.roleKey] ?? SERIES;
+          const mostly = s.cats.slice(0, 2).map((c) => t(`story.cat.${c.cat}` as never)).join(" · ");
+          return (
+            <div key={s.id} style={{ padding: "9px 11px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: col, flexShrink: 0 }} />
+                <b style={{ fontSize: 12.5, color: INK }}>{s.name}</b>
+                <span style={{ fontSize: 11, color: MUTED }}>{t(`role.${s.roleKey}` as never)}{s.model ? ` · ${shortModel(s.model)}` : ""}</span>
+              </div>
+              {/* Bir jumlada: qancha ishladi, nechta tool, nechta navbat */}
+              <div style={{ fontSize: 11.5, color: INK2, marginTop: 4 }}>
+                {s.tools > 0
+                  ? <>⏱ {fmtDur(s.ms)} {t("story.worked")} · {s.tools} {t("story.toolsN")} · {s.turns} {t("story.turnsN")}</>
+                  : <span style={{ opacity: 0.7 }}>{t("story.quietOne")}</span>}
+              </div>
+              {/* Asosan nima bilan shug'ullandi */}
+              {mostly && <div style={{ fontSize: 11.5, color: INK2, marginTop: 2 }}>🧰 {t("story.mostly")} {mostly}</div>}
+              {s.subagents > 0 && <div style={{ fontSize: 11, color: "#ffd60a", marginTop: 2 }}>🌳 {s.subagents} {t("story.subHired")}</div>}
+              {s.blockedReason && <div style={{ fontSize: 11, color: "#ff8a80", marginTop: 2, fontFamily: "ui-monospace, monospace", wordBreak: "break-word" }}>⛔ {t("story.blockedNow")}: {s.blockedReason}</div>}
+              {s.cost > 0 && (
+                <div style={{ fontSize: 11, color: MUTED, marginTop: 3, fontVariantNumeric: "tabular-nums" }}>
+                  💰 ~{fmtCost(s.cost)} · {fmtTok(s.tokens)} {t("insp.output")}{s.cacheSavedPct > 0 ? ` · ♻️ ${s.cacheSavedPct}% ${t("story.cacheSaved")}` : ""}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

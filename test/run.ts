@@ -15,6 +15,7 @@ import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
+import { buildStory, toolCat } from "../webview-ui/src/story.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -640,6 +641,42 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+console.log("Sessiya hikoyasi:");
+test("toolCat: yorliqdan turkum (edit/read/test/run/research)", () => {
+  assert.equal(toolCat("Edit src/App.tsx"), "edit");
+  assert.equal(toolCat("Write README.md"), "edit");
+  assert.equal(toolCat("Read foo.ts"), "read");
+  assert.equal(toolCat("Grep TODO"), "read");
+  assert.equal(toolCat("Bash npm test"), "test", "test buyrug'i → test");
+  assert.equal(toolCat("Bash pytest -q"), "test");
+  assert.equal(toolCat("Bash git commit"), "run", "oddiy buyruq → run");
+  assert.equal(toolCat("WebSearch claude"), "research");
+});
+test("buildStory: o'lchangan holatdan hikoya; eng band agent birinchi; turkumlar", () => {
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+  const s = useOffice.getState();
+  s.addAgent({ id: 700, folderName: "api", role: "backend" });
+  s.addAgent({ id: 701, folderName: "web", role: "frontend" });
+  const a = useOffice.getState().agents;
+  useOffice.setState({
+    agents: {
+      700: { ...a[700], toolCalls: 30, turns: 3, activeMs: 60000, costUsd: 1.4, inputTokens: 100000, outputTokens: 10000,
+        billed: { input: 20000, cacheWrite: 5000, cacheRead: 200000, output: 10000 },
+        toolHistory: [{ label: "Edit x.ts", at: 1 }, { label: "Edit y.ts", at: 2 }, { label: "Bash npm test", at: 3 }, { label: "Read z.ts", at: 4 }] },
+      701: { ...a[701], toolCalls: 5, turns: 1, activeMs: 20000, toolHistory: [{ label: "Read a.ts", at: 1 }] },
+    },
+  });
+  const st = useOffice.getState();
+  const story = buildStory(st.order.map((id) => st.agents[id]), 1_700_000_000_000);
+  assert.equal(story[0].id, 700, "eng band (30 tool) birinchi");
+  assert.equal(story[0].cats[0].cat, "edit", "asosan tahrir (2 edit)");
+  assert.equal(story[0].cats[0].n, 2);
+  assert.ok(story[0].cats.some((c) => c.cat === "test"), "test ham bor");
+  assert.ok(story[0].cacheSavedPct > 0, "kesh tejami hisoblanadi");
+  assert.equal(story[1].id, 701);
+  useOffice.setState({ agents: {}, order: [], samples: [] });
 });
 
 console.log("Personaj — rol imzo aksessuari:");

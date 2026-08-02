@@ -9,6 +9,11 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **A session story (📖).** Alongside the markdown report, the dashboard now tells the
+  session as a readable story — one card per agent: how long it worked, how many tools
+  and turns, what it mostly did (editing, testing, reading, running commands), any
+  sub-agents it hired, why it's blocked if it is, and its cost and cache saving. Every
+  line is derived from measured state; nothing is invented.
 - **Ready-made office styles.** A new gallery in ⚙ Settings lets you re-skin the whole
   office in a click — warm, cool, night, forest, rose, loft, nordic, sunset or ocean —
   each a floor-and-wall preset shown as a two-tone swatch, and you can still hand-tune
