@@ -4,9 +4,6 @@
 
 <div align="center">
     <img alt="VS Code" src="https://img.shields.io/badge/VS%20Code-1.84+-7d57c2?style=for-the-badge&logo=visual%20studio%20code&logoColor=white"/>
-    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white"/>
-    <img alt="React" src="https://img.shields.io/badge/React-20232a?style=for-the-badge&logo=react&logoColor=61dafb"/>
-    <img alt="three.js" src="https://img.shields.io/badge/three.js-000000?style=for-the-badge&logo=three.js&logoColor=white"/>
     <img alt="License" src="https://img.shields.io/badge/License-MIT-249847?style=for-the-badge"/>
     <a href="https://marketplace.visualstudio.com/items?itemName=thomasarisu.agent-office"><img alt="Marketplace" src="https://img.shields.io/visual-studio-marketplace/v/thomasarisu.agent-office?style=for-the-badge&label=Marketplace&color=1f6feb"/></a>
 </div>
@@ -21,7 +18,7 @@
 
 It **observes, never runs** Claude Code — no API key, no credentials, nothing to configure. It reads your local session transcripts (and, optionally, Claude Code Hooks) and renders the activity live in a panel next to your editor.
 
-> Inspired by [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) — but rebuilt from scratch with a full **3D office** (React + three.js) instead of 2D pixel art.
+> Inspired by [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) — but rebuilt from scratch with a full **3D office** instead of 2D pixel art.
 
 <details open>
 <summary><b>Features</b></summary>
@@ -98,7 +95,7 @@ The extension **does not run** Claude — it only watches. When Hooks are delive
 **From a packaged `.vsix`:**
 
 ```bash
-code --install-extension agent-office-0.1.3.vsix
+code --install-extension agent-office-0.1.5.vsix
 ```
 
 …or in VS Code: **Extensions** → `⋯` → **Install from VSIX…**

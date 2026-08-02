@@ -271,6 +271,8 @@ sessions — no API key, no configuration, purely local.
   bails out (never overwrites) if the file can't be parsed, and writes
   atomically; stale prior-version hook entries are cleaned up on install.
 
+[0.1.5]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.5
+[0.1.4]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.4
 [0.1.3]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.3
 [0.1.2]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.2
 [0.1.1]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.1
