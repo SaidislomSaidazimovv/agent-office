@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type BudgetLevel, budgetState } from "../budget";
 import { shortModel } from "../format";
 import { THEMES, useLayout } from "../layoutStore";
@@ -7,6 +7,7 @@ import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
 import { type Key, translate, useLang, useT } from "../i18n";
 import { useSettings } from "../settings";
+import { buildInsights } from "../insights";
 import { displayName, useOffice } from "../store";
 import { send } from "../transport";
 import AgentSearch from "./AgentSearch";
@@ -55,7 +56,13 @@ export default function Hud() {
   const showCost = useSettings((s) => s.showCost);
   const textMode = useSettings((s) => s.textMode);
   const toggleSetting = useSettings((s) => s.toggle);
+  const samples = useOffice((s) => s.samples);
   const tour = useTour();
+  // Ogohlantirish soni (📊 nishoni) — insights'dagi "warn" darajali xulosalar.
+  const warnCount = useMemo(
+    () => buildInsights(order.map((id) => agents[id]).filter(Boolean), samples, Date.now()).filter((i) => i.level === "warn").length,
+    [order, agents, samples],
+  );
   const notifyEvent = useOffice((s) => s.notifyEvent);
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
@@ -232,14 +239,15 @@ export default function Hud() {
         >
           📜
         </button>
-        {/* Analitika dashboard */}
+        {/* Analitika dashboard — ogohlantirish bo'lsa nishon (badge) */}
         <button
           onClick={() => setDash((d) => !d)}
           data-tour="dash"
-          aria-label={t("dash.open")}
+          aria-label={warnCount > 0 ? `${t("dash.open")} — ${warnCount} ${t("insight.title")}` : t("dash.open")}
           aria-pressed={dash}
           title={t("dash.open")}
           style={{
+            position: "relative",
             pointerEvents: "auto", display: "flex", alignItems: "center", padding: "3px 7px", borderRadius: 8,
             cursor: "pointer", fontSize: 12,
             border: `1px solid ${dash ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.14)"}`,
@@ -247,6 +255,11 @@ export default function Hud() {
           }}
         >
           📊
+          {warnCount > 0 && (
+            <span style={{ position: "absolute", top: -5, right: -5, minWidth: 15, height: 15, padding: "0 3px", borderRadius: 8, background: "#ff9f0a", color: "#1a1300", fontSize: 9.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 1.5px rgba(16,20,27,0.9)" }}>
+              {warnCount}
+            </span>
+          )}
         </button>
       </div>
 

@@ -9,6 +9,13 @@ Office-polish work toward the next release (not yet published).
 
 ### Added
 
+- **Insights — the office notices things a single session can't.** Because the extension
+  sees every session at once, the dashboard now leads with deterministic observations:
+  two agents editing the same file in one repo (a conflict a lone Claude can't know
+  about), an agent repeating the same tool (a possible loop), who's blocked and why,
+  who's waiting on you, cost velocity, the busiest agent, and how much the cache is
+  saving. The 📊 button carries a badge with the number of warnings. No AI, nothing
+  invented — every insight is computed from measured state.
 - **A session story (📖).** Alongside the markdown report, the dashboard now tells the
   session as a readable story — one card per agent: how long it worked, how many tools
   and turns, what it mostly did (editing, testing, reading, running commands), any

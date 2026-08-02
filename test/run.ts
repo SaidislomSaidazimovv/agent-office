@@ -16,6 +16,8 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, toolCat } from "../webview-ui/src/story.js";
+import { buildInsights, editedFile } from "../webview-ui/src/insights.js";
+import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -641,6 +643,56 @@ test("store: sub-agent tavsifi saqlanadi, kalit bo'yicha tozalanadi", () => {
   assert.equal(useOffice.getState().agents[500].status, "collab", "yordamchi bor → collab");
   s.addSubagent(500, "k2", {}); // tavsifsiz ham bo'ladi
   assert.equal(useOffice.getState().agents[500].subagents[1].label, undefined, "bo'sh tavsif → undefined");
+});
+
+function baseAgent(id: number, folder: string): AgentViewT {
+  return {
+    id, folderName: folder, isExternal: false, seatIndex: 0,
+    active: false, awaitingInput: false, permission: false, blocked: false, stuck: false, reading: false,
+    activeToolCount: 0, subagents: [], inputTokens: 0, outputTokens: 0, contextWindow: 200000,
+    costUsd: 0, billed: { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 },
+    toolCalls: 0, turns: 0, activeMs: 0, activeSince: null, toolHistory: [], status: "idle",
+  };
+}
+console.log("Xulosalar (deterministik zukkolik):");
+test("editedFile: tahrir toolidan fayl; boshqa tool → null", () => {
+  assert.equal(editedFile("Edit store.ts"), "store.ts");
+  assert.equal(editedFile("Write README.md"), "README.md");
+  assert.equal(editedFile("Read store.ts"), null, "o'qish tahrir emas");
+  assert.equal(editedFile("Bash npm test"), null);
+});
+test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv", () => {
+  const withHist = (id: number, folder: string, labels: string[]) => ({
+    ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })),
+  });
+  const ins = buildInsights([
+    withHist(1, "repo", ["Edit store.ts", "Read a.ts"]),
+    withHist(2, "repo", ["Edit store.ts", "Edit b.ts"]),
+    withHist(3, "repo", ["Edit other.ts"]),
+  ], [], Date.now());
+  const conflict = ins.find((i) => i.key === "insight.conflict");
+  assert.ok(conflict, "to'qnashuv aniqlanishi kerak");
+  assert.equal(conflict!.vars!.file, "store.ts");
+  assert.equal(conflict!.vars!.n, 2);
+  assert.deepEqual(conflict!.agentIds!.sort(), [1, 2]);
+});
+test("buildInsights: boshqa REPOда bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
+  const ins = buildInsights([
+    { ...baseAgent(1, "repoA"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
+    { ...baseAgent(2, "repoB"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
+  ], [], Date.now());
+  assert.ok(!ins.some((i) => i.key === "insight.conflict"), "har xil repo → to'qnashuv yo'q");
+});
+test("buildInsights: bir yorliq 4× ketma-ket → sikl", () => {
+  const ins = buildInsights([
+    { ...baseAgent(1, "r"), toolHistory: [0, 1, 2, 3].map((i) => ({ label: "Bash npm test", at: i })) },
+  ], [], Date.now());
+  assert.ok(ins.some((i) => i.key === "insight.loop"), "sikl aniqlanishi kerak");
+});
+test("buildInsights: ogohlantirish bo'lmasa → 'hammasi joyida'", () => {
+  const ins = buildInsights([{ ...baseAgent(1, "r"), active: true, status: "working" }], [], Date.now());
+  assert.equal(ins[ins.length - 1].key, "insight.calm");
+  assert.ok(!ins.some((i) => i.level === "warn"));
 });
 
 console.log("Sessiya hikoyasi:");

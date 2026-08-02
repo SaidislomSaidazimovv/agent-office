@@ -126,6 +126,18 @@ const dict = {
   "common.cancel": { uz: "Bekor", ru: "Отмена", en: "Cancel" },
   "common.close": { uz: "Yopish", ru: "Закрыть", en: "Close" },
   "time.now": { uz: "hozir", ru: "сейчас", en: "now" },
+  // Xulosalar (insights) — deterministik zukkolik
+  "insight.title": { uz: "💡 Xulosalar", ru: "💡 Сводка", en: "💡 Insights" },
+  "insight.conflict": { uz: "{n} agent «{file}» ni tahrirlamoqda — to'qnashuv xavfi", ru: "{n} агента правят «{file}» — риск конфликта", en: "{n} agents are editing «{file}» — conflict risk" },
+  "insight.loop": { uz: "«{name}» «{tool}» ni {n}× takrorladi — sikl bo'lishi mumkin", ru: "«{name}» повторил «{tool}» {n}× — возможно, цикл", en: "«{name}» repeated «{tool}» {n}× — possible loop" },
+  "insight.blocked": { uz: "«{name}» bloklangan: {reason}", ru: "«{name}» заблокирован: {reason}", en: "«{name}» is blocked: {reason}" },
+  "insight.waiting": { uz: "{n} agent sizni kutmoqda (ruxsat)", ru: "{n} агента ждут вас (разрешение)", en: "{n} agents are waiting for you (approval)" },
+  "insight.costFast": { uz: "Xarajat tez o'smoqda (~{rate}/daq)", ru: "Затраты растут быстро (~{rate}/мин)", en: "Cost is rising fast (~{rate}/min)" },
+  "insight.busiest": { uz: "Eng band: «{name}» ({n} tool)", ru: "Самый занятой: «{name}» ({n} инстр.)", en: "Busiest: «{name}» ({n} tools)" },
+  "insight.cacheGood": { uz: "Kesh xarajatning {n}% ini tejayapti", ru: "Кэш экономит {n}% затрат", en: "The cache is saving {n}% of your cost" },
+  "insight.calm": { uz: "Hammasi joyida — e'tibor talab qilinmaydi", ru: "Всё в порядке — внимание не требуется", en: "All good — nothing needs you" },
+  "insight.allIdle": { uz: "Hamma agent bo'sh", ru: "Все агенты простаивают", en: "Every agent is idle" },
+  "insight.none": { uz: "Hali xulosa yo'q", ru: "Пока нет сводки", en: "No insights yet" },
   // Analitika dashboard
   "dash.open": { uz: "Analitika", ru: "Аналитика", en: "Analytics" },
   "dash.title": { uz: "📊 Analitika", ru: "📊 Аналитика", en: "📊 Analytics" },
@@ -284,6 +296,12 @@ interface LangState {
 export const useLang = create<LangState>()(
   persist((set) => ({ lang: "uz", setLang: (lang) => set({ lang }) }), { name: "agent-office.lang" }),
 );
+
+/** Shablonдаgi `{x}` o'rniga vars qiymatini qo'yadi (insights xabarlari uchun). */
+export function fill(s: string, vars?: Record<string, string | number>): string {
+  if (!vars) return s;
+  return s.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
+}
 
 /** Reaktiv bo'lmagan qidiruv (React tashqarisi uchun). */
 export function translate(lang: Lang, key: Key): string {

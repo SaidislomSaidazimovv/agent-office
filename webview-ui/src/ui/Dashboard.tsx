@@ -1,13 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
-import { useT } from "../i18n";
+import { fill, useT } from "../i18n";
+import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
 import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
 import { buildStory } from "../story";
 import { type AgentView, useOffice } from "../store";
+import { send } from "../transport";
 
 // ── Analitika dashboard ──────────────────────────────────────
 // Chart kutubxonasi yo'q — SVG qo'lда. Dizayn `dataviz` qo'llanmasi bo'yicha:
@@ -197,6 +199,8 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   const agents = useOffice((s) => s.agents);
   const order = useOffice((s) => s.order);
   const samples = useOffice((s) => s.samples);
+  const select = useOffice((s) => s.select);
+  const onPickAgent = (id: number) => { select(id); send({ type: "focusAgent", id }); };
   const budgetUsd = useSettings((s) => s.budgetUsd);
   const [report, setReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -316,6 +320,9 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
           <div style={{ padding: "28px 12px", textAlign: "center", fontSize: 12.5, color: MUTED }}>{t("dash.noData")}</div>
         ) : (
           <>
+            {/* 💡 Xulosalar — deterministik zukkolik (to'qnashuv, sikl, e'tibor) */}
+            <InsightsSection agents={order.map((id) => agents[id]).filter(Boolean)} samples={samples} onPick={onPickAgent} />
+
             {/* KPI qatori — stat tile'lar (grafik emas) */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <Stat label={t("dash.totalCost")} value={`~${fmtCost(totalCost)}`} sub={`${t("dash.estimate")} (${PRICING_AS_OF})`} />
@@ -438,6 +445,40 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
 
       {/* ── Sessiya hikoyasi — o'qiladigan hikoya (kartalar) ── */}
       {showStory && <StoryPanel agents={order.map((id) => agents[id]).filter(Boolean)} onClose={() => setShowStory(false)} />}
+    </div>
+  );
+}
+
+// ── Xulosalar bo'limi — extension BARCHA sessiyalarni ko'radi, shuning uchun
+//    bitta Claude bilmaydigan narsalarni aytadi (to'qnashuv, sikl…). AI EMAS. ──
+const INSIGHT_COLOR: Record<string, string> = { warn: "#ff9f0a", info: "#3987e5", good: "#30d158" };
+function InsightsSection({ agents, samples, onPick }: { agents: AgentView[]; samples: { t: number; cost: number }[]; onPick: (id: number) => void }) {
+  const t = useT();
+  const insights = useMemo(() => buildInsights(agents, samples as never, Date.now()), [agents, samples]);
+  if (insights.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 7 }}>{t("insight.title")}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {insights.map((ins) => {
+          const col = INSIGHT_COLOR[ins.level];
+          const vars = ins.vars && ins.vars.rate != null ? { ...ins.vars, rate: fmtCost(ins.vars.rate as number) } : ins.vars;
+          const clickable = !!ins.agentIds?.length;
+          return (
+            <div
+              key={ins.id}
+              onClick={clickable ? () => onPick(ins.agentIds![0]) : undefined}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 7, padding: "7px 9px", borderRadius: 8,
+                background: `${col}14`, border: `1px solid ${col}44`, cursor: clickable ? "pointer" : "default",
+              }}
+            >
+              <span style={{ fontSize: 12.5, lineHeight: 1.35, flexShrink: 0 }}>{ins.icon}</span>
+              <span style={{ fontSize: 11.5, lineHeight: 1.4, color: INK2, wordBreak: "break-word" }}>{fill(t(ins.key as never), vars)}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
