@@ -42,7 +42,7 @@ export function useExtensionMessages(): void {
           break;
         }
         case "agentToolStart":
-          store.setTool(msg.id, msg.toolName, msg.status);
+          store.setTool(msg.id, msg.toolName, msg.status, msg.runInBackground);
           break;
         case "agentRoleDetected":
           store.setRole(msg.id, msg.role);

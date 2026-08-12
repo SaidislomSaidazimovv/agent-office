@@ -543,6 +543,13 @@ export default function Hud() {
             <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {t(`status.${sel.status}` as Key)}
             {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}
           </div>
+          {/* Fonda ishlayotgan vazifa (run_in_background) — bash/tool ajralib
+              ketgan, agent boshqa ish qilyapti. O'lchangan bayroq. */}
+          {sel.background && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, marginTop: 6, padding: "2px 8px", borderRadius: 10, color: "#8ec7ff", background: "rgba(94,155,255,0.12)", border: "1px solid rgba(94,155,255,0.28)" }}>
+              🔄 {t("insp.background")}
+            </div>
+          )}
           {/* NEGA bloklandi — xatoning HAQIQIY matni (transkriptdan). Bu yerda
               bo'lmasa, foydalanuvchi qizil nuqtani ko'rib, sababini bilmasdi. */}
           {sel.blocked && sel.blockedReason && (

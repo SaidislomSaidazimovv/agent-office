@@ -39,6 +39,11 @@ export interface AgentView {
   /** Ruxsatni JUDA uzoq (3+ daqiqa) kutmoqda — e'tibordan chetda qolgan. */
   stuck: boolean;
   reading: boolean;
+  /** Fonda ishlayotgan vazifa bor — `run_in_background` bilan ishga tushirilgan
+   *  bash/tool. Bunday tool CHAQIRUVI darrov tugaydi (jarayon ajralib ketadi),
+   *  shuning uchun bayroq faol ish davomida ushlab turiladi va agent bo'shaganda
+   *  tozalanadi. O'lchangan flag — hech narsa o'ylab topilmaydi. */
+  background: boolean;
   toolLabel?: string;
   activeToolCount: number;
   /** Faol sub-agentlar — har biri alohida personaj + daraxt tuguni. */
@@ -170,7 +175,7 @@ interface OfficeState {
   addAgent(meta: { id: number; folderName?: string; role?: string; task?: string; isExternal?: boolean }): void;
   removeAgent(id: number): void;
   setActive(id: number, active: boolean, awaitingInput?: boolean): void;
-  setTool(id: number, toolName: string | undefined, label: string): void;
+  setTool(id: number, toolName: string | undefined, label: string, runInBackground?: boolean): void;
   setRole(id: number, role: string): void;
   setName(id: number, name: string): void;
   toolDone(id: number): void;
@@ -262,6 +267,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         blocked: false,
         stuck: false,
         reading: false,
+        background: false,
         activeToolCount: 0,
         subagents: [],
         inputTokens: 0,
@@ -311,13 +317,13 @@ export const useOffice = create<OfficeState>((set, get) => ({
           awaitingInput,
           ...touchActive(a, active, Date.now()),
           // Yangi navbat boshlandi → ruxsat kutish (va "tiqilib qolgan" holati) tugadi.
-          ...(active ? { stuck: false } : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false, stuck: false }),
+          ...(active ? { stuck: false } : { activeToolCount: 0, subagents: [], toolLabel: undefined, permission: false, stuck: false, background: false }),
         }),
       },
     }));
   },
 
-  setTool(id, toolName, label) {
+  setTool(id, toolName, label, runInBackground) {
     const a = get().agents[id];
     if (!a) return;
     set((s) => ({
@@ -332,6 +338,9 @@ export const useOffice = create<OfficeState>((set, get) => ({
           toolLabel: label,
           toolHistory: [{ label, at: Date.now() }, ...a.toolHistory].slice(0, MAX_TOOL_HISTORY),
           reading: toolName ? get().readingTools.has(toolName) : false,
+          // Fon vazifasi ishga tushdi → bayroqni ushlab qolamiz (tool chaqiruvi
+          // darrov tugasa ham). Faol ish davomida yonadi; toolDone uni O'CHIRMAYDI.
+          background: a.background || !!runInBackground,
         }),
       },
       events: pushEvent(s.events, displayName(a), "#30d158", { text: label }),
@@ -396,7 +405,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set((s) => ({
       agents: {
         ...s.agents,
-        [id]: recompute({ ...a, activeToolCount: 0, subagents: [], toolLabel: undefined }),
+        [id]: recompute({ ...a, activeToolCount: 0, subagents: [], toolLabel: undefined, background: false }),
       },
     }));
   },

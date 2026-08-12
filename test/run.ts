@@ -519,6 +519,18 @@ test("toolDone: sanoq 0ga tushsa yorliq tozalanadi (osilib qolmaydi)", () => {
   s.toolDone(400);
   assert.equal(useOffice.getState().agents[400].toolLabel, undefined, "sanoq 0da yorliq tozalanishi kerak");
 });
+test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganда tozalanadi", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 410, folderName: "bg" });
+  s.setTool(410, "Bash", "Bash npm run dev", true); // fonda ishga tushdi
+  assert.equal(useOffice.getState().agents[410].background, true, "fon bayrog'i yonishi kerak");
+  s.toolDone(410); // fon tool CHAQIRUVI tugadi — bayroq o'chmasin
+  assert.equal(useOffice.getState().agents[410].background, true, "toolDone bayroqni o'chirmasligi kerak");
+  s.setTool(410, "Edit", "Edit x.ts"); // oldinги (foreground) ish — ushlab qoladi
+  assert.equal(useOffice.getState().agents[410].background, true, "foreground tool bayroqni ushlab qolishi kerak");
+  s.setActive(410, false); // agent bo'shadi — burst tugadi
+  assert.equal(useOffice.getState().agents[410].background, false, "bo'shaganda tozalanishi kerak");
+});
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 202, folderName: "b" });
