@@ -20,6 +20,7 @@ export type ServerMessage =
   | AgentStuck
   | AgentRenamed
   | AgentRoleDetected
+  | AgentPermissionMode
   | SubagentToolStart
   | SubagentToolDone
   | SubagentClear
@@ -166,6 +167,14 @@ export interface AgentRoleDetected {
   id: number;
   /** Faoliyatdan aniqlangan rol (frontend/backend/qa/docs/data/research). */
   role: string;
+}
+/** Sessiya ruxsat rejimi aniqlandi/o'zgardi. "bypassPermissions" =
+ *  --dangerously-skip-permissions (XAVFSIZLIK signali: tool ruxsat so'ramaydi).
+ *  "auto"/"default" ham bo'lishi mumkin. Faqat default'dan farqlisi yuboriladi. */
+export interface AgentPermissionMode {
+  type: "agentPermissionMode";
+  id: number;
+  mode: string;
 }
 export interface AgentTokenUsage {
   type: "agentTokenUsage";

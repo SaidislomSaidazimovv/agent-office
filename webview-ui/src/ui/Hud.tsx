@@ -550,6 +550,14 @@ export default function Hud() {
               🔄 {t("insp.background")}
             </div>
           )}
+          {/* XAVFSIZLIK — --dangerously-skip-permissions rejimi. Tool tasdiq
+              so'ramaydi, shuning uchun aniq ko'zga tashlansin (amber quti). */}
+          {sel.permissionMode === "bypassPermissions" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 8, padding: "7px 9px", borderRadius: 8, color: "#ffd8a8", background: "rgba(255,159,10,0.12)", border: "1px solid rgba(255,159,10,0.4)" }}>
+              <span style={{ fontSize: 14 }}>🔓</span>
+              <span><b>{t("insp.bypass")}</b><br /><span style={{ opacity: 0.7, fontFamily: "ui-monospace, monospace", fontSize: 10 }}>--dangerously-skip-permissions</span></span>
+            </div>
+          )}
           {/* NEGA bloklandi — xatoning HAQIQIY matni (transkriptdan). Bu yerda
               bo'lmasa, foydalanuvchi qizil nuqtani ko'rib, sababini bilmasdi. */}
           {sel.blocked && sel.blockedReason && (

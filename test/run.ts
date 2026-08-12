@@ -531,6 +531,13 @@ test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganда tozalan
   s.setActive(410, false); // agent bo'shadi — burst tugadi
   assert.equal(useOffice.getState().agents[410].background, false, "bo'shaganda tozalanishi kerak");
 });
+test("setPermissionMode: bypass rejimi saqlanadi (xavfsizlik belgisi uchun)", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 420, folderName: "bp" });
+  assert.equal(useOffice.getState().agents[420].permissionMode, undefined, "boshda aniqlanmagan bo'lishi kerak");
+  s.setPermissionMode(420, "bypassPermissions");
+  assert.equal(useOffice.getState().agents[420].permissionMode, "bypassPermissions", "bypass saqlanishi kerak");
+});
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 202, folderName: "b" });

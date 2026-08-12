@@ -122,6 +122,8 @@ const dict = {
   "insp.error": { uz: "Xato", ru: "Ошибка", en: "Error" },
   "insp.background": { uz: "Fonda ishlamoqda", ru: "Работает в фоне", en: "Running in background" },
   "bg.badge": { uz: "fonda", ru: "в фоне", en: "background" },
+  "bypass.badge": { uz: "ruxsatsiz", ru: "без спроса", en: "bypass" },
+  "insp.bypass": { uz: "Ruxsatsiz rejim — tool tasdiq so'ramaydi", ru: "Режим без запросов — инструменты не спрашивают", en: "Bypass mode — tools don't ask permission" },
   "insp.rename": { uz: "Nom berish (bo'sh qoldirsangiz — papka nomi)", ru: "Задать имя (пусто — имя папки)", en: "Rename (leave empty for the folder name)" },
   "insp.moveTip": { uz: "Boshqa stolga ko'chirish", ru: "Переместить за другой стол", en: "Move to another desk" },
   "move.hint": { uz: "🪑 Yangi stolni tanlang (🟢 bo'sh · 🟠 almashtirish)", ru: "🪑 Выберите новый стол (🟢 свободный · 🟠 обмен)", en: "🪑 Pick a new desk (🟢 free · 🟠 swap)" },

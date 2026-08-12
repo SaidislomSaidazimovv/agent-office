@@ -28,6 +28,9 @@ export interface AgentView {
   role?: string;
   task?: string;
   isExternal: boolean;
+  /** Sessiya ruxsat rejimi: "bypassPermissions" (--dangerously-skip-permissions —
+   *  XAVFLI: tool ruxsat so'ramaydi), "auto", yoki aniqlanmagan (default). */
+  permissionMode?: string;
   seatIndex: number;
   // Xom flaglar
   active: boolean;
@@ -177,6 +180,7 @@ interface OfficeState {
   setActive(id: number, active: boolean, awaitingInput?: boolean): void;
   setTool(id: number, toolName: string | undefined, label: string, runInBackground?: boolean): void;
   setRole(id: number, role: string): void;
+  setPermissionMode(id: number, mode: string): void;
   setName(id: number, name: string): void;
   toolDone(id: number): void;
   clearTools(id: number): void;
@@ -359,6 +363,13 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     const n = name.trim();
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, customName: n || undefined } } }));
+  },
+
+  setPermissionMode(id, mode) {
+    const a = get().agents[id];
+    if (!a || a.permissionMode === mode) return;
+    // Statusga ta'sir qilmaydi — faqat xavfsizlik belgisini boshqaradi.
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, permissionMode: mode } } }));
   },
 
   sample() {

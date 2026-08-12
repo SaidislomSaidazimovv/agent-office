@@ -417,6 +417,15 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         </Html>
       )}
 
+      {/* XAVFSIZLIK belgisi — agent --dangerously-skip-permissions bilan ishlayapti
+          (tool ruxsat so'ramaydi). Amber ogohlantirish, chap tomonда (fon belgisi
+          bilan to'qnashmaydi). Faqat KUZATILGAN permissionMode'dan. */}
+      {agent.permissionMode === "bypassPermissions" && (
+        <Html position={[-0.6, 1.55, 0]} center style={{ pointerEvents: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 10, background: "rgba(255,159,10,0.95)", color: "#241800", fontFamily: "system-ui", fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap", boxShadow: "0 2px 6px rgba(0,0,0,0.45)" }}>🔓 {t("bypass.badge")}</div>
+        </Html>
+      )}
+
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
       {hiring && (
         <Html position={[0, hireY, 0]} center style={{ pointerEvents: "none" }}>

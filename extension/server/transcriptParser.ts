@@ -116,7 +116,11 @@ export function processTranscriptLine(
   // default'dan boshqa (auto/bypassPermissions) — tool ruxsat so'ramaydi, shu
   // sababli kutilayotgan heuristik ruxsatni bekor qilamiz.
   if (typeof o.permissionMode === "string") {
-    agent.permissionMode = o.permissionMode;
+    // Faqat O'ZGARGANDA broadcast — har xabarda takror yuborilmasin.
+    if (agent.permissionMode !== o.permissionMode) {
+      agent.permissionMode = o.permissionMode;
+      store.broadcast({ type: "agentPermissionMode", id: agent.id, mode: agent.permissionMode });
+    }
     if (agent.permissionMode !== "default") clearPermission(store, agent);
   }
 
