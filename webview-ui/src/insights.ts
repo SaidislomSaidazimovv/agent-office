@@ -1,4 +1,5 @@
 import { cacheStats } from "./pricing";
+import { CONTEXT_HOT } from "./scene/emotes";
 import { type AgentView, type CostSample, displayName } from "./store";
 
 // ── Xulosalar dvigateli (deterministik "zukkolik") ───────────
@@ -77,6 +78,15 @@ export function buildInsights(agents: AgentView[], samples: CostSample[], now: n
   for (const a of agents) {
     if (a.blocked && a.blockedReason) {
       out.push({ id: `blocked-${a.id}`, level: "warn", icon: "⛔", key: "insight.blocked", vars: { name: displayName(a), reason: a.blockedReason }, agentIds: [a.id] });
+    }
+  }
+
+  // 3b) KONTEKST TO'LYAPTI — kirish tokenlari oyna chegarasiga yaqin. 🥵 emote
+  //     atigi 6s ko'rinadi; bu esa TURG'UN signal (/compact kerakligini eslatadi).
+  for (const a of agents) {
+    if (a.contextWindow > 0 && a.inputTokens / a.contextWindow >= CONTEXT_HOT) {
+      const pct = Math.round((a.inputTokens / a.contextWindow) * 100);
+      out.push({ id: `ctx-${a.id}`, level: "warn", icon: "🌡️", key: "insight.contextHot", vars: { name: displayName(a), n: pct }, agentIds: [a.id] });
     }
   }
 

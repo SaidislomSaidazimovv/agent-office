@@ -5,8 +5,9 @@ import { THEMES, useLayout } from "../layoutStore";
 import { fmtCost, PRICING_AS_OF } from "../pricing";
 import { CATALOG } from "../scene/furniture";
 import { MAX_CONTEXT_TOKENS, roleKeyFor, STATUS_COLOR, tokenBar } from "../scene/roles";
-import { type Key, translate, useLang, useT } from "../i18n";
+import { fill, type Key, translate, useLang, useT } from "../i18n";
 import { useSettings } from "../settings";
+import { CONTEXT_HOT } from "../scene/emotes";
 import { buildInsights } from "../insights";
 import { displayName, useOffice } from "../store";
 import { send } from "../transport";
@@ -629,6 +630,21 @@ export default function Hud() {
                 <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.14)", overflow: "hidden" }}>
                   <div style={{ width: `${Math.max(3, bar.pct * 100)}%`, height: "100%", background: bar.color }} />
                 </div>
+              </div>
+            );
+          })()}
+          {/* Kontekst to'lyapti — TURG'UN ogohlantirish (🥵 emote atigi 6s). Kirish
+              tokenlari oyna chegarasiga yaqin → /compact kerak. O'lchangan nisbat. */}
+          {sel.inputTokens > 0 && (() => {
+            const win = sel.contextWindow || MAX_CONTEXT_TOKENS;
+            const ratio = sel.inputTokens / win;
+            if (ratio < CONTEXT_HOT) return null;
+            const pct = Math.round(ratio * 100);
+            const critical = ratio >= 0.95;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 8, padding: "7px 9px", borderRadius: 8, color: critical ? "#ffb4a8" : "#ffd8a8", background: critical ? "rgba(255,69,58,0.12)" : "rgba(255,159,10,0.12)", border: `1px solid ${critical ? "rgba(255,69,58,0.4)" : "rgba(255,159,10,0.4)"}` }}>
+                <span style={{ fontSize: 14 }}>🌡️</span>
+                <span>{fill(t("insp.contextHot"), { n: pct })}</span>
               </div>
             );
           })()}

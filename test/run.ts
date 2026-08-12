@@ -724,6 +724,21 @@ test("buildInsights: bir yorliq 4× ketma-ket → sikl", () => {
   ], [], Date.now());
   assert.ok(ins.some((i) => i.key === "insight.loop"), "sikl aniqlanishi kerak");
 });
+test("buildInsights: kontekst 85%+ → turg'un ogohlantirish (/compact)", () => {
+  const ins = buildInsights([
+    { ...baseAgent(1, "r"), active: true, status: "working", inputTokens: 190000, contextWindow: 200000 },
+  ], [], Date.now());
+  const ctx = ins.find((i) => i.key === "insight.contextHot");
+  assert.ok(ctx, "kontekst issiq aniqlanishi kerak");
+  assert.equal(ctx!.level, "warn");
+  assert.equal(ctx!.vars!.n, 95, "foiz to'g'ri hisoblanishi kerak");
+});
+test("buildInsights: kontekst past → issiq ogohlantirish yo'q", () => {
+  const ins = buildInsights([
+    { ...baseAgent(1, "r"), active: true, status: "working", inputTokens: 100000, contextWindow: 200000 },
+  ], [], Date.now());
+  assert.ok(!ins.some((i) => i.key === "insight.contextHot"), "50% → issiq emas");
+});
 test("buildInsights: ogohlantirish bo'lmasa → 'hammasi joyida'", () => {
   const ins = buildInsights([{ ...baseAgent(1, "r"), active: true, status: "working" }], [], Date.now());
   assert.equal(ins[ins.length - 1].key, "insight.calm");
