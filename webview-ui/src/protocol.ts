@@ -8,7 +8,7 @@ export type ServerMessage =
   | { type: "agentCreated"; id: number; folderName?: string; isExternal?: boolean; role?: string; task?: string }
   | { type: "agentClosed"; id: number }
   | { type: "agentSelected"; id: number }
-  | { type: "existingAgents"; agents: number[]; folderNames: Record<string, string>; roles: Record<string, string> }
+  | { type: "existingAgents"; agents: number[]; folderNames: Record<string, string>; roles: Record<string, string>; externals?: number[] }
   | { type: "agentStatus"; id: number; status: AgentActivityStatus; awaitingInput?: boolean }
   | { type: "agentToolStart"; id: number; toolId: string; status: string; toolName?: string; permissionActive?: boolean; runInBackground?: boolean }
   | { type: "agentToolDone"; id: number; toolId: string }

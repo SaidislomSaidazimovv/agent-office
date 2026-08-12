@@ -88,6 +88,9 @@ export interface ExistingAgents {
   agents: number[];
   folderNames: Record<string, string>;
   roles: Record<string, string>;
+  /** Tashqi (avto-topilgan) agent id'lari — webview qayta yuklanganda origin
+   *  belgisi to'g'ri tiklansin (aks holda hammasi "ichki" ko'rinardi). */
+  externals?: number[];
 }
 export interface AgentStatus {
   type: "agentStatus";

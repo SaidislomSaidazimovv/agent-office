@@ -233,6 +233,7 @@ function sendSnapshot(send: (m: ServerMessage) => void): void {
     agents: agents.map((a) => a.id),
     folderNames: Object.fromEntries(agents.map((a) => [a.id, a.folderName])),
     roles: Object.fromEntries(agents.filter((a) => a.role).map((a) => [a.id, a.role!])),
+    externals: agents.filter((a) => a.isExternal).map((a) => a.id),
   });
   for (const a of agents) for (const m of agentSnapshotMessages(a)) send(m);
 }

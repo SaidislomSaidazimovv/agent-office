@@ -539,6 +539,16 @@ export default function Hud() {
             {/* Nom berilgan bo'lsa — qaysi repo ekani baribir ko'rinib tursin */}
             {sel.customName && <span style={{ opacity: 0.7 }}> · 📁 {sel.folderName}</span>}
           </div>
+          {/* Kelib chiqishi — +Agent bilan ochilgan (ichki) vs avto-topilgan (tashqi).
+              Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentда boshqacha ishlaydi. */}
+          <div style={{ marginTop: 5 }}>
+            <span
+              title={sel.isExternal ? t("origin.externalTip") : t("origin.internalTip")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "1px 7px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#cbd3de" }}
+            >
+              {sel.isExternal ? `🔎 ${t("origin.external")}` : `➕ ${t("origin.internal")}`}
+            </span>
+          </div>
           <div style={{ fontSize: 12, marginTop: 8 }}>
             <span style={{ color: STATUS_COLOR[sel.status] }}>●</span> {t(`status.${sel.status}` as Key)}
             {sel.toolLabel ? ` · ${sel.toolLabel}` : ""}

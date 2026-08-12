@@ -478,6 +478,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       agents: agents.map((a) => a.id),
       folderNames: Object.fromEntries(agents.map((a) => [a.id, a.folderName])),
       roles: Object.fromEntries(agents.filter((a) => a.role).map((a) => [a.id, a.role!])),
+      externals: agents.filter((a) => a.isExternal).map((a) => a.id),
     });
     // 5) Har agentning JORIY holatini qayta yuboramiz (SNAPSHOT) — webview
     //    qayta yuklanganda ish 0dan boshlanmasin, aynan turgan joyida davom etsin.

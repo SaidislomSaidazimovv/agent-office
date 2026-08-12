@@ -538,6 +538,13 @@ test("setPermissionMode: bypass rejimi saqlanadi (xavfsizlik belgisi uchun)", ()
   s.setPermissionMode(420, "bypassPermissions");
   assert.equal(useOffice.getState().agents[420].permissionMode, "bypassPermissions", "bypass saqlanishi kerak");
 });
+test("addAgent: isExternal saqlanadi (tashqi/ichki origin belgisi uchun)", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 430, folderName: "ext", isExternal: true });
+  s.addAgent({ id: 431, folderName: "int", isExternal: false });
+  assert.equal(useOffice.getState().agents[430].isExternal, true, "tashqi saqlanishi kerak");
+  assert.equal(useOffice.getState().agents[431].isExternal, false, "ichki saqlanishi kerak");
+});
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 202, folderName: "b" });

@@ -21,15 +21,18 @@ export function useExtensionMessages(): void {
         case "agentClosed":
           store.removeAgent(msg.id);
           break;
-        case "existingAgents":
+        case "existingAgents": {
+          const externals = new Set(msg.externals ?? []);
           for (const id of msg.agents) {
             store.addAgent({
               id,
               folderName: msg.folderNames[id],
               role: msg.roles[id],
+              isExternal: externals.has(id),
             });
           }
           break;
+        }
         case "agentSelected":
           store.select(msg.id);
           break;
