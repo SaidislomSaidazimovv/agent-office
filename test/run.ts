@@ -545,6 +545,15 @@ test("addAgent: isExternal saqlanadi (tashqi/ichki origin belgisi uchun)", () =>
   assert.equal(useOffice.getState().agents[430].isExternal, true, "tashqi saqlanishi kerak");
   assert.equal(useOffice.getState().agents[431].isExternal, false, "ichki saqlanishi kerak");
 });
+test("setGitRepos: staged/unstaged/ahead/behind saqlanadi (boyroq git)", () => {
+  const s = useOffice.getState();
+  s.setGitRepos([{ name: "repo", branch: "main", changed: 5, staged: 2, unstaged: 3, ahead: 1, behind: 4 }]);
+  const g = useOffice.getState().gitRepos["repo"];
+  assert.equal(g.staged, 2, "staged saqlanishi kerak");
+  assert.equal(g.unstaged, 3, "unstaged saqlanishi kerak");
+  assert.equal(g.ahead, 1, "ahead saqlanishi kerak");
+  assert.equal(g.behind, 4, "behind saqlanishi kerak");
+});
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 202, folderName: "b" });

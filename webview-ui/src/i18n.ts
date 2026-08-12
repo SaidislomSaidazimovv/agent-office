@@ -113,6 +113,10 @@ const dict = {
   // Inspektor
   "insp.changedFiles": { uz: "O'zgargan fayllar", ru: "Изменённые файлы", en: "Changed files" },
   "insp.changed": { uz: "o'zgargan", ru: "изменено", en: "changed" },
+  "insp.staged": { uz: "Tayyorlangan fayllar (staged)", ru: "Подготовленные файлы (staged)", en: "Staged files" },
+  "insp.unstaged": { uz: "O'zgargan, tayyorlanmagan fayllar (unstaged)", ru: "Изменённые, не подготовленные (unstaged)", en: "Changed, unstaged files" },
+  "insp.ahead": { uz: "Upstream'dan oldinda — push kutmoqda", ru: "Впереди upstream — ожидает push", en: "Ahead of upstream — to push" },
+  "insp.behind": { uz: "Upstream'dan orqada — pull kerak", ru: "Позади upstream — нужен pull", en: "Behind upstream — to pull" },
   "insp.context": { uz: "Kontekst", ru: "Контекст", en: "Context" },
   "insp.output": { uz: "chiqish", ru: "вывод", en: "output" },
   "insp.costTip": { uz: "Taxminiy — rasmiy narxlar. Kesh o'qish/yozish hisobga olingan.", ru: "Примерно — офиц. цены. Учтены чтение/запись кэша.", en: "Estimate — official prices. Cache read/write included." },

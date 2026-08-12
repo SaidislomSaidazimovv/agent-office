@@ -165,8 +165,8 @@ interface OfficeState {
   hookActive: boolean;
   readingTools: Set<string>;
   folders: { name: string; path: string }[];
-  /** Papka nomi → git holati (branch + o'zgargan fayllar). */
-  gitRepos: Record<string, { branch?: string; changed: number }>;
+  /** Papka nomi → git holati (branch + o'zgargan fayllar + ahead/behind). */
+  gitRepos: Record<string, { branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }>;
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
 
@@ -192,7 +192,7 @@ interface OfficeState {
   setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
-  setGitRepos(repos: { name: string; branch?: string; changed: number }[]): void;
+  setGitRepos(repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
   setMoving(id: number | null): void;
@@ -525,7 +525,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   },
 
   setGitRepos(repos) {
-    set({ gitRepos: Object.fromEntries((repos ?? []).map((r) => [r.name, { branch: r.branch, changed: r.changed }])) });
+    set({ gitRepos: Object.fromEntries((repos ?? []).map((r) => [r.name, { branch: r.branch, changed: r.changed, staged: r.staged, unstaged: r.unstaged, ahead: r.ahead, behind: r.behind }])) });
   },
 
   setHookActive(active) {

@@ -194,8 +194,9 @@ export interface AgentTokenUsage {
 }
 export interface GitStatus {
   type: "gitStatus";
-  /** Papka nomi → git holati (branch + o'zgargan fayllar soni). */
-  repos: { name: string; branch?: string; changed: number }[];
+  /** Papka nomi → git holati. `changed` = staged+unstaged (orqaga moslik);
+   *  staged/unstaged/ahead/behind — VS Code Git API mavjud bo'lganda. */
+  repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[];
 }
 export interface WorkspaceFolders {
   type: "workspaceFolders";

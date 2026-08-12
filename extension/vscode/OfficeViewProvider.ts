@@ -394,10 +394,10 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   // ── Git xabardorligi (branch + o'zgargan fayllar; child_process YO'Q) ──
   private gitTimer?: ReturnType<typeof setInterval>;
   private sendGitInfo(): void {
-    const repos: { name: string; branch?: string; changed: number }[] = [];
+    const repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[] = [];
     for (const f of vscode.workspace.workspaceFolders ?? []) {
       const g = gitInfoForPath(f.uri.fsPath);
-      if (g) repos.push({ name: f.name, branch: g.branch, changed: g.changed });
+      if (g) repos.push({ name: f.name, branch: g.branch, changed: g.changed, staged: g.staged, unstaged: g.unstaged, ahead: g.ahead, behind: g.behind });
     }
     this.post({ type: "gitStatus", repos });
   }

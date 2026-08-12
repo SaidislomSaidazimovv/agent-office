@@ -9,11 +9,22 @@ import * as vscode from "vscode";
 
 export interface GitInfo {
   branch?: string;
-  /** Working-tree + index o'zgarishlari soni (API mavjud bo'lsa). */
+  /** Working-tree + index o'zgarishlari soni (API mavjud bo'lsa; orqaga moslik). */
   changed: number;
+  /** Index (staged) o'zgargan fayllar. */
+  staged?: number;
+  /** Working-tree (unstaged) o'zgargan fayllar. */
+  unstaged?: number;
+  /** Upstream'dan OLDINDA — push kutayotgan commitlar. */
+  ahead?: number;
+  /** Upstream'dan ORQADA — pull kerak bo'lgan commitlar. */
+  behind?: number;
 }
 
-interface GitRepoState { HEAD?: { name?: string }; workingTreeChanges?: unknown[]; indexChanges?: unknown[] }
+// Satr-darajadagi +/- diff `git diff` (child_process) talab qiladi — XAVFSIZLIK
+// siyosati bo'yicha taqiqlangan. Shuning uchun faqat API'да mavjud FAYL-darajасидagi
+// hisoblar (staged/unstaged) + HEAD.ahead/behind ishlatiladi.
+interface GitRepoState { HEAD?: { name?: string; ahead?: number; behind?: number }; workingTreeChanges?: unknown[]; indexChanges?: unknown[] }
 interface GitRepo { rootUri: vscode.Uri; state: GitRepoState }
 interface GitAPI { repositories: GitRepo[] }
 
@@ -67,9 +78,16 @@ export function gitInfoForPath(fsPath: string): GitInfo | undefined {
       }
     }
     if (best) {
+      const staged = best.state.indexChanges?.length ?? 0;
+      const unstaged = best.state.workingTreeChanges?.length ?? 0;
+      const head = best.state.HEAD;
       return {
-        branch: best.state.HEAD?.name,
-        changed: (best.state.workingTreeChanges?.length ?? 0) + (best.state.indexChanges?.length ?? 0),
+        branch: head?.name,
+        changed: staged + unstaged,
+        staged,
+        unstaged,
+        ahead: head?.ahead,
+        behind: head?.behind,
       };
     }
   }

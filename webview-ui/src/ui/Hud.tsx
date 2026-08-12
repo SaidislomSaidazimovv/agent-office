@@ -579,16 +579,32 @@ export default function Hud() {
             </div>
           )}
 
-          {/* Git holati (branch + o'zgargan fayllar) */}
+          {/* Git holati — branch · ahead/behind · staged/unstaged. Satr-darajadagi
+              +/- YO'Q (git diff = child_process, xavfsizlik siyosati taqiqlaydi);
+              faqat Git API'дagi fayl-darajасидagi hisoblar. */}
           {(() => {
             const g = gitRepos[sel.folderName];
             if (!g?.branch) return null;
+            const hasSplit = g.staged !== undefined || g.unstaged !== undefined;
             return (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 5, opacity: 0.85 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 5, opacity: 0.85, flexWrap: "wrap" }}>
                 <span title="Git branch" style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 7px", borderRadius: 10, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
                   ⑂ {g.branch}
                 </span>
-                {g.changed > 0 && (
+                {(g.ahead ?? 0) > 0 && (
+                  <span title={t("insp.ahead")} style={{ color: "#5e9bff", fontVariantNumeric: "tabular-nums" }}>↑{g.ahead}</span>
+                )}
+                {(g.behind ?? 0) > 0 && (
+                  <span title={t("insp.behind")} style={{ color: "#bf7bff", fontVariantNumeric: "tabular-nums" }}>↓{g.behind}</span>
+                )}
+                {(g.staged ?? 0) > 0 && (
+                  <span title={t("insp.staged")} style={{ color: "#30d158" }}>✓ {g.staged}</span>
+                )}
+                {(g.unstaged ?? 0) > 0 && (
+                  <span title={t("insp.unstaged")} style={{ color: "#ff9f0a" }}>● {g.unstaged}</span>
+                )}
+                {/* Orqaga moslik: eski (split'siz) ma'lumot kelsa — jami sonni ko'rsatamiz. */}
+                {!hasSplit && g.changed > 0 && (
                   <span title={t("insp.changedFiles")} style={{ color: "#ff9f0a" }}>● {g.changed} {t("insp.changed")}</span>
                 )}
               </div>
