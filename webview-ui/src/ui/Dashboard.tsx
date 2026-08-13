@@ -4,10 +4,11 @@ import { fmtDur, fmtTok, shortModel } from "../format";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
+import { saveMarkdown } from "../media";
 import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
-import { buildStory } from "../story";
+import { buildStory, storyMarkdown } from "../story";
 import { type AgentView, useOffice } from "../store";
 import { send } from "../transport";
 
@@ -467,6 +468,16 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ flex: 1, fontSize: 10.5, color: MUTED }}>{t("rep.hint")}</span>
             <button
+              onClick={() => saveMarkdown("report", report)}
+              title={t("rep.saveTip")}
+              style={{
+                padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#fff",
+                border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.06)",
+              }}
+            >
+              💾 {t("rep.save")}
+            </button>
+            <button
               onClick={copyReport}
               style={{
                 padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#fff",
@@ -528,7 +539,17 @@ function StoryPanel({ agents, onClose }: { agents: AgentView[]; onClose: () => v
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 6, background: "#0d1117" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{t("story.title")}</span>
-        <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={() => saveMarkdown("story", storyMarkdown(stories, t))}
+            title={t("rep.saveTip")}
+            disabled={stories.length === 0}
+            style={{ padding: "5px 11px", borderRadius: 7, cursor: stories.length === 0 ? "default" : "pointer", fontSize: 11.5, fontWeight: 600, color: "#fff", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.06)", opacity: stories.length === 0 ? 0.4 : 1 }}
+          >
+            💾 {t("rep.save")}
+          </button>
+          <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        </div>
       </div>
       <div style={{ fontSize: 10.5, color: MUTED, marginBottom: 2 }}>{t("story.hint")}</div>
       <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>

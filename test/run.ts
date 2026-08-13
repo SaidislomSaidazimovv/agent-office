@@ -15,7 +15,7 @@ import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
-import { buildStory, toolCat } from "../webview-ui/src/story.js";
+import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
 import { buildInsights, editedFile } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -779,6 +779,23 @@ test("buildStory: o'lchangan holatdan hikoya; eng band agent birinchi; turkumlar
   assert.ok(story[0].cacheSavedPct > 0, "kesh tejami hisoblanadi");
   assert.equal(story[1].id, 701);
   useOffice.setState({ agents: {}, order: [], samples: [] });
+});
+
+test("storyMarkdown: hikoyani markdown'ga (sarlavha + o'lchangan qatorlar)", () => {
+  const stories = [
+    { id: 1, name: "api", roleKey: "backend", model: "claude-opus-4-8", ms: 60000, turns: 3, tools: 30,
+      cats: [{ cat: "edit" as const, n: 2 }, { cat: "test" as const, n: 1 }], subagents: 1, cost: 1.4, tokens: 110000, cacheSavedPct: 55 },
+  ];
+  const md = storyMarkdown(stories, (k) => k);
+  assert.ok(md.includes("# story.title"), "hujjat sarlavhasi");
+  assert.ok(md.includes("## api — role.backend"), "agent sarlavhasi");
+  assert.ok(md.includes("story.worked"), "ish qatori bo'lishi kerak");
+  assert.ok(md.includes("🧰"), "asosan-nima qatori");
+  assert.ok(md.includes("🌳"), "sub-agent qatori");
+  assert.ok(md.includes("💰"), "xarajat qatori");
+});
+test("storyMarkdown: bo'sh ro'yxat → 'ma'lumot yo'q'", () => {
+  assert.ok(storyMarkdown([], (k) => k).includes("dash.noData"));
 });
 
 console.log("Personaj — rol imzo aksessuari:");

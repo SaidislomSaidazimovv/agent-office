@@ -198,6 +198,8 @@ const dict = {
   "rep.btn": { uz: "Hisobot", ru: "Отчёт", en: "Report" },
   "rep.panel": { uz: "📄 Sessiya hisoboti", ru: "📄 Отчёт о сессии", en: "📄 Session report" },
   "rep.copy": { uz: "Nusxalash", ru: "Скопировать", en: "Copy" },
+  "rep.save": { uz: "Saqlash", ru: "Сохранить", en: "Save" },
+  "rep.saveTip": { uz: "Markdown (.md) fayl sifatida saqlash", ru: "Сохранить как файл Markdown (.md)", en: "Save as a Markdown (.md) file" },
   "rep.copied": { uz: "✓ Nusxalandi", ru: "✓ Скопировано", en: "✓ Copied" },
   "rep.hint": { uz: "Markdown — GitHub / Notion / Jira'ga joylashtiring", ru: "Markdown — вставьте в GitHub / Notion / Jira", en: "Markdown — paste into GitHub / Notion / Jira" },
   "rep.h1": { uz: "Agent Office — sessiya hisoboti", ru: "Agent Office — отчёт о сессии", en: "Agent Office — session report" },

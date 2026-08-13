@@ -321,6 +321,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "saveMedia":
         void this.saveMedia(msg.kind, msg.data);
         break;
+      case "saveText":
+        void this.saveText(msg.kind, msg.content);
+        break;
       case "renameAgent":
         this.renameAgent(msg.id, msg.name);
         break;
@@ -385,6 +388,27 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (!uri) return; // foydalanuvchi bekor qildi
     try {
       fs.writeFileSync(uri.fsPath, Buffer.from(data, "base64"));
+      vscode.window.showInformationMessage(`Agent Office: ${path.basename(uri.fsPath)}`);
+    } catch (e) {
+      vscode.window.showErrorMessage(`Agent Office: ${(e as Error).message}`);
+    }
+  }
+
+  /** Hisobot/hikoya matni (.md) — FOYDALANUVCHI tanlagan joyga (saqlash oynasi).
+   *  Matn webview'da o'lchangan holatdan yasaladi; hech qayerga jo'natilmaydi. */
+  private async saveText(kind: "report" | "story", content: string): Promise<void> {
+    if (typeof content !== "string" || content.length === 0 || content.length > 5_000_000) return;
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const name = `agent-office-${kind}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.md`;
+    const dir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(path.join(dir, name)),
+      filters: { Markdown: ["md"] },
+    });
+    if (!uri) return; // foydalanuvchi bekor qildi
+    try {
+      fs.writeFileSync(uri.fsPath, content, "utf8");
       vscode.window.showInformationMessage(`Agent Office: ${path.basename(uri.fsPath)}`);
     } catch (e) {
       vscode.window.showErrorMessage(`Agent Office: ${(e as Error).message}`);

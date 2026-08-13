@@ -1,4 +1,6 @@
-import { cacheStats } from "./pricing";
+import { fmtDur, fmtTok } from "./format";
+import type { Key } from "./i18n";
+import { cacheStats, fmtCost } from "./pricing";
 import { roleKeyFor } from "./scene/roles";
 import { type AgentView, displayName } from "./store";
 
@@ -39,6 +41,29 @@ export interface AgentStory {
   tokens: number;
   /** Kesh necha % tejadi (0..100; manfiy bo'lsa 0). */
   cacheSavedPct: number;
+}
+
+/** Hikoyani o'qiladigan markdown hujjatga aylantiradi (.md saqlash uchun). Sof
+ *  funksiya — `t` tashqaridan (StoryPanel bilan bir xil kalitlar). Har qator
+ *  o'lchangan holatdan; hech narsa to'qib chiqarilmaydi. */
+export function storyMarkdown(stories: AgentStory[], t: (k: Key) => string): string {
+  const L = (k: string) => t(k as Key);
+  const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
+  const out: string[] = [`# ${L("story.title")}`, ""];
+  if (stories.length === 0) { out.push(L("dash.noData"), ""); return out.join("\n"); }
+  for (const s of stories) {
+    out.push(`## ${oneLine(s.name)} — ${L(`role.${s.roleKey}`)}${s.model ? ` · ${s.model}` : ""}`, "");
+    out.push(s.tools > 0 || s.turns > 0
+      ? `- ⏱ ${fmtDur(s.ms)} ${L("story.worked")} · ${s.tools} ${L("story.toolsN")} · ${s.turns} ${L("story.turnsN")}`
+      : `- ${L("story.quietOne")}`);
+    const mostly = s.cats.slice(0, 3).map((c) => `${L(`story.cat.${c.cat}`)} (${c.n})`).join(" · ");
+    if (mostly) out.push(`- 🧰 ${L("story.mostly")} ${mostly}`);
+    if (s.subagents > 0) out.push(`- 🌳 ${s.subagents} ${L("story.subHired")}`);
+    if (s.blockedReason) out.push(`- ⛔ ${L("story.blockedNow")}: ${oneLine(s.blockedReason)}`);
+    if (s.cost > 0) out.push(`- 💰 ~${fmtCost(s.cost)} · ${fmtTok(s.tokens)} ${L("insp.output")}${s.cacheSavedPct > 0 ? ` · ♻️ ${s.cacheSavedPct}% ${L("story.cacheSaved")}` : ""}`);
+    out.push("");
+  }
+  return out.join("\n");
 }
 
 export function buildStory(agents: AgentView[], now: number): AgentStory[] {

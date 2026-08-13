@@ -46,4 +46,5 @@ export type ClientMessage =
   | { type: "setSoundEnabled"; enabled: boolean }
   | { type: "saveLayout"; items: LayoutItem[]; floorColor?: string | null; wallColor?: string | null; packs?: unknown[] }
   | { type: "saveMedia"; kind: "png" | "webm"; data: string }
+  | { type: "saveText"; kind: "report" | "story"; content: string }
   | { type: "renameAgent"; id: number; name: string };

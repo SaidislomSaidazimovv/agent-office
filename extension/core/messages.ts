@@ -40,6 +40,7 @@ export type ClientMessage =
   | SetSoundEnabled
   | SaveLayout
   | SaveMedia
+  | SaveText
   | RenameAgent;
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
@@ -56,6 +57,13 @@ export interface SaveMedia {
   kind: "png" | "webm";
   /** base64 (data: prefiksisiz). */
   data: string;
+}
+
+/** Hisobot/hikoya matni (.md) — foydalanuvchi tanlagan joyga saqlanadi. */
+export interface SaveText {
+  type: "saveText";
+  kind: "report" | "story";
+  content: string;
 }
 
 export type AgentActivityStatus = "active" | "waiting";
