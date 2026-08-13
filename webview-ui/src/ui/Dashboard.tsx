@@ -45,6 +45,17 @@ function fmtClock(t: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// Saralanadigan ustunlar — jadval sarlavhalari bosilganda ishlatiladi.
+type SortKey = "role" | "cost" | "tok" | "turns" | "tools" | "ms";
+const SORT_COLS: { key: SortKey; labelKey: string; left?: boolean }[] = [
+  { key: "role", labelKey: "dash.colRole", left: true },
+  { key: "cost", labelKey: "dash.colCost" },
+  { key: "tok", labelKey: "dash.colTokens" },
+  { key: "turns", labelKey: "dash.colTurns" },
+  { key: "tools", labelKey: "dash.colTools" },
+  { key: "ms", labelKey: "dash.colActive" },
+];
+
 // ── Stat tile — sarlavha raqami. Grafik EMAS (dataviz: ba'zan javob chart emas). ──
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -205,6 +216,9 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   const [report, setReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showStory, setShowStory] = useState(false);
+  // Jadval saralash — ustun sarlavhasini bosib. Standart: xarajat kamayish tartibi.
+  const [sortKey, setSortKey] = useState<SortKey>("cost");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Hisobot BOSILGANDA yaratiladi (jonli emas) — nusxalanayotgan matn foydalanuvchi
@@ -269,6 +283,22 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
     agentRows.sort((a, b) => b.cost - a.cost);
     return { totalCost, totalTok, activeN, roleRows, agentRows, cache, modelRows };
   }, [agents, order]);
+
+  // Tanlangan ustun bo'yicha saralangan qatorlar (rol — matn, qolgani — son).
+  const sortedRows = useMemo(() => {
+    const arr = [...agentRows];
+    arr.sort((a, b) => {
+      const va = sortKey === "role" ? a.roleKey : (a[sortKey] as number);
+      const vb = sortKey === "role" ? b.roleKey : (b[sortKey] as number);
+      const d = typeof va === "number" ? va - (vb as number) : String(va).localeCompare(String(vb));
+      return sortDir === "asc" ? d : -d;
+    });
+    return arr;
+  }, [agentRows, sortKey, sortDir]);
+  const onSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("desc"); }
+  };
 
   // Model ranglari — TARTIB bo'yicha (eng qimmatdan), tasdiqlangan kategorik palitradan.
   const MODEL_PAL = [CAT.research, CAT.frontend, CAT.backend, CAT.qa, CAT.docs, CAT.data];
@@ -384,16 +414,23 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
               <thead>
                 <tr style={{ color: MUTED, textAlign: "right" }}>
-                  <th style={{ textAlign: "left", fontWeight: 500, padding: "4px 6px" }}>{t("dash.colRole")}</th>
-                  <th style={{ fontWeight: 500, padding: "4px 6px" }}>{t("dash.colCost")}</th>
-                  <th style={{ fontWeight: 500, padding: "4px 6px" }}>{t("dash.colTokens")}</th>
-                  <th style={{ fontWeight: 500, padding: "4px 6px" }}>{t("dash.colTurns")}</th>
-                  <th style={{ fontWeight: 500, padding: "4px 6px" }}>{t("dash.colTools")}</th>
-                  <th style={{ fontWeight: 500, padding: "4px 6px" }}>{t("dash.colActive")}</th>
+                  {SORT_COLS.map((c) => {
+                    const activeCol = sortKey === c.key;
+                    return (
+                      <th
+                        key={c.key}
+                        onClick={() => onSort(c.key)}
+                        title={t("dash.sortBy")}
+                        style={{ textAlign: c.left ? "left" : "right", fontWeight: 500, padding: "4px 6px", cursor: "pointer", color: activeCol ? INK : MUTED, userSelect: "none", whiteSpace: "nowrap" }}
+                      >
+                        {t(c.labelKey as never)}{activeCol ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {agentRows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.id} style={{ borderTop: `1px solid ${GRID}`, color: INK2, textAlign: "right" }}>
                     <td style={{ textAlign: "left", padding: "5px 6px", color: INK }}>
                       <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: CAT[r.roleKey] ?? SERIES, marginRight: 6 }} />

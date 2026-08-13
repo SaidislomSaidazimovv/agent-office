@@ -9,7 +9,7 @@ import { fill, type Key, translate, useLang, useT } from "../i18n";
 import { useSettings } from "../settings";
 import { CONTEXT_HOT } from "../scene/emotes";
 import { buildInsights } from "../insights";
-import { displayName, useOffice } from "../store";
+import { type AgentView, displayName, useOffice } from "../store";
 import { send } from "../transport";
 import AgentSearch from "./AgentSearch";
 import CaptureButton from "./CaptureButton";
@@ -18,6 +18,14 @@ import SettingsPanel from "./SettingsPanel";
 import Tour, { useTour } from "./Tour";
 
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
+
+// Chip-bar holat filtri guruhi — e'tibor talab qiladiganlar (bloklangan/ruxsat/
+// tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda kerakliларини topish uchun.
+type StatusFilter = "all" | "attn" | "active" | "idle";
+function bucketOf(a: AgentView): "attn" | "active" | "idle" {
+  if (a.blocked || a.permission || a.stuck) return "attn";
+  return a.status === "idle" ? "idle" : "active";
+}
 
 // Davomiylik (ms → "12s" / "3m 5s" / "1h 4m").
 function fmtDur(ms: number): string {
@@ -68,6 +76,14 @@ export default function Hud() {
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
   const [dash, setDash] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  // Chip-bar filtri uchun guruh sanoqlari + ko'rsatiladigan id'lar.
+  const filterInfo = useMemo(() => {
+    const counts = { all: 0, attn: 0, active: 0, idle: 0 };
+    for (const id of order) { const a = agents[id]; if (!a) continue; counts.all++; counts[bucketOf(a)]++; }
+    const shown = statusFilter === "all" ? order : order.filter((id) => agents[id] && bucketOf(agents[id]) === statusFilter);
+    return { counts, shown };
+  }, [order, agents, statusFilter]);
   const [histOpen, setHistOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -300,37 +316,65 @@ export default function Hud() {
         </div>
       )}
 
-      {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) */}
+      {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) + holat filtri */}
       {order.length > 0 && (
-        <div
-          data-tour="agents"
-          style={{
-            position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
-            display: "flex", gap: 6, maxWidth: "60vw", overflowX: "auto", padding: 4, pointerEvents: "auto",
-          }}
-        >
-          {order.map((id) => {
-            const a = agents[id];
-            if (!a) return null;
-            const c = STATUS_COLOR[a.status];
-            const on = selectedId === id;
-            return (
-              <button
-                key={id}
-                onClick={() => { select(a.id); send({ type: "focusAgent", id: a.id }); }}
-                title={`${a.folderName} · ${t(`status.${a.status}` as Key)}`}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6, padding: "4px 11px", borderRadius: 20,
-                  cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "#e8ecf2",
-                  border: `1px solid ${on ? c : "rgba(255,255,255,0.14)"}`,
-                  background: on ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)",
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
-                {t(`role.${roleKeyFor(a.role, a.seatIndex)}` as Key)}
-              </button>
-            );
-          })}
+        <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: "62vw", pointerEvents: "auto" }}>
+          {/* Holat filtri — faqat ko'p agent bo'lganda (kerakliларини topish oson). */}
+          {order.length >= 4 && (
+            <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 20, background: "rgba(20,24,32,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              {([
+                { key: "all", icon: "" },
+                { key: "attn", icon: "🔔" },
+                { key: "active", icon: "🟢" },
+                { key: "idle", icon: "💤" },
+              ] as const).map((f) => {
+                const active = statusFilter === f.key;
+                const n = filterInfo.counts[f.key];
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setStatusFilter(f.key)}
+                    title={t(`filter.${f.key}` as Key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 16, cursor: "pointer",
+                      fontSize: 11, fontWeight: 600, border: "none",
+                      color: active ? "#0b0e13" : "#cbd3de", background: active ? "#5e9bff" : "transparent",
+                      opacity: f.key !== "all" && n === 0 ? 0.4 : 1,
+                    }}
+                  >
+                    {f.icon && <span>{f.icon}</span>}{t(`filter.${f.key}` as Key)} {n}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* Chip'lar (filtrlangan) */}
+          <div data-tour="agents" style={{ display: "flex", gap: 6, maxWidth: "62vw", overflowX: "auto", padding: 4 }}>
+            {filterInfo.shown.length === 0 ? (
+              <span style={{ fontSize: 11, opacity: 0.6, color: "#e8ecf2", padding: "4px 8px", whiteSpace: "nowrap" }}>{t("filter.none")}</span>
+            ) : filterInfo.shown.map((id) => {
+              const a = agents[id];
+              if (!a) return null;
+              const c = STATUS_COLOR[a.status];
+              const on = selectedId === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => { select(a.id); send({ type: "focusAgent", id: a.id }); }}
+                  title={`${a.folderName} · ${t(`status.${a.status}` as Key)}`}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "4px 11px", borderRadius: 20,
+                    cursor: "pointer", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "#e8ecf2",
+                    border: `1px solid ${on ? c : "rgba(255,255,255,0.14)"}`,
+                    background: on ? "rgba(94,155,255,0.22)" : "rgba(20,24,32,0.8)",
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
+                  {t(`role.${roleKeyFor(a.role, a.seatIndex)}` as Key)}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
