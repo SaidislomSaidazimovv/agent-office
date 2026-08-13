@@ -92,6 +92,9 @@ const dict = {
   "role.qa": { uz: "QA / Review", ru: "QA / Ревью", en: "QA / Review" },
   "role.docs": { uz: "Hujjatlar", ru: "Документация", en: "Docs" },
   "role.data": { uz: "Ma'lumot", ru: "Данные", en: "Data" },
+  "role.editTip": { uz: "Rolni qo'lda tuzatish", ru: "Изменить роль вручную", en: "Set the role manually" },
+  "role.auto": { uz: "Avto", ru: "Авто", en: "Auto" },
+  "role.autoTip": { uz: "Avtomatik aniqlashga qaytarish", ru: "Вернуть автоопределение", en: "Revert to auto-detection" },
   // Top bar — hook/xarajat maslahatlari
   "hud.hookTip": { uz: "Jonli hook oqimi (ishonchli aniqlash)", ru: "Живой поток хуков (надёжно)", en: "Live hook stream (reliable)" },
   "hud.jsonlTip": { uz: "Faqat JSONL kuzatuvi (hook ulanmagan)", ru: "Только наблюдение JSONL (без хуков)", en: "JSONL watching only (no hooks)" },

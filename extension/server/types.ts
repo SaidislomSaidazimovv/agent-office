@@ -26,6 +26,9 @@ export interface AgentState {
   customName?: string;
   /** Rol ballari — tool faoliyatidan yig'iladi (roleInference). */
   roleScores: Record<string, number>;
+  /** Rol QO'LDA belgilangan (foydalanuvchi tuzatgan) — shunda avtomatik
+   *  aniqlash ustidan yozmaydi. Sessiya bo'yicha diskda saqlanadi. */
+  roleManual?: boolean;
   /** Boshlang'ich vazifa yorlig'i. */
   task?: string;
   /** VS Code terminali tomonidan yaratilganmi yoki tashqi sessiya. */

@@ -50,6 +50,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       // Shu sessiyaga avval nom berilganmi — tiklaymiz.
       const saved = agent.sessionId ? this.loadNames()[agent.sessionId] : undefined;
       if (saved) agent.customName = saved;
+      // Rol QO'LDA tuzatilganmi — tiklaymiz (avtomatik aniqlash ustidan yozmasin).
+      const savedRole = agent.sessionId ? this.loadRoles()[agent.sessionId] : undefined;
+      if (savedRole) { agent.role = savedRole; agent.roleManual = true; }
       this.sendOrBuffer({
         type: "agentCreated",
         id: agent.id,
@@ -327,6 +330,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "renameAgent":
         this.renameAgent(msg.id, msg.name);
         break;
+      case "setRole":
+        this.setRoleOverride(msg.id, msg.role);
+        break;
     }
   }
 
@@ -369,6 +375,56 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       fs.renameSync(tmp, p); // atomik almashtirish
     } catch {
       /* saqlab bo'lmasa — jim (nom ixtiyoriy) */
+    }
+  }
+
+  // ── Rol override (qo'lda tuzatish) — nom kabi SESSIYA ID bo'yicha saqlanadi.
+  //    Avtomatik aniqlash noto'g'ri bo'lsa foydalanuvchi tuzatadi; qayta ochilsa
+  //    ham (sessiya davom etsa) tuzatma joyida qoladi.
+  private rolesPath(): string {
+    return path.join(os.homedir(), ".agent-office", "roles.json");
+  }
+  private roleOverrides: Record<string, string> | null = null;
+  private loadRoles(): Record<string, string> {
+    if (this.roleOverrides) return this.roleOverrides;
+    try {
+      const o = JSON.parse(fs.readFileSync(this.rolesPath(), "utf8"));
+      // Yaroqsiz fayl → ustidan yozmaymiz, bo'sh deb qaraymiz.
+      this.roleOverrides = o && typeof o === "object" && !Array.isArray(o) ? (o as Record<string, string>) : {};
+    } catch {
+      this.roleOverrides = {};
+    }
+    return this.roleOverrides;
+  }
+  private setRoleOverride(id: number, raw: string): void {
+    const agent = this.store.get(id);
+    if (!agent) return;
+    const VALID = new Set(["research", "frontend", "backend", "qa", "docs", "data"]);
+    const role = typeof raw === "string" && VALID.has(raw) ? raw : "";
+    if (role) {
+      agent.role = role;
+      agent.roleManual = true;
+      this.sendOrBuffer({ type: "agentRoleDetected", id, role });
+    } else {
+      // Bo'sh/yaroqsiz → avtomatik aniqlashga qaytamiz (ballarni 0dan boshlaymiz).
+      agent.roleManual = false;
+      agent.role = undefined;
+      agent.roleScores = {};
+      this.sendOrBuffer({ type: "agentRoleDetected", id, role: "" });
+    }
+    // Diskka saqlash — faqat sessiya ID bo'lsa (aks holda kalit yo'q).
+    if (!agent.sessionId) return;
+    const roles = this.loadRoles();
+    if (role) roles[agent.sessionId] = role;
+    else delete roles[agent.sessionId];
+    try {
+      const p = this.rolesPath();
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      const tmp = `${p}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(roles));
+      fs.renameSync(tmp, p); // atomik almashtirish
+    } catch {
+      /* saqlab bo'lmasa — jim (override ixtiyoriy) */
     }
   }
 

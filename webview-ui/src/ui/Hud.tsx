@@ -27,6 +27,9 @@ function bucketOf(a: AgentView): "attn" | "active" | "idle" {
   return a.status === "idle" ? "idle" : "active";
 }
 
+// Qo'lda tuzatish uchun rollar (roleInference chiqaradigan 6 ta).
+const ROLE_KEYS = ["research", "frontend", "backend", "qa", "docs", "data"] as const;
+
 // Davomiylik (ms → "12s" / "3m 5s" / "1h 4m").
 function fmtDur(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -51,6 +54,7 @@ export default function Hud() {
   const agents = useOffice((s) => s.agents);
   const t = useT();
   const select = useOffice((s) => s.select);
+  const setRole = useOffice((s) => s.setRole);
   const movingId = useOffice((s) => s.movingId);
   const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
@@ -87,6 +91,7 @@ export default function Hud() {
   const [histOpen, setHistOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [roleEdit, setRoleEdit] = useState(false);
   const setName = useOffice((s) => s.setName);
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
@@ -579,11 +584,43 @@ export default function Hud() {
               ×
             </button>
           </div>
-          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 1 }}>
-            {t(`role.${roleKeyFor(sel.role, sel.seatIndex)}` as Key)}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, opacity: 0.75, marginTop: 1 }}>
+            <span>{t(`role.${roleKeyFor(sel.role, sel.seatIndex)}` as Key)}</span>
+            {/* Rolni QO'LDA tuzatish — avtomatik aniqlash noto'g'ri bo'lsa */}
+            <button
+              onClick={() => setRoleEdit((v) => !v)}
+              title={t("role.editTip")}
+              aria-label={t("role.editTip")}
+              style={{ border: "none", background: "transparent", color: "#9aa3af", cursor: "pointer", fontSize: 11, padding: "2px 3px", lineHeight: 1 }}
+            >
+              🎭
+            </button>
             {/* Nom berilgan bo'lsa — qaysi repo ekani baribir ko'rinib tursin */}
             {sel.customName && <span style={{ opacity: 0.7 }}> · 📁 {sel.folderName}</span>}
           </div>
+          {roleEdit && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6, padding: 7, borderRadius: 8, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              {ROLE_KEYS.map((rk) => {
+                const active = sel.role === rk;
+                return (
+                  <button
+                    key={rk}
+                    onClick={() => { setRole(sel.id, rk); send({ type: "setRole", id: sel.id, role: rk }); setRoleEdit(false); }}
+                    style={{ padding: "3px 9px", borderRadius: 12, cursor: "pointer", fontSize: 11, fontWeight: 600, color: active ? "#0b0e13" : "#cbd3de", border: "none", background: active ? "#5e9bff" : "rgba(255,255,255,0.08)" }}
+                  >
+                    {t(`role.${rk}` as Key)}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => { setRole(sel.id, ""); send({ type: "setRole", id: sel.id, role: "" }); setRoleEdit(false); }}
+                title={t("role.autoTip")}
+                style={{ padding: "3px 9px", borderRadius: 12, cursor: "pointer", fontSize: 11, fontWeight: 600, color: !sel.role ? "#0b0e13" : "#cbd3de", border: "1px solid rgba(255,255,255,0.18)", background: !sel.role ? "#8ec7ff" : "transparent" }}
+              >
+                ↺ {t("role.auto")}
+              </button>
+            </div>
+          )}
           {/* Kelib chiqishi — +Agent bilan ochilgan (ichki) vs avto-topilgan (tashqi).
               Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentда boshqacha ishlaydi. */}
           <div style={{ marginTop: 5 }}>

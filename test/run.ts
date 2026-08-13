@@ -554,6 +554,14 @@ test("setGitRepos: staged/unstaged/ahead/behind saqlanadi (boyroq git)", () => {
   assert.equal(g.ahead, 1, "ahead saqlanishi kerak");
   assert.equal(g.behind, 4, "behind saqlanishi kerak");
 });
+test("setRole: qo'lda rol o'rnatiladi; bo'sh '' → avtomatikka (undefined) qaytadi", () => {
+  const s = useOffice.getState();
+  s.addAgent({ id: 440, folderName: "r" });
+  s.setRole(440, "backend");
+  assert.equal(useOffice.getState().agents[440].role, "backend", "qo'lda rol o'rnatilishi kerak");
+  s.setRole(440, "");
+  assert.equal(useOffice.getState().agents[440].role, undefined, "'' → avtomatik (undefined)");
+});
 test("blocked flag → status 'blocked' (o'lik status endi jonli)", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 202, folderName: "b" });

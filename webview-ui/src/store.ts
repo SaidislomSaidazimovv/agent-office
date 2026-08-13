@@ -353,9 +353,11 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   setRole(id, role) {
     const a = get().agents[id];
-    if (!a || a.role === role) return;
+    // Bo'sh rol ("") → avtomatikka qaytish (undefined → seat-fallback ko'rinishi).
+    const r = role || undefined;
+    if (!a || a.role === r) return;
     // Rol o'zgardi → ko'rinish (skin) + yorliq avtomatik yangilanadi.
-    set((s) => ({ agents: { ...s.agents, [id]: { ...a, role } } }));
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, role: r } } }));
   },
 
   setName(id, name) {

@@ -160,9 +160,12 @@ export function processTranscriptLine(
         const status = formatToolStatus(name, tool.input);
         const runInBackground = !!(tool.input && tool.input.run_in_background);
 
-        // Rolni faoliyatdan aniqlash (to'liq input — file_path qisqarmasidan avval)
-        const detected = accumulateRole(agent, name, tool.input as Record<string, unknown> | undefined);
-        if (detected) store.broadcast({ type: "agentRoleDetected", id: agent.id, role: detected });
+        // Rolni faoliyatdan aniqlash (to'liq input — file_path qisqarmasidan avval).
+        // Rol QO'LDA tuzatilgan bo'lsa — avtomatik aniqlash ustidan YOZMAYDI.
+        if (!agent.roleManual) {
+          const detected = accumulateRole(agent, name, tool.input as Record<string, unknown> | undefined);
+          if (detected) store.broadcast({ type: "agentRoleDetected", id: agent.id, role: detected });
+        }
 
         if (SUBAGENT_TOOL_NAMES.has(name)) {
           // Sub-agentning HAQIQIY vazifasi (description) + turi (subagent_type) —

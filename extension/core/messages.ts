@@ -41,7 +41,8 @@ export type ClientMessage =
   | SaveLayout
   | SaveMedia
   | SaveText
-  | RenameAgent;
+  | RenameAgent
+  | SetRole;
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */
@@ -49,6 +50,14 @@ export interface RenameAgent {
   type: "renameAgent";
   id: number;
   name: string;
+}
+
+/** Agent rolini QO'LDA tuzatish (avtomatik aniqlash noto'g'ri bo'lsa). Bo'sh
+ *  role → avtomatik aniqlashga qaytadi. Sessiya bo'yicha diskda saqlanadi. */
+export interface SetRole {
+  type: "setRole";
+  id: number;
+  role: string;
 }
 
 /** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
