@@ -11,6 +11,8 @@ export interface Searchable {
   roleLabel: string;
   statusLabel: string;
   toolLabel?: string;
+  /** Boshlang'ich vazifa (birinchi prompt) — u bo'yicha ham topiladi. */
+  task?: string;
 }
 
 const norm = (s: string) => s.toLowerCase().trim();
@@ -24,6 +26,7 @@ export function scoreAgent(a: Searchable, q: string): number {
   const status = norm(a.statusLabel);
   const tool = norm(a.toolLabel ?? "");
   const alt = norm(a.folderAlt ?? "");
+  const task = norm(a.task ?? "");
   if (folder.startsWith(n)) return 100;
   if (alt && alt.startsWith(n)) return 70;
   if (alt && alt.includes(n)) return 40;
@@ -31,6 +34,7 @@ export function scoreAgent(a: Searchable, q: string): number {
   if (folder.includes(n)) return 60;
   if (role.includes(n)) return 50;
   if (tool.includes(n)) return 30;
+  if (task.includes(n)) return 28; // vazifa matni — tool bilan status oralig'ida
   if (status.includes(n)) return 20;
   return 0;
 }

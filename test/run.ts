@@ -783,12 +783,13 @@ test("buildStory: o'lchangan holatdan hikoya; eng band agent birinchi; turkumlar
 
 test("storyMarkdown: hikoyani markdown'ga (sarlavha + o'lchangan qatorlar)", () => {
   const stories = [
-    { id: 1, name: "api", roleKey: "backend", model: "claude-opus-4-8", ms: 60000, turns: 3, tools: 30,
+    { id: 1, name: "api", roleKey: "backend", model: "claude-opus-4-8", task: "Fix the billing webhook", ms: 60000, turns: 3, tools: 30,
       cats: [{ cat: "edit" as const, n: 2 }, { cat: "test" as const, n: 1 }], subagents: 1, cost: 1.4, tokens: 110000, cacheSavedPct: 55 },
   ];
   const md = storyMarkdown(stories, (k) => k);
   assert.ok(md.includes("# story.title"), "hujjat sarlavhasi");
   assert.ok(md.includes("## api — role.backend"), "agent sarlavhasi");
+  assert.ok(md.includes("📋 Fix the billing webhook"), "vazifa (task) satri");
   assert.ok(md.includes("story.worked"), "ish qatori bo'lishi kerak");
   assert.ok(md.includes("🧰"), "asosan-nima qatori");
   assert.ok(md.includes("🌳"), "sub-agent qatori");
@@ -962,6 +963,17 @@ test("matchAgents: papka nomi boshidan mos → yuqorida; rol/tool/holat ham topi
   assert.equal(matchAgents(list, "yo'q").length, 0, "mos kelmasa — bo'sh");
   assert.equal(matchAgents(list, "  ").length, 3, "bo'sh so'rov → hammasi, tartib saqlanadi");
   assert.deepEqual(matchAgents(list, "API").map((a) => a.id), [2], "registrga sezgir emas");
+});
+test("matchAgents: vazifa (task) matni bo'yicha ham topiladi", () => {
+  const list = [
+    { id: 1, folderName: "web", roleLabel: "Frontend", statusLabel: "Ishlamoqda", task: "Implement the auth flow" },
+    { id: 2, folderName: "api", roleLabel: "Backend", statusLabel: "Ishlamoqda", task: "Fix the billing webhook" },
+  ];
+  assert.deepEqual(matchAgents(list, "auth").map((a) => a.id), [1], "vazifa matni bo'yicha");
+  assert.deepEqual(matchAgents(list, "billing").map((a) => a.id), [2], "vazifa matni bo'yicha (2)");
+  // Papka nomi vazifadan ustun (folder 'api' — task 'auth'дан kuchli emas, lekin
+  // 'api' so'rovda faqat 2ni topadi)
+  assert.deepEqual(matchAgents(list, "api").map((a) => a.id), [2], "papka nomi baribir ishlaydi");
 });
 
 console.log("Emotsiyalar (har biri KUZATILGAN holatdan):");

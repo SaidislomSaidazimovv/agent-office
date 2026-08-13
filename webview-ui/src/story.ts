@@ -28,6 +28,8 @@ export interface AgentStory {
   name: string;
   roleKey: string;
   model?: string;
+  /** Boshlang'ich vazifa (birinchi prompt) — agent NIMA qilishga kelgani. */
+  task?: string;
   /** Faol vaqt (ms). */
   ms: number;
   turns: number;
@@ -53,6 +55,7 @@ export function storyMarkdown(stories: AgentStory[], t: (k: Key) => string): str
   if (stories.length === 0) { out.push(L("dash.noData"), ""); return out.join("\n"); }
   for (const s of stories) {
     out.push(`## ${oneLine(s.name)} — ${L(`role.${s.roleKey}`)}${s.model ? ` · ${s.model}` : ""}`, "");
+    if (s.task) out.push(`- 📋 ${oneLine(s.task)}`);
     out.push(s.tools > 0 || s.turns > 0
       ? `- ⏱ ${fmtDur(s.ms)} ${L("story.worked")} · ${s.tools} ${L("story.toolsN")} · ${s.turns} ${L("story.turnsN")}`
       : `- ${L("story.quietOne")}`);
@@ -83,6 +86,7 @@ export function buildStory(agents: AgentView[], now: number): AgentStory[] {
       name: displayName(a),
       roleKey: roleKeyFor(a.role, a.seatIndex),
       model: a.model,
+      task: a.task,
       ms: a.activeMs + (a.activeSince != null ? now - a.activeSince : 0),
       turns: a.turns,
       tools: a.toolCalls,

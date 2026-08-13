@@ -32,6 +32,7 @@ export default function AgentSearch() {
         roleLabel: t(`role.${roleKeyFor(a.role, a.seatIndex)}` as Key),
         statusLabel: t(`status.${a.status}` as Key),
         toolLabel: a.toolLabel,
+        task: a.task,
         color: STATUS_COLOR[a.status],
       }));
     return matchAgents(list, q);
@@ -132,6 +133,9 @@ export default function AgentSearch() {
                     <span style={{ display: "block", fontSize: 10.5, opacity: 0.6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {r.roleLabel} · {r.statusLabel}{r.toolLabel ? ` · ${r.toolLabel}` : ""}
                     </span>
+                    {r.task && (
+                      <span style={{ display: "block", fontSize: 10, opacity: 0.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📋 {r.task}</span>
+                    )}
                   </span>
                 </button>
               ))

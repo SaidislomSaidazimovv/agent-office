@@ -563,6 +563,8 @@ function StoryPanel({ agents, onClose }: { agents: AgentView[]; onClose: () => v
                 <b style={{ fontSize: 12.5, color: INK }}>{s.name}</b>
                 <span style={{ fontSize: 11, color: MUTED }}>{t(`role.${s.roleKey}` as never)}{s.model ? ` · ${shortModel(s.model)}` : ""}</span>
               </div>
+              {/* Boshlang'ich vazifa (birinchi prompt) — agent NIMA qilishga kelgani */}
+              {s.task && <div style={{ fontSize: 11, color: MUTED, marginTop: 3, lineHeight: 1.4 }}>📋 {s.task}</div>}
               {/* Bir jumlada: qancha ishladi, nechta tool, nechta navbat */}
               <div style={{ fontSize: 11.5, color: INK2, marginTop: 4 }}>
                 {s.tools > 0
