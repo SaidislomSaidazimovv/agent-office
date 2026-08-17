@@ -1,10 +1,12 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
+import { buildInsights } from "../insights";
 import { useLayout } from "../layoutStore";
+import { fmtCost } from "../pricing";
 import { useSettings } from "../settings";
-import { useOffice } from "../store";
+import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
@@ -260,10 +262,8 @@ function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
       <Box p={[0, 1.4, 0]} s={[1.95, 1.12, 0.07]} c="#161a20" rough={0.4} />
-      <mesh position={[0, 1.4, 0.045]}><boxGeometry args={[1.76, 0.95, 0.01]} /><meshStandardMaterial color="#1b3a5c" emissive="#2c6aa8" emissiveIntensity={0.85} toneMapped={false} /></mesh>
-      {/* diagramma chiziqlari — porlaydi */}
-      <mesh position={[-0.4, 1.58, 0.055]}><boxGeometry args={[0.55, 0.045, 0.01]} /><meshStandardMaterial color="#5ac8fa" emissive="#5ac8fa" emissiveIntensity={2.6} toneMapped={false} /></mesh>
-      <mesh position={[0.18, 1.3, 0.055]}><boxGeometry args={[0.75, 0.045, 0.01]} /><meshStandardMaterial color="#30d158" emissive="#30d158" emissiveIntensity={2.6} toneMapped={false} /></mesh>
+      {/* Endi JONLI statistika taxtasi (kamerага qaraydi — asosiy displey). */}
+      <group position={[0, 1.4, 0.05]}><StatsBoard size={[1.74, 0.92]} /></group>
     </group>
   );
 }
@@ -305,8 +305,78 @@ export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
     </group>
   );
 }
+// ── Jonli statistika taxtasi (TV ekrani) ────────────────────
+// Ofis TV'si endi JONLI raqamlar ko'rsatadi: faol/jami agentlar, jami xarajat,
+// ogohlantirishlar soni. WebGL matni CSP tufayli drei <Text> orqali emas — 2D
+// canvas → CanvasTexture (Monitor ekrani bilan bir xil usul). Hammasi
+// O'LCHANGAN holatdan (store + buildInsights); hech narsa to'qib chiqarilmaydi.
+function StatsBoard({ size = [1.85, 1.0] as [number, number] }: { size?: [number, number] }) {
+  const order = useOffice((s) => s.order);
+  const agents = useOffice((s) => s.agents);
+  const samples = useOffice((s) => s.samples);
+  const stats = useMemo(() => {
+    const list = order.map((id) => agents[id]).filter(Boolean) as AgentView[];
+    let active = 0, cost = 0;
+    for (const a of list) { if (a.active) active++; cost += a.costUsd; }
+    const warns = buildInsights(list, samples, Date.now()).filter((i) => i.level === "warn").length;
+    return { total: list.length, active, cost, warns };
+  }, [order, agents, samples]);
+
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 288;
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => {
+    const c = tex.image as HTMLCanvasElement;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const W = 512, H = 288;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#0d1016"; ctx.fillRect(0, 0, W, H);
+    // Sarlavha paneli
+    ctx.fillStyle = "#3987e5"; ctx.fillRect(0, 0, W, 44);
+    ctx.fillStyle = "#f2f5fa"; ctx.font = "bold 26px system-ui, sans-serif";
+    ctx.fillText("AGENT OFFICE", 18, 32);
+    // "jonli" nuqta
+    ctx.fillStyle = "#0d1016"; ctx.beginPath(); ctx.arc(W - 30, 22, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#30d158"; ctx.beginPath(); ctx.arc(W - 30, 22, 4, 0, Math.PI * 2); ctx.fill();
+    // 3 ta ustun: agentlar / xarajat / ogohlantirish
+    const tile = (x: number, val: string, label: string, color: string) => {
+      ctx.textAlign = "center";
+      ctx.fillStyle = color; ctx.font = "bold 54px system-ui, sans-serif";
+      ctx.fillText(val, x, 168);
+      ctx.fillStyle = "#8b929c"; ctx.font = "600 18px system-ui, sans-serif";
+      ctx.fillText(label, x, 210);
+      ctx.textAlign = "left";
+    };
+    tile(96, `${stats.active}/${stats.total}`, "ACTIVE", "#f2f5fa");
+    tile(256, `~${fmtCost(stats.cost)}`, "COST", "#5ac8fa");
+    if (stats.warns > 0) tile(416, `${stats.warns}`, "ALERTS", "#ff9f0a");
+    else tile(416, "✓", "ALL CLEAR", "#30d158");
+    // pastki chiziq
+    ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fillRect(18, 244, W - 36, 2);
+    tex.needsUpdate = true;
+  }, [tex, stats]);
+  useEffect(() => () => tex.dispose(), [tex]);
+
+  return (
+    <mesh>
+      <planeGeometry args={size} />
+      <meshBasicMaterial map={tex} toneMapped={false} />
+    </mesh>
+  );
+}
+
 export function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
-  return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} /><mesh position={[0, 0, 0.05]}><planeGeometry args={[1.85, 1.0]} /><meshBasicMaterial color="#1b3a5c" /></mesh></group>;
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0, 0]} s={[2, 1.15, 0.08]} c="#15181d" rough={0.4} />
+      <group position={[0, 0, 0.05]}><StatsBoard /></group>
+    </group>
+  );
 }
 export function StandingLamp({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
