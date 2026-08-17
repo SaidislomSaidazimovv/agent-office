@@ -6,6 +6,7 @@ import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
 import { setActiveSeats, setPlacedRects } from "./scene/collision";
+import ConflictLinks from "./scene/ConflictLinks";
 import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
@@ -224,6 +225,9 @@ export default function App() {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;
         })}
+        {/* Fayl to'qnashuvi — bir faylni bir nechta agent tahrirlasa, ularni
+            poldan bog'lab ko'rsatamiz (izometrikda o'qiladi). */}
+        {cameraMode === "iso" && <ConflictLinks />}
         {PERF_ENABLED && <PerfProbe />}
       </Canvas>
       {/* Fokus qoplamasi — FocusSpot uni har freym yangilaydi (React render'siz).

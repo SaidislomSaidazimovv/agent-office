@@ -16,7 +16,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { buildInsights, editedFile } from "../webview-ui/src/insights.js";
+import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
@@ -718,6 +718,19 @@ test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv",
   assert.equal(conflict!.vars!.file, "store.ts");
   assert.equal(conflict!.vars!.n, 2);
   assert.deepEqual(conflict!.agentIds!.sort(), [1, 2]);
+});
+test("fileConflicts: bir repoда bir faylni 2 agent → to'qnashuv; boshqa repo → yo'q", () => {
+  const wh = (id: number, folder: string, labels: string[]) => ({ ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })) });
+  const cs = fileConflicts([
+    wh(1, "repo", ["Edit store.ts"]),
+    wh(2, "repo", ["Edit store.ts"]),
+    wh(3, "repo", ["Edit other.ts"]),
+    wh(4, "repoB", ["Edit store.ts"]), // boshqa repo — yolg'on signal EMAS
+  ]);
+  assert.equal(cs.length, 1, "faqat bitta to'qnashuv bo'lishi kerak");
+  assert.equal(cs[0].file, "store.ts");
+  assert.equal(cs[0].folderName, "repo");
+  assert.deepEqual(cs[0].ids.sort(), [1, 2]);
 });
 test("buildInsights: boshqa REPOда bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
   const ins = buildInsights([

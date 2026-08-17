@@ -35,14 +35,18 @@ const LOOP_N = 4; // bir yorliq ketma-ket shuncha marta → sikl shubhasi
 
 const LEVEL_RANK: Record<InsightLevel, number> = { warn: 0, info: 1, good: 2 };
 
-export function buildInsights(agents: AgentView[], samples: CostSample[], now: number): Insight[] {
-  const out: Insight[] = [];
-  const active = agents.filter((a) => a.status !== "idle");
-
-  // 1) TO'QNASHUV — bir REPO (folderName) ichida bir faylni bir nechta agent
-  //    tahrirlayotgan bo'lsa. Extension buni ko'radi, alohida Claude ko'rmaydi.
+// ── Fayl to'qnashuvi — bir REPO ichida bir faylni bir nechta agent tahrirlayapti.
+// Sof funksiya: buildInsights ham, 3D sahna ta'kidlash ham shundan foydalanadi.
+export interface FileConflict {
+  /** `${folderName}::${file}` — barqaror kalit. */
+  key: string;
+  file: string;
+  folderName: string;
+  ids: number[];
+}
+export function fileConflicts(agents: AgentView[]): FileConflict[] {
   const fileAgents = new Map<string, Set<number>>(); // `${repo}::${file}` → id'lar
-  const fileName = new Map<string, string>();
+  const meta = new Map<string, { file: string; folderName: string }>();
   for (const a of agents) {
     const recent = new Set<string>();
     const labels = [a.toolLabel, ...a.toolHistory.map((h) => h.label)].filter(Boolean) as string[];
@@ -52,14 +56,24 @@ export function buildInsights(agents: AgentView[], samples: CostSample[], now: n
     }
     for (const f of recent) {
       const k = `${a.folderName}::${f}`;
-      if (!fileAgents.has(k)) { fileAgents.set(k, new Set()); fileName.set(k, f); }
+      if (!fileAgents.has(k)) { fileAgents.set(k, new Set()); meta.set(k, { file: f, folderName: a.folderName }); }
       fileAgents.get(k)!.add(a.id);
     }
   }
+  const out: FileConflict[] = [];
   for (const [k, ids] of fileAgents) {
-    if (ids.size >= 2) {
-      out.push({ id: `conflict-${k}`, level: "warn", icon: "⚠️", key: "insight.conflict", vars: { n: ids.size, file: fileName.get(k)! }, agentIds: [...ids] });
-    }
+    if (ids.size >= 2) out.push({ key: k, file: meta.get(k)!.file, folderName: meta.get(k)!.folderName, ids: [...ids] });
+  }
+  return out;
+}
+
+export function buildInsights(agents: AgentView[], samples: CostSample[], now: number): Insight[] {
+  const out: Insight[] = [];
+  const active = agents.filter((a) => a.status !== "idle");
+
+  // 1) TO'QNASHUV — extension buni ko'radi, alohida Claude ko'rmaydi.
+  for (const c of fileConflicts(agents)) {
+    out.push({ id: `conflict-${c.key}`, level: "warn", icon: "⚠️", key: "insight.conflict", vars: { n: c.ids.length, file: c.file }, agentIds: c.ids });
   }
 
   // 2) SIKL — agentning so'nggi LOOP_N yorlig'i bir xil (bir joyda qotib qolish
