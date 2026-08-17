@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { AgentView } from "../store";
 import { useOffice } from "../store";
@@ -99,6 +99,62 @@ function DeskProp({ roleKey }: { roleKey: string }) {
   }
 }
 
+// ── Monitor ekrani — HAQIQIY tool/fayl ko'rsatiladi ──────────────
+// Flat rang o'rniga ekranda joriy ish ko'rinadi: fayl nomi + holat rangidagi
+// "kod satrlari". WebGL tuvaliga matn drei <Text> orqali chizilmaydi — u troika
+// CDN shriftini yuklaydi (CSP bloklaydi). Shuning uchun 2D CANVAS'ga chizib,
+// CanvasTexture qilamiz (o'zicha, ichki shrift, tekstura — performant). Ma'lumot
+// O'LCHANGAN (toolLabel); yorliq o'zgarganда qayta chiziladi.
+function fitText(ctx: CanvasRenderingContext2D, s: string, maxW: number): string {
+  if (ctx.measureText(s).width <= maxW) return s;
+  let t = s;
+  while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+  return t + "…";
+}
+function MonitorScreen({ label, color }: { label?: string; color: string }) {
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 144;
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => {
+    const c = tex.image as HTMLCanvasElement;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const W = 256, H = 144;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#0d1016"; ctx.fillRect(0, 0, W, H);
+    // Yuqori "oyna" paneli — holat rangida + qora nuqtalar
+    ctx.globalAlpha = 0.9; ctx.fillStyle = color; ctx.fillRect(0, 0, W, 14); ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    for (const x of [10, 26, 42]) { ctx.beginPath(); ctx.arc(x, 7, 3, 0, Math.PI * 2); ctx.fill(); }
+    if (label) {
+      ctx.fillStyle = "#f2f5fa";
+      ctx.font = "bold 19px system-ui, sans-serif";
+      ctx.fillText(fitText(ctx, label, W - 24), 12, 42);
+      // "Kod satrlari" — holat rangida, susayib boradi (ekran tirik ko'rinsin)
+      ctx.fillStyle = color;
+      [0.72, 0.44, 0.86, 0.55, 0.33].forEach((w, i) => {
+        ctx.globalAlpha = 0.4 - i * 0.04;
+        ctx.fillRect(12, 60 + i * 15, (W - 24) * w, 6);
+      });
+      ctx.globalAlpha = 1;
+    } else {
+      // Band, lekin tool yo'q (o'ylayapti/idle) — nozik kursor
+      ctx.globalAlpha = 0.5; ctx.fillStyle = color; ctx.fillRect(12, 38, 8, 15); ctx.globalAlpha = 1;
+    }
+    tex.needsUpdate = true;
+  }, [tex, label, color]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  return (
+    <mesh position={[0, 0.26, -0.019]} geometry={SCREEN_G}>
+      <meshBasicMaterial map={tex} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentView }) {
   const seat = seatFor(seatIndex);
   const select = useOffice((s) => s.select);
@@ -124,9 +180,10 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
       {/* Slim monitor — band bo'lsa ekran holat rangida yonadi, bo'sh bo'lsa o'chiq */}
       <group position={[0, DESK_TOP + 0.02, -0.22]}>
         <B p={[0, 0.26, 0]} s={[0.7, 0.42, 0.03]} m={MON_M} />
-        {occupied ? (
+        {agent ? (
           <>
-            <mesh position={[0, 0.26, -0.02]} geometry={SCREEN_G} material={basicMat(color, { toneMapped: false })} />
+            {/* Ekranда joriy tool/fayl (canvas-tekstura) */}
+            <MonitorScreen label={agent.toolLabel} color={color} />
             {/* ekran porlashi — holat rangida yumshoq halo */}
             <mesh position={[0, 0.26, -0.025]} geometry={GLOW_G} material={basicMat(color, { transparent: true, opacity: glowOpacity, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false })} />
           </>
