@@ -238,11 +238,14 @@ export interface HookStatus {
   /** Shu oynada jonli hook oqimi bormi (true) yoki faqat JSONL zaxira (false). */
   active: boolean;
 }
-/** Saqlangan tarix — ochilganda bir marta yuboriladi (kunlik/loyiha jamlanma). */
+/** Saqlangan tarix — ochilganda bir marta yuboriladi (kunlik/loyiha jamlanma
+ *  + so'nggi sessiyalar arxivi). */
 export interface HistDayStat { cost: number; inTok: number; outTok: number; tools: number; ms: number; }
+export interface HistArchiveSession { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number; }
 export interface HistoryLoaded {
   type: "historyLoaded";
   days: { date: string; projects: Record<string, HistDayStat> }[];
+  sessions: HistArchiveSession[];
 }
 export interface LayoutItem {
   id: string;

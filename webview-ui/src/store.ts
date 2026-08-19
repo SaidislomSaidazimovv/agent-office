@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { HistoryDay } from "./history";
+import type { ArchiveSession, HistoryDay } from "./history";
 import type { Key } from "./i18n";
 import { type BilledTokens, estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
@@ -170,6 +170,8 @@ interface OfficeState {
   gitRepos: Record<string, { branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }>;
   /** Saqlangan tarix — kunlik/loyiha jamlanma (host'dan, ochilganda). */
   history: HistoryDay[];
+  /** So'nggi sessiyalar arxivi (host'dan, ochilganda). */
+  archive: ArchiveSession[];
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
 
@@ -196,7 +198,7 @@ interface OfficeState {
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
   setGitRepos(repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[]): void;
-  setHistory(days: HistoryDay[]): void;
+  setHistory(days: HistoryDay[], archive: ArchiveSession[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
   setMoving(id: number | null): void;
@@ -250,6 +252,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   folders: [],
   gitRepos: {},
   history: [],
+  archive: [],
   cameraMode: "iso",
   setCameraMode(m) {
     set({ cameraMode: m });
@@ -535,8 +538,8 @@ export const useOffice = create<OfficeState>((set, get) => ({
     set({ gitRepos: Object.fromEntries((repos ?? []).map((r) => [r.name, { branch: r.branch, changed: r.changed, staged: r.staged, unstaged: r.unstaged, ahead: r.ahead, behind: r.behind }])) });
   },
 
-  setHistory(days) {
-    set({ history: days ?? [] });
+  setHistory(days, archive) {
+    set({ history: days ?? [], archive: archive ?? [] });
   },
 
   setHookActive(active) {

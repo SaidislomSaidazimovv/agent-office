@@ -10,7 +10,7 @@ import * as path from "path";
 // keladi; host faqat yig'adi (o'lchangan, to'qib chiqarilmagan).
 
 interface Stat { cost: number; inTok: number; outTok: number; tools: number; ms: number; }
-interface SessionAbs extends Stat { project: string; day: string; }
+interface SessionAbs extends Stat { project: string; day: string; firstSeen: number; }
 interface HistoryData {
   /** date (YYYY-MM-DD) → project → jamlanma. */
   days: Record<string, Record<string, Stat>>;
@@ -19,7 +19,7 @@ interface HistoryData {
 }
 
 const KEEP_DAYS = 120; // trend uchun ~4 oy
-const SESSION_TTL_DAYS = 14; // shuncha kun yangilanmagan sessiya — tozalanadi
+const SESSION_TTL_DAYS = 60; // arxiv uchun ~2 oy (delta bazasi + so'nggi sessiyalar)
 
 function emptyStat(): Stat { return { cost: 0, inTok: 0, outTok: 0, tools: 0, ms: 0 }; }
 function localDay(d = new Date()): string {
@@ -77,7 +77,8 @@ export class HistoryStore {
       const s = (d[project] ||= emptyStat());
       s.cost += dcost; s.inTok += din; s.outTok += dout; s.tools += dtools; s.ms += dms;
     }
-    this.data.sessions[sessionId] = { project, day, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms };
+    const firstSeen = prev?.firstSeen ?? Date.now();
+    this.data.sessions[sessionId] = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms };
     this.dirty = true;
     this.scheduleSave();
   }
@@ -87,6 +88,19 @@ export class HistoryStore {
     return Object.entries(this.data.days)
       .map(([date, projects]) => ({ date, projects }))
       .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /** So'nggi sessiyalar arxivi — eng yangi birinchi (nom keyin qo'shiladi). */
+  getSessions(limit = 60): { sessionId: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number }[] {
+    return Object.entries(this.data.sessions)
+      .map(([sessionId, s]) => ({
+        sessionId,
+        project: s.project,
+        at: s.firstSeen ?? (Date.parse(`${s.day}T12:00:00`) || 0),
+        cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
+      }))
+      .sort((a, b) => b.at - a.at)
+      .slice(0, limit);
   }
 
   private prune(): void {

@@ -20,6 +20,21 @@ export interface HistoryDay {
   projects: Record<string, DayStat>;
 }
 
+/** Arxivdagi bitta sessiya (o'tган ish) — so'nggi sessiyalar ro'yxati uchun. */
+export interface ArchiveSession {
+  /** Qo'lda berilgan nom (bo'lsa). */
+  name?: string;
+  /** Loyiha (repo) papkasi. */
+  project: string;
+  /** Birinchi ko'rilган payt (ms) — saralash + sana uchun. */
+  at: number;
+  cost: number;
+  inTok: number;
+  outTok: number;
+  tools: number;
+  ms: number;
+}
+
 export function emptyStat(): DayStat {
   return { cost: 0, inTok: 0, outTok: 0, tools: 0, ms: 0 };
 }

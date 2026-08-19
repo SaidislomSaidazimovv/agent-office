@@ -213,6 +213,7 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   const order = useOffice((s) => s.order);
   const samples = useOffice((s) => s.samples);
   const history = useOffice((s) => s.history);
+  const archive = useOffice((s) => s.archive);
   const select = useOffice((s) => s.select);
   const onPickAgent = (id: number) => { select(id); send({ type: "focusAgent", id }); };
   const budgetUsd = useSettings((s) => s.budgetUsd);
@@ -507,8 +508,8 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
       {/* ── Sessiya hikoyasi — o'qiladigan hikoya (kartalar) ── */}
       {showStory && <StoryPanel agents={order.map((id) => agents[id]).filter(Boolean)} onClose={() => setShowStory(false)} />}
 
-      {/* ── Tarix — kunlik trend, kecha vs bugun, loyiha jamlanma ── */}
-      {showHistory && <HistoryPanel days={history} onClose={() => setShowHistory(false)} />}
+      {/* ── Tarix — kunlik trend, kecha vs bugun, loyiha jamlanma, arxiv ── */}
+      {showHistory && <HistoryPanel days={history} archive={archive} onClose={() => setShowHistory(false)} />}
     </div>
   );
 }
@@ -529,7 +530,13 @@ function DeltaBadge({ now, prev }: { now: number; prev: number }) {
   const col = up ? "#ff9f0a" : pct < 0 ? "#30d158" : MUTED;
   return <span style={{ fontSize: 10.5, color: col, fontWeight: 700 }}>{up ? "▲" : pct < 0 ? "▼" : "="} {Math.abs(pct)}% {t("hist.vsYesterday")}</span>;
 }
-function HistoryPanel({ days, onClose }: { days: import("../history").HistoryDay[]; onClose: () => void }) {
+function fmtHistDate(ms: number): string {
+  if (!ms) return "—";
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function HistoryPanel({ days, archive, onClose }: { days: import("../history").HistoryDay[]; archive: import("../history").ArchiveSession[]; onClose: () => void }) {
   const t = useT();
   const daily = useMemo(() => dailyCost(days).slice(-14), [days]); // so'nggi ~2 hafta
   const projects = useMemo(() => projectTotals(days).slice(0, 6), [days]);
@@ -607,6 +614,26 @@ function HistoryPanel({ days, onClose }: { days: import("../history").HistoryDay
         <TotalTile label={t("hist.totalTokens")} value={fmtTok(total.inTok + total.outTok)} />
         <TotalTile label={t("hist.totalTime")} value={fmtDur(total.ms)} />
       </div>
+
+      {/* So'nggi sessiyalar arxivi — eng yangi birinchi */}
+      {archive.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.recent")}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {archive.slice(0, 20).map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {s.name || s.project}{s.name ? <span style={{ opacity: 0.6, fontWeight: 400 }}> · 📁 {s.project}</span> : null}
+                  </span>
+                  <span style={{ display: "block", fontSize: 10, color: MUTED }}>{fmtHistDate(s.at)} · {s.tools} {t("dash.colTools").toLowerCase()} · {fmtDur(s.ms)}</span>
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#30d158", fontVariantNumeric: "tabular-nums" }}>~{fmtCost(s.cost)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

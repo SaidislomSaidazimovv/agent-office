@@ -177,6 +177,7 @@ const dict = {
   "hist.totalCost": { uz: "Umumiy xarajat", ru: "Всего затрат", en: "Total cost" },
   "hist.totalTokens": { uz: "Umumiy tokenlar", ru: "Всего токенов", en: "Total tokens" },
   "hist.totalTime": { uz: "Umumiy faol vaqt", ru: "Всего активн. времени", en: "Total active time" },
+  "hist.recent": { uz: "So'nggi sessiyalar", ru: "Недавние сессии", en: "Recent sessions" },
   "filter.all": { uz: "Hammasi", ru: "Все", en: "All" },
   "filter.attn": { uz: "E'tibor", ru: "Внимание", en: "Attention" },
   "filter.active": { uz: "Faol", ru: "Активные", en: "Active" },

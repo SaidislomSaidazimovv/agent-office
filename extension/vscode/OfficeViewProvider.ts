@@ -556,9 +556,14 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       const lay = this.loadLayout();
       this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, wallColor: lay.wallColor, packs: lay.packs });
     }
-    // 2c) Saqlangan tarix (kunlik/loyiha jamlanma)
+    // 2c) Saqlangan tarix (kunlik/loyiha jamlanma + so'nggi sessiyalar arxivi)
     this.history.load();
-    this.post({ type: "historyLoaded", days: this.history.getDays() });
+    const names = this.loadNames();
+    const sessions = this.history.getSessions().map((s) => ({
+      name: names[s.sessionId] || undefined,
+      project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
+    }));
+    this.post({ type: "historyLoaded", days: this.history.getDays(), sessions });
     // 3) Ish papkalari
     this.post({
       type: "workspaceFolders",

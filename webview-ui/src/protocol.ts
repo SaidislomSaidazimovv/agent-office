@@ -28,7 +28,7 @@ export type ServerMessage =
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
   | { type: "hookStatus"; active: boolean }
-  | { type: "historyLoaded"; days: { date: string; projects: Record<string, { cost: number; inTok: number; outTok: number; tools: number; ms: number }> }[] }
+  | { type: "historyLoaded"; days: { date: string; projects: Record<string, { cost: number; inTok: number; outTok: number; tools: number; ms: number }> }[]; sessions: { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number }[] }
   | { type: "layoutLoaded"; items: LayoutItem[]; floorColor?: string | null; wallColor?: string | null; packs?: unknown[] };
 
 export interface LayoutItem {
