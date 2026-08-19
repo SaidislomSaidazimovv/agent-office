@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { HistoryDay } from "./history";
 import type { Key } from "./i18n";
 import { type BilledTokens, estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
@@ -167,6 +168,8 @@ interface OfficeState {
   folders: { name: string; path: string }[];
   /** Papka nomi → git holati (branch + o'zgargan fayllar + ahead/behind). */
   gitRepos: Record<string, { branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }>;
+  /** Saqlangan tarix — kunlik/loyiha jamlanma (host'dan, ochilganda). */
+  history: HistoryDay[];
   cameraMode: CameraMode;
   setCameraMode(m: CameraMode): void;
 
@@ -193,6 +196,7 @@ interface OfficeState {
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
   setGitRepos(repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[]): void;
+  setHistory(days: HistoryDay[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
   setMoving(id: number | null): void;
@@ -245,6 +249,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   readingTools: new Set(DEFAULT_READING),
   folders: [],
   gitRepos: {},
+  history: [],
   cameraMode: "iso",
   setCameraMode(m) {
     set({ cameraMode: m });
@@ -528,6 +533,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   setGitRepos(repos) {
     set({ gitRepos: Object.fromEntries((repos ?? []).map((r) => [r.name, { branch: r.branch, changed: r.changed, staged: r.staged, unstaged: r.unstaged, ahead: r.ahead, behind: r.behind }])) });
+  },
+
+  setHistory(days) {
+    set({ history: days ?? [] });
   },
 
   setHookActive(active) {

@@ -14,6 +14,7 @@ import { agentSnapshotMessages } from "../server/stateActions.js";
 import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
+import { HistoryStore } from "./historyStore.js";
 import { installHooks } from "./hookInstaller.js";
 
 export const VIEW_ID = "agent-office.panelView";
@@ -36,6 +37,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private ready = false;
   private soundEnabled = true;
   private statusBar = new OfficeStatusBar();
+  private history = new HistoryStore();
   readonly log = vscode.window.createOutputChannel("Agent Office");
 
   private logMsg(m: string): void {
@@ -333,6 +335,20 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "setRole":
         this.setRoleOverride(msg.id, msg.role);
         break;
+      case "sessionStats":
+        this.recordStats(msg.stats);
+        break;
+    }
+  }
+
+  // ── Tarix — davriy statistikani (webview'dan) sessiya ID bo'yicha yozamiz. ──
+  // Cost webview'da hisoblangan; host faqat delta olib kunlik tarixga qo'shadi.
+  private recordStats(stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; ms: number }[]): void {
+    this.history.load();
+    for (const s of stats) {
+      const sid = this.store.get(s.id)?.sessionId;
+      if (!sid) continue; // barqaror kalit yo'q — yozmaymiz
+      this.history.record(sid, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms });
     }
   }
 
@@ -540,6 +556,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       const lay = this.loadLayout();
       this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, wallColor: lay.wallColor, packs: lay.packs });
     }
+    // 2c) Saqlangan tarix (kunlik/loyiha jamlanma)
+    this.history.load();
+    this.post({ type: "historyLoaded", days: this.history.getDays() });
     // 3) Ish papkalari
     this.post({
       type: "workspaceFolders",
@@ -601,6 +620,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     if (this.gitTimer) clearInterval(this.gitTimer);
     if (this.stuckTimer) clearInterval(this.stuckTimer);
+    this.history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
     this.statusBar.dispose();
     this.watcher.stop();
     this.manager.dispose();

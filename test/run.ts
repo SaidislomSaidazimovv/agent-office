@@ -16,6 +16,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
+import { dailyCost, dayStatFor, projectTotals } from "../webview-ui/src/history.js";
 import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -818,6 +819,31 @@ test("storyMarkdown: hikoyani markdown'ga (sarlavha + o'lchangan qatorlar)", () 
 });
 test("storyMarkdown: bo'sh ro'yxat → 'ma'lumot yo'q'", () => {
   assert.ok(storyMarkdown([], (k) => k).includes("dash.noData"));
+});
+
+console.log("Tarix (kunlik/loyiha jamlanma):");
+test("history: dailyCost — sana o'sish tartibida, kun ichi jamlanadi", () => {
+  const days = [
+    { date: "2026-08-02", projects: { repo: { cost: 1, inTok: 0, outTok: 0, tools: 0, ms: 0 } } },
+    { date: "2026-08-01", projects: { repo: { cost: 0.5, inTok: 0, outTok: 0, tools: 0, ms: 0 }, other: { cost: 0.5, inTok: 0, outTok: 0, tools: 0, ms: 0 } } },
+  ];
+  const dc = dailyCost(days);
+  assert.deepEqual(dc.map((d) => d.date), ["2026-08-01", "2026-08-02"], "sana bo'yicha o'sish");
+  assert.equal(dc[0].cost, 1, "kun ichi loyihalar jamlanadi (0.5+0.5)");
+});
+test("history: projectTotals — loyiha bo'yicha jam, kamayish tartibida", () => {
+  const days = [
+    { date: "2026-08-01", projects: { a: { cost: 1, inTok: 10, outTok: 0, tools: 2, ms: 0 } } },
+    { date: "2026-08-02", projects: { a: { cost: 2, inTok: 20, outTok: 0, tools: 3, ms: 0 }, b: { cost: 0.5, inTok: 0, outTok: 0, tools: 0, ms: 0 } } },
+  ];
+  const pt = projectTotals(days);
+  assert.equal(pt[0].project, "a", "eng qimmat loyiha birinchi");
+  assert.equal(pt[0].stat.cost, 3, "kunlar bo'yicha jamlanadi");
+  assert.equal(pt[0].stat.tools, 5);
+  assert.equal(pt[1].project, "b");
+});
+test("history: dayStatFor — topilmasa nol", () => {
+  assert.equal(dayStatFor([], "2026-08-01").cost, 0);
 });
 
 console.log("Personaj — rol imzo aksessuari:");

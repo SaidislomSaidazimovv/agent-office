@@ -20,6 +20,7 @@ import { ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
 import { useOffice } from "./store";
+import { send } from "./transport";
 import Hud from "./ui/Hud";
 import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
 import TextOffice from "./ui/TextOffice";
@@ -86,13 +87,32 @@ function CameraFollow() {
   return null;
 }
 
-// Xarajat/token vaqt qatori — har 10s bir namuna (dashboard grafigi uchun).
-// Sof ma'lumot yig'ish: render ham, 3D ham yo'q.
+// Xarajat/token vaqt qatori — har 10s bir namuna (dashboard grafigi uchun) +
+// har agentning JORIY absolyut jamini host'ga yuboramiz (TARIXga yozish uchun;
+// host delta olib kunlik jamlanmaga qo'shadi). Sof ma'lumot: render ham, 3D ham yo'q.
 function CostSampler() {
   const sample = useOffice((s) => s.sample);
   useEffect(() => {
-    sample(); // darrov birinchi nuqta
-    const t = setInterval(sample, 10000);
+    const tick = () => {
+      sample();
+      const s = useOffice.getState();
+      const now = Date.now();
+      const stats = s.order
+        .map((id) => s.agents[id])
+        .filter(Boolean)
+        .map((a) => ({
+          id: a!.id,
+          project: a!.folderName,
+          cost: a!.costUsd,
+          inTok: a!.inputTokens,
+          outTok: a!.outputTokens,
+          tools: a!.toolCalls,
+          ms: a!.activeMs + (a!.activeSince != null ? now - a!.activeSince : 0),
+        }));
+      if (stats.length > 0) send({ type: "sessionStats", stats });
+    };
+    tick(); // darrov birinchi nuqta
+    const t = setInterval(tick, 10000);
     return () => clearInterval(t);
   }, [sample]);
   return null;

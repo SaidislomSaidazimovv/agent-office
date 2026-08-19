@@ -93,6 +93,9 @@ export function useExtensionMessages(): void {
         case "hookStatus":
           store.setHookActive(msg.active);
           break;
+        case "historyLoaded":
+          store.setHistory(msg.days);
+          break;
         case "layoutLoaded":
           useLayout.getState().loadLayout({ items: msg.items, floorColor: msg.floorColor, packs: (msg.packs ?? []) as never });
           break;

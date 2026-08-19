@@ -29,6 +29,7 @@ export type ServerMessage =
   | GitStatus
   | SettingsLoaded
   | HookStatus
+  | HistoryLoaded
   | LayoutLoaded;
 
 // ── Webview → extension ──────────────────────────────────────
@@ -42,7 +43,8 @@ export type ClientMessage =
   | SaveMedia
   | SaveText
   | RenameAgent
-  | SetRole;
+  | SetRole
+  | SessionStats;
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */
@@ -58,6 +60,13 @@ export interface SetRole {
   type: "setRole";
   id: number;
   role: string;
+}
+
+/** Davriy sessiya statistikasi (webview → host) — tarixga yozish uchun. Har
+ *  agentning JORIY absolyut jami; host delta hisoblab kunlik tarixga qo'shadi. */
+export interface SessionStats {
+  type: "sessionStats";
+  stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; ms: number }[];
 }
 
 /** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
@@ -228,6 +237,12 @@ export interface HookStatus {
   type: "hookStatus";
   /** Shu oynada jonli hook oqimi bormi (true) yoki faqat JSONL zaxira (false). */
   active: boolean;
+}
+/** Saqlangan tarix — ochilganda bir marta yuboriladi (kunlik/loyiha jamlanma). */
+export interface HistDayStat { cost: number; inTok: number; outTok: number; tools: number; ms: number; }
+export interface HistoryLoaded {
+  type: "historyLoaded";
+  days: { date: string; projects: Record<string, HistDayStat> }[];
 }
 export interface LayoutItem {
   id: string;
