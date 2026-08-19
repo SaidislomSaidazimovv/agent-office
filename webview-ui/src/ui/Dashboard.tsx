@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
+import { dailyCost, dayStatFor, grandTotal, projectTotals } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
@@ -211,12 +212,14 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   const agents = useOffice((s) => s.agents);
   const order = useOffice((s) => s.order);
   const samples = useOffice((s) => s.samples);
+  const history = useOffice((s) => s.history);
   const select = useOffice((s) => s.select);
   const onPickAgent = (id: number) => { select(id); send({ type: "focusAgent", id }); };
   const budgetUsd = useSettings((s) => s.budgetUsd);
   const [report, setReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showStory, setShowStory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   // Jadval saralash — ustun sarlavhasini bosib. Standart: xarajat kamayish tartibi.
   const [sortKey, setSortKey] = useState<SortKey>("cost");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -341,6 +344,16 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
                 📄 {t("rep.btn")}
               </button>
             </>
+          )}
+          {history.length > 0 && (
+            <button
+              onClick={() => setShowHistory(true)}
+              title={t("hist.open")}
+              aria-label={t("hist.open")}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
+            >
+              🕰️ {t("hist.btn")}
+            </button>
           )}
           <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
         </div>
@@ -493,6 +506,116 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
 
       {/* ── Sessiya hikoyasi — o'qiladigan hikoya (kartalar) ── */}
       {showStory && <StoryPanel agents={order.map((id) => agents[id]).filter(Boolean)} onClose={() => setShowStory(false)} />}
+
+      {/* ── Tarix — kunlik trend, kecha vs bugun, loyiha jamlanma ── */}
+      {showHistory && <HistoryPanel days={history} onClose={() => setShowHistory(false)} />}
+    </div>
+  );
+}
+
+// ── Tarix paneli — extension VAQT bo'yicha ko'radi. host `~/.agent-office/
+//    history.json`да yiqqan kunlik/loyiha jamlanmasini ko'rsatadi (o'lchangan). ──
+function localDayISO(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - offsetDays);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function DeltaBadge({ now, prev }: { now: number; prev: number }) {
+  const t = useT();
+  if (prev <= 0) return null;
+  const pct = Math.round(((now - prev) / prev) * 100);
+  const up = pct > 0;
+  const col = up ? "#ff9f0a" : pct < 0 ? "#30d158" : MUTED;
+  return <span style={{ fontSize: 10.5, color: col, fontWeight: 700 }}>{up ? "▲" : pct < 0 ? "▼" : "="} {Math.abs(pct)}% {t("hist.vsYesterday")}</span>;
+}
+function HistoryPanel({ days, onClose }: { days: import("../history").HistoryDay[]; onClose: () => void }) {
+  const t = useT();
+  const daily = useMemo(() => dailyCost(days).slice(-14), [days]); // so'nggi ~2 hafta
+  const projects = useMemo(() => projectTotals(days).slice(0, 6), [days]);
+  const total = useMemo(() => grandTotal(days), [days]);
+  const today = dayStatFor(days, localDayISO(0));
+  const yday = dayStatFor(days, localDayISO(1));
+  const maxDay = Math.max(...daily.map((d) => d.cost), 0.0001);
+  const maxProj = Math.max(...projects.map((p) => p.stat.cost), 0.0001);
+  const todayISO = localDayISO(0);
+
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 12, background: "#0d1117", overflowY: "auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>🕰️ {t("hist.title")}</span>
+        <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+      </div>
+      <div style={{ fontSize: 10.5, color: MUTED, marginTop: -6 }}>{t("hist.hint")}</div>
+
+      {/* Kecha vs bugun */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ fontSize: 10.5, color: MUTED, marginBottom: 4 }}>{t("hist.today")}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: INK, lineHeight: 1.1 }}>~{fmtCost(today.cost)}</div>
+          <div style={{ marginTop: 3 }}><DeltaBadge now={today.cost} prev={yday.cost} /></div>
+        </div>
+        <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ fontSize: 10.5, color: MUTED, marginBottom: 4 }}>{t("hist.yesterday")}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: INK2, lineHeight: 1.1 }}>~{fmtCost(yday.cost)}</div>
+          <div style={{ fontSize: 10.5, color: MUTED, marginTop: 3 }}>{yday.tools} {t("dash.colTools").toLowerCase()}</div>
+        </div>
+      </div>
+
+      {/* Kunlik trend — bar chart (so'nggi 14 kun) */}
+      <div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.trend")}</div>
+        {daily.length === 0 ? (
+          <div style={{ fontSize: 11.5, color: MUTED }}>{t("dash.noData")}</div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 110, padding: "0 2px" }}>
+            {daily.map((d) => {
+              const h = Math.max(2, (d.cost / maxDay) * 96);
+              const isToday = d.date === todayISO;
+              return (
+                <div key={d.date} title={`${d.date}: ~${fmtCost(d.cost)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 0 }}>
+                  <div style={{ width: "100%", maxWidth: 22, height: h, borderRadius: 3, background: isToday ? "#3987e5" : "#2c6aa8" }} />
+                  <span style={{ fontSize: 8.5, color: MUTED, whiteSpace: "nowrap" }}>{d.date.slice(5)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Loyiha bo'yicha jami — gorizontal barlar */}
+      {projects.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.byProject")}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {projects.map((p, i) => (
+              <div key={p.project} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 96, fontSize: 11, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.project}</span>
+                <div style={{ flex: 1, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max(3, (p.stat.cost / maxProj) * 100)}%`, height: "100%", background: MODEL_PAL_H[i % MODEL_PAL_H.length], borderRadius: 4 }} />
+                </div>
+                <span style={{ width: 52, textAlign: "right", fontSize: 11, color: INK2, fontVariantNumeric: "tabular-nums" }}>~{fmtCost(p.stat.cost)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Umumiy jami */}
+      <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${GRID}`, paddingTop: 10 }}>
+        <TotalTile label={t("hist.totalCost")} value={`~${fmtCost(total.cost)}`} />
+        <TotalTile label={t("hist.totalTokens")} value={fmtTok(total.inTok + total.outTok)} />
+        <TotalTile label={t("hist.totalTime")} value={fmtDur(total.ms)} />
+      </div>
+    </div>
+  );
+}
+const MODEL_PAL_H = [CAT.research, CAT.frontend, CAT.backend, CAT.qa, CAT.docs, CAT.data];
+function TotalTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <div style={{ fontSize: 9.5, color: MUTED, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: INK, fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
   );
 }
