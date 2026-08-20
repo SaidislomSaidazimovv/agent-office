@@ -134,12 +134,14 @@ export default function Hud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat daraja o'zgarishiga reaksiya
   }, [budget.level]);
 
-  // Faol agent tanlanganda "faol vaqt"ni jonli yangilab turamiz (1s).
+  // Jonli vaqt (1s): faol agent tanlanганда "faol vaqt", YOKI feed ochiq bo'lганда
+  // "N oldin" muhrlari yangilansin (aks holda ular keyingi hodisagacha qotardi).
   useEffect(() => {
-    if (!sel || sel.activeSince == null) return;
+    const activeAgent = !!sel && sel.activeSince != null;
+    if (!feed && !activeAgent) return;
     const t = setInterval(() => force((n) => n + 1), 1000);
     return () => clearInterval(t);
-  }, [sel?.id, sel?.activeSince]);
+  }, [feed, sel?.id, sel?.activeSince]);
 
   // Klaviatura: ←/→ agentlar orasида o'tish, Esc — tanlovni bekor qilish.
   // Matn kiritish (input/textarea)da ishlamaydi.

@@ -293,14 +293,26 @@ function ModChairAt({ p, ry = 0 }: { p: V3; ry?: number }) {
 export function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} /><mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh></group>;
 }
-// Devor soati — yuzi +z (Painting kabi), ry bilan devorга buriladi.
+// Devor soati — yuzi +z (Painting kabi), ry bilan devorга buriladi. Strelkalar
+// HAQIQIY joriy vaqtни ko'rsatadi va jonli yuradi (useFrame — React re-render
+// yo'q). Avval qotib turardi (statik 10:10 — "soxta") — endi tirik.
 export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const hourRef = useRef<THREE.Group>(null);
+  const minRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const d = new Date();
+    const min = d.getMinutes() + d.getSeconds() / 60;
+    const hr = (d.getHours() % 12) + min / 60;
+    if (hourRef.current) hourRef.current.rotation.z = -(hr / 12) * Math.PI * 2; // soat oqimida
+    if (minRef.current) minRef.current.rotation.z = -(min / 60) * Math.PI * 2;
+  });
   return (
     <group position={p} rotation={[0, ry, 0]}>
       <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.3, 0.3, 0.06, 22]} />{M("#2a2e35", 0.6)}</mesh>
       <mesh position={[0, 0, 0.035]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.26, 0.26, 0.01, 22]} />{M("#f4f1ea", 0.5)}</mesh>
-      <Box p={[0, 0.075, 0.05]} s={[0.025, 0.15, 0.012]} c="#23262b" />
-      <Box p={[0.05, 0, 0.05]} s={[0.1, 0.025, 0.012]} c="#23262b" />
+      {/* Strelkalar markazdan +y (12 tomon) chiqadi; group z bo'ylab buriladi. */}
+      <group ref={hourRef}><Box p={[0, 0.07, 0.05]} s={[0.028, 0.14, 0.012]} c="#23262b" /></group>
+      <group ref={minRef}><Box p={[0, 0.1, 0.052]} s={[0.02, 0.2, 0.012]} c="#3a3f47" /></group>
       <mesh position={[0, 0, 0.055]}><cylinderGeometry args={[0.022, 0.022, 0.02, 8]} />{M("#c0392b", 0.4)}</mesh>
     </group>
   );
