@@ -35,6 +35,16 @@ export class FileWatcher {
     agent.fileOffset = 0;
     agent.lineBuffer = "";
     agent.lineDecoder = undefined; // yangi UTF-8 dekoder
+    // Faylni 0dan qayta o'qiymiz → TOKEN AKKUMULYATORLARINI ham nolga tushiramiz.
+    // Aks holda emitTokens `billed* += …` va `outputTokens += …` mavjud qiymat
+    // USTIGA qo'shadi → /clear, /resume va fayl-truncate'dan keyin XARAJAT
+    // (billed'dan hisoblanadi) ikki barobar bo'lardi. inputTokens SET bo'ladi
+    // (qo'shilmaydi), lekin izchillik uchun uni ham nollaymiz.
+    agent.inputTokens = 0;
+    agent.outputTokens = 0;
+    agent.billedInput = 0;
+    agent.billedCacheWrite = 0;
+    agent.billedCacheRead = 0;
     this.store.beginSilent();
     try {
       let guard = 0;
@@ -73,7 +83,7 @@ export class FileWatcher {
       if (stat.size < agent.fileOffset) {
         // Fayl qisqargan/almashgan (in-place truncate) — holatni JIMGINA qaytadan
         // tiklaymiz (butun tarix broadcast bo'lib flood qilmasin), so'ng snapshot.
-        agent.outputTokens = 0; // qayta o'qishda output takror hisoblanmasin
+        // (Token akkumulyatorlarini primeFromStart nollaydi — double-count yo'q.)
         this.primeFromStart(agent);
         this.emitSnapshot(agent);
       }

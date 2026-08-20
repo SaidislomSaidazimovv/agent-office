@@ -846,6 +846,30 @@ test("history: dayStatFor — topilmasa nol", () => {
   assert.equal(dayStatFor([], "2026-08-01").cost, 0);
 });
 
+console.log("Xarajat (host) — qayta o'qishda double-count YO'Q:");
+test("primeFromStart: token akkumulyatorlari qayta o'qishda IKKI BAROBAR bo'lmaydi", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-cost-"));
+  const file = path.join(dir, "s.jsonl");
+  const line = (i: number, o: number, cr: number, cw: number) => JSON.stringify({
+    type: "assistant",
+    message: { model: "claude-opus-4-8", usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: cr, cache_creation_input_tokens: cw }, content: [{ type: "text", text: "hi" }] },
+  });
+  fs.writeFileSync(file, line(100, 10, 50, 20) + "\n" + line(200, 15, 300, 30) + "\n");
+  const store = new AgentStateStore();
+  const agent = createAgentState(1, file, "proj", { isExternal: true, sessionId: "s" });
+  const w = new FileWatcher(store);
+  w.primeFromStart(agent);
+  assert.equal(agent.billedInput, 300, "birinchi o'qish: billedInput 100+200");
+  assert.equal(agent.outputTokens, 25, "output 10+15");
+  assert.equal(agent.billedCacheRead, 350);
+  w.primeFromStart(agent); // /clear · /resume · truncate simulyatsiyasi
+  assert.equal(agent.billedInput, 300, "QAYTA o'qish: billed ikki barobar bo'lmasligi kerak");
+  assert.equal(agent.outputTokens, 25, "output ikki barobar bo'lmasligi kerak");
+  assert.equal(agent.billedCacheRead, 350, "cacheRead ikki barobar emas");
+  if (agent.waitingTimer) clearTimeout(agent.waitingTimer); // idle-timer jarayonni ushlamasin
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 console.log("Personaj — rol imzo aksessuari:");
 test("characterFor: rol bo'yicha ustuvor aksessuar + id bo'yicha xilma-xillik", () => {
   // Ustuvor (id 0) — rolni bir qarashda tanitadi
