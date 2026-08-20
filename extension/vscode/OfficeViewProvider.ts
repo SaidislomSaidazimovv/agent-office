@@ -350,6 +350,23 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       if (!sid) continue; // barqaror kalit yo'q — yozmaymiz
       this.history.record(sid, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms });
     }
+    // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled).
+    this.sendHistory();
+  }
+
+  private lastHistorySend = 0;
+  /** Saqlangan tarixni webview'ga yuboradi (nom bilan). force=true → throttle'siz. */
+  private sendHistory(force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastHistorySend < 8000) return;
+    this.lastHistorySend = now;
+    this.history.load();
+    const names = this.loadNames();
+    const sessions = this.history.getSessions().map((s) => ({
+      name: names[s.sessionId] || undefined,
+      project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
+    }));
+    this.post({ type: "historyLoaded", days: this.history.getDays(), sessions });
   }
 
   // ── Agent nomi (qo'lda) ──
@@ -557,13 +574,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       this.post({ type: "layoutLoaded", items: lay.items as never, floorColor: lay.floorColor, wallColor: lay.wallColor, packs: lay.packs });
     }
     // 2c) Saqlangan tarix (kunlik/loyiha jamlanma + so'nggi sessiyalar arxivi)
-    this.history.load();
-    const names = this.loadNames();
-    const sessions = this.history.getSessions().map((s) => ({
-      name: names[s.sessionId] || undefined,
-      project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
-    }));
-    this.post({ type: "historyLoaded", days: this.history.getDays(), sessions });
+    this.sendHistory(true);
     // 3) Ish papkalari
     this.post({
       type: "workspaceFolders",
