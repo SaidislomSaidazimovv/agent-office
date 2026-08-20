@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import * as THREE from "three";
 import { buildInsights } from "../insights";
@@ -322,17 +322,30 @@ export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
 // ogohlantirishlar soni. WebGL matni CSP tufayli drei <Text> orqali emas — 2D
 // canvas → CanvasTexture (Monitor ekrani bilan bir xil usul). Hammasi
 // O'LCHANGAN holatdan (store + buildInsights); hech narsa to'qib chiqarilmaydi.
+// Taxta soniqlari — store SNAPSHOT'idan (obuna'siz), buildInsights bilan.
+function computeBoardStats() {
+  const s = useOffice.getState();
+  const list = s.order.map((id) => s.agents[id]).filter(Boolean) as AgentView[];
+  let active = 0, cost = 0;
+  for (const a of list) { if (a.active) active++; cost += a.costUsd; }
+  const warns = buildInsights(list, s.samples, Date.now()).filter((i) => i.level === "warn").length;
+  return { total: list.length, active, cost, warns };
+}
 function StatsBoard({ size = [1.85, 1.0] as [number, number] }: { size?: [number, number] }) {
-  const order = useOffice((s) => s.order);
-  const agents = useOffice((s) => s.agents);
-  const samples = useOffice((s) => s.samples);
-  const stats = useMemo(() => {
-    const list = order.map((id) => agents[id]).filter(Boolean) as AgentView[];
-    let active = 0, cost = 0;
-    for (const a of list) { if (a.active) active++; cost += a.costUsd; }
-    const warns = buildInsights(list, samples, Date.now()).filter((i) => i.level === "warn").length;
-    return { total: list.length, active, cost, warns };
-  }, [order, agents, samples]);
+  // PERF: store-churn'ga OBUNA BO'LMAYMIZ (har token yangilanishда emas) — taxta
+  // 2s'da bir yangilanadi (soniqlar sub-soniya yangilikni talab qilmaydi), shu
+  // bilan doim-mount TV+doska buildInsights'ni ortiqcha chaqirmaydi. Faqat qiymat
+  // O'ZGARSA setState (aks holda qayta chizmaymiz).
+  const [stats, setStats] = useState(computeBoardStats);
+  useEffect(() => {
+    const tick = () => setStats((prev) => {
+      const n = computeBoardStats();
+      return prev.active === n.active && prev.total === n.total && prev.cost === n.cost && prev.warns === n.warns ? prev : n;
+    });
+    tick();
+    const t = setInterval(tick, 2000);
+    return () => clearInterval(t);
+  }, []);
 
   const tex = useMemo(() => {
     const c = document.createElement("canvas");
