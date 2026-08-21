@@ -186,6 +186,7 @@ interface OfficeState {
   setTool(id: number, toolName: string | undefined, label: string, runInBackground?: boolean): void;
   setRole(id: number, role: string): void;
   setPermissionMode(id: number, mode: string): void;
+  setSessionStats(id: number, toolCalls: number, turns: number, activeMs: number): void;
   setName(id: number, name: string): void;
   toolDone(id: number): void;
   clearTools(id: number): void;
@@ -380,6 +381,15 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a || a.permissionMode === mode) return;
     // Statusga ta'sir qilmaydi — faqat xavfsizlik belgisini boshqaradi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, permissionMode: mode } } }));
+  },
+
+  setSessionStats(id, toolCalls, turns, activeMs) {
+    const a = get().agents[id];
+    if (!a) return;
+    // Reconnect snapshot'dan tiklash: JAMI qiymatlarни o'rnatamiz. activeMs —
+    // keshlangan JAMI; joriy interval (activeSince) qaytadan boshlanadi, aks
+    // holda activeMs + (now - activeSince) intervalни ikki marta hisoblardi.
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, toolCalls, turns, activeMs, activeSince: a.active ? Date.now() : null } } }));
   },
 
   sample() {

@@ -17,6 +17,7 @@ export type ServerMessage =
   | { type: "agentToolPermissionClear"; id: number }
   | { type: "agentRoleDetected"; id: number; role: string }
   | { type: "agentPermissionMode"; id: number; mode: string }
+  | { type: "agentSessionStats"; id: number; toolCalls: number; turns: number; activeMs: number }
   | { type: "agentStuck"; id: number; stuck: boolean }
   | { type: "agentRenamed"; id: number; name: string }
   | { type: "agentBlocked"; id: number; blocked: boolean; reason?: string }
@@ -50,4 +51,4 @@ export type ClientMessage =
   | { type: "saveText"; kind: "report" | "story"; content: string }
   | { type: "renameAgent"; id: number; name: string }
   | { type: "setRole"; id: number; role: string }
-  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; ms: number }[] };
+  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number }[] };

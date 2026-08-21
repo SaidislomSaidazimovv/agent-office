@@ -107,6 +107,7 @@ function CostSampler() {
           inTok: a!.inputTokens,
           outTok: a!.outputTokens,
           tools: a!.toolCalls,
+          turns: a!.turns,
           ms: a!.activeMs + (a!.activeSince != null ? now - a!.activeSince : 0),
         }));
       if (stats.length > 0) send({ type: "sessionStats", stats });

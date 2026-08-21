@@ -44,6 +44,12 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishда yoki
   // launch-seed (+Agent --dangerously-skip-permissions) holatida ham ko'rinsin.
   if (a.permissionMode && a.permissionMode !== "default") msgs.push({ type: "agentPermissionMode", id: a.id, mode: a.permissionMode });
+  // Session statlari — ENG OXIRIDA (yuqoridagi agentToolStart replay'lari
+  // toolCalls'ni oshiradi; bu esa webview hisoblagan HAQIQIY qiymatga qaytarib
+  // qo'yadi). Faqat webview'dan kelib keshlangan bo'lsa.
+  if (a.snapToolCalls !== undefined) {
+    msgs.push({ type: "agentSessionStats", id: a.id, toolCalls: a.snapToolCalls, turns: a.snapTurns ?? 0, activeMs: a.snapActiveMs ?? 0 });
+  }
   return msgs;
 }
 

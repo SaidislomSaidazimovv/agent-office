@@ -82,6 +82,11 @@ export interface AgentState {
   model?: string;
   /** Shu model uchun kontekst oynasi (200k yoki 1M). */
   contextWindow: number;
+  /** Webview hisoblagan so'nggi session statlari (sessionStats orqali keladi) —
+   *  reconnect snapshot'da qaytariladi (reload'da 0dan boshlanmasin). */
+  snapToolCalls?: number;
+  snapTurns?: number;
+  snapActiveMs?: number;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;

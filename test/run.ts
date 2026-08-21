@@ -858,6 +858,18 @@ test("agentSnapshotMessages: token snapshot billed + model'ni o'z ichiga oladi (
   assert.equal(tok!.billedCacheRead, 120000, "billedCacheRead yuborilishi kerak");
   assert.equal(tok!.model, "claude-opus-4-8", "model yuborilishi kerak");
 });
+test("agentSnapshotMessages: session statlari (snap) ENG OXIRIDA qaytariladi (reload'da 0 emas)", () => {
+  const agent = createAgentState(2, "/x/s2.jsonl", "proj", { isExternal: true, sessionId: "s2" });
+  agent.snapToolCalls = 42; agent.snapTurns = 5; agent.snapActiveMs = 123000;
+  const msgs = agentSnapshotMessages(agent);
+  const ss = msgs.find((m) => m.type === "agentSessionStats") as { toolCalls?: number; turns?: number; activeMs?: number } | undefined;
+  assert.ok(ss, "agentSessionStats bo'lishi kerak");
+  assert.equal(ss!.toolCalls, 42);
+  assert.equal(ss!.turns, 5);
+  assert.equal(ss!.activeMs, 123000);
+  // ENG OXIRIDA — tool-start replay'lari toolCalls'ni oshirmasin (override qilsin)
+  assert.equal(msgs[msgs.length - 1].type, "agentSessionStats", "eng oxirida bo'lishi kerak");
+});
 
 console.log("Xarajat (host) — qayta o'qishda double-count YO'Q:");
 test("primeFromStart: token akkumulyatorlari qayta o'qishda IKKI BAROBAR bo'lmaydi", () => {

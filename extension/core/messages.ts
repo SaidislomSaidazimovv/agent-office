@@ -21,6 +21,7 @@ export type ServerMessage =
   | AgentRenamed
   | AgentRoleDetected
   | AgentPermissionMode
+  | AgentSessionStats
   | SubagentToolStart
   | SubagentToolDone
   | SubagentClear
@@ -63,10 +64,12 @@ export interface SetRole {
 }
 
 /** Davriy sessiya statistikasi (webview → host) — tarixga yozish uchun. Har
- *  agentning JORIY absolyut jami; host delta hisoblab kunlik tarixga qo'shadi. */
+ *  agentning JORIY absolyut jami; host delta hisoblab kunlik tarixga qo'shadi.
+ *  toolCalls/turns/ms — reconnect snapshot'da webview'ga qaytariladi (reload'da
+ *  session statlari 0dan boshlanmasin). */
 export interface SessionStats {
   type: "sessionStats";
-  stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; ms: number }[];
+  stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number }[];
 }
 
 /** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
@@ -196,6 +199,16 @@ export interface AgentRoleDetected {
   id: number;
   /** Faoliyatdan aniqlangan rol (frontend/backend/qa/docs/data/research). */
   role: string;
+}
+/** Session statlari (tool soni / navbat / faol vaqt) — reconnect snapshot'da
+ *  webview'ga qaytariladi (reload'da 0dan boshlanmasin). Webview hisoblagan
+ *  so'nggi qiymatlar (host sessionStats orqali oladi va keshlaydi). */
+export interface AgentSessionStats {
+  type: "agentSessionStats";
+  id: number;
+  toolCalls: number;
+  turns: number;
+  activeMs: number;
 }
 /** Sessiya ruxsat rejimi aniqlandi/o'zgardi. "bypassPermissions" =
  *  --dangerously-skip-permissions (XAVFSIZLIK signali: tool ruxsat so'ramaydi).

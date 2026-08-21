@@ -53,6 +53,9 @@ export function useExtensionMessages(): void {
         case "agentPermissionMode":
           store.setPermissionMode(msg.id, msg.mode);
           break;
+        case "agentSessionStats":
+          store.setSessionStats(msg.id, msg.toolCalls, msg.turns, msg.activeMs);
+          break;
         case "agentToolDone":
           store.toolDone(msg.id);
           break;
