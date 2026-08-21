@@ -9,7 +9,7 @@ import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vs
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
-import { formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
+import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
@@ -844,6 +844,19 @@ test("history: projectTotals — loyiha bo'yicha jam, kamayish tartibida", () =>
 });
 test("history: dayStatFor — topilmasa nol", () => {
   assert.equal(dayStatFor([], "2026-08-01").cost, 0);
+});
+
+test("agentSnapshotMessages: token snapshot billed + model'ni o'z ichiga oladi (reload'da xarajat saqlanadi)", () => {
+  const agent = createAgentState(1, "/x/s.jsonl", "proj", { isExternal: true, sessionId: "s" });
+  agent.inputTokens = 100000; agent.outputTokens = 5000;
+  agent.billedInput = 30000; agent.billedCacheWrite = 5000; agent.billedCacheRead = 120000;
+  agent.model = "claude-opus-4-8";
+  const msgs = agentSnapshotMessages(agent);
+  const tok = msgs.find((m) => m.type === "agentTokenUsage") as { billedInput?: number; billedCacheRead?: number; model?: string } | undefined;
+  assert.ok(tok, "token snapshot bo'lishi kerak");
+  assert.equal(tok!.billedInput, 30000, "billedInput yuborilishi kerak (xarajat uchun)");
+  assert.equal(tok!.billedCacheRead, 120000, "billedCacheRead yuborilishi kerak");
+  assert.equal(tok!.model, "claude-opus-4-8", "model yuborilishi kerak");
 });
 
 console.log("Xarajat (host) — qayta o'qishda double-count YO'Q:");

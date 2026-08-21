@@ -17,7 +17,13 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     { type: "agentStatus", id: a.id, status: a.isWaiting ? "waiting" : "active" },
   ];
   if (a.inputTokens > 0 || a.outputTokens > 0) {
-    msgs.push({ type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow });
+    // MODEL + BILLED tokenlarni ham yuboramiz — aks holda webview qayta ochilganda
+    // xarajat (billed'dan hisoblanadi) faqat output qismini ko'rsatib, input+kesh
+    // qismini yo'qotardi (idle agentda butunlay noto'g'ri qolardi).
+    msgs.push({
+      type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
+      model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead,
+    });
   }
   // Har REAL faol tool uchun bitta start — webview sanog'i server bilan aniq mos
   // keladi va tugaganda to'g'ri tozalanadi (sun'iy "restore" id'siz — u hech
