@@ -73,7 +73,9 @@ interface DaylightState {
  *  soat sekin o'zgargani uchun kamdan-kam re-render. */
 export const useDaylight = create<DaylightState>((set, get) => ({
   enabled: true,
-  params: queryHour() != null ? daylightAt(queryHour()!) : DAY,
+  // Boshlang'ich yorug'lik — JORIY vaqtдан (avval qat'iy DAY edi → yuklanганда
+  // ~30s kunduzgi yorug'lik ko'rinardi, keyin refresh() to'g'rilar edi).
+  params: currentParams(),
   toggle() {
     const enabled = !get().enabled;
     set({ enabled, params: enabled ? currentParams() : DAY });
