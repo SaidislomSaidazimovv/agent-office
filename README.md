@@ -95,7 +95,7 @@ The extension **does not run** Claude — it only watches. When Hooks are delive
 **From a packaged `.vsix`:**
 
 ```bash
-code --install-extension agent-office-0.1.5.vsix
+code --install-extension agent-office-0.1.6.vsix
 ```
 
 …or in VS Code: **Extensions** → `⋯` → **Install from VSIX…**

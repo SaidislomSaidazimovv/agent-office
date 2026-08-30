@@ -3,6 +3,59 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.6] — 2026-08-30
+
+The office grows a memory and a sharper eye — it now remembers your days,
+surfaces signals a single session can't, reacts to the real work on the desks,
+and runs lighter. Plus a round of fixes for cost accuracy and reconnect.
+
+### Added
+
+- **A history that outlives the session (🕰️).** The dashboard keeps a local,
+  per-day record of cost and tokens and opens a history panel: today vs
+  yesterday, a 14-day cost trend, and a by-project breakdown — with a
+  recent-sessions archive (name, project, date, tools, duration, cost) so you
+  can look back after a session has closed. Persisted to `~/.agent-office`
+  (written atomically, bailing out on an unparseable file); nothing leaves the
+  machine.
+- **Signals a single session can't see.** Because the office watches every
+  session at once, it surfaces more of what's really happening: which agents run
+  in `--dangerously-skip-permissions` (🔓), whether an agent was launched here or
+  auto-discovered, background (`run_in_background`) tasks, a richer git read
+  (staged/unstaged split and ahead/behind), and a persistent context-limit
+  warning in the inspector and the insights.
+- **The desks react to the real work.** Each agent's monitor now shows the
+  actual tool and file it's touching, two agents editing the same file in one
+  repo light up as a 3D conflict, and the boardroom whiteboard and lounge TV
+  show a live office stats board — all from measured state, nothing invented.
+- **Filter, export, search, and fix roles by hand.** A status filter on the
+  agent bar and a sortable dashboard table; save the report and the session
+  story as Markdown; search agents by their task; and correct an agent's role
+  by hand when auto-detection gets it wrong — remembered per session.
+
+### Improved
+
+- **Lighter and smoother.** The project scan no longer blocks the extension host
+  — it's asynchronous and skips files it already tracks. The webview is
+  code-split so the three.js and React vendors load and cache separately from
+  the app code, and the live stats boards no longer re-compute on every token
+  update.
+- **The standalone CLI caught up.** Renaming an agent, correcting its role, and
+  restoring session stats on reload now work in the browser viewer too, sharing
+  the same `~/.agent-office` files as the extension.
+
+### Fixed
+
+- **Cost stopped double-counting** on `/clear`, `/resume`, and transcript
+  truncation — the billed-token accumulators are now reset when a transcript is
+  re-read.
+- **The reconnect snapshot is whole again** — the model and billed tokens (so
+  idle cost stays right) and the tools/turns/active-time are restored when the
+  panel reloads, instead of restarting from zero.
+- **A living clock and feed** — the wall clock shows the real time and the feed
+  timestamps tick; the day/night lighting starts at the current hour and
+  remembers when you switch it off.
+
 ## [0.1.5] — 2026-07-27
 
 A smarter, more alive office — desks that fill with people, role-readable
@@ -271,6 +324,7 @@ sessions — no API key, no configuration, purely local.
   bails out (never overwrites) if the file can't be parsed, and writes
   atomically; stale prior-version hook entries are cleaned up on install.
 
+[0.1.6]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.6
 [0.1.5]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.5
 [0.1.4]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.4
 [0.1.3]: https://github.com/SaidislomSaidazimovv/agent-office/releases/tag/v0.1.3
