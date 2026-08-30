@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import { WebSocketServer } from "ws";
+import { sanitizeName } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { getSessionDir } from "../core/paths.js";
@@ -61,14 +62,56 @@ function readFirstTask(filePath: string): string {
   }
 }
 
+// ── Nom / qo'lda rol override — extension bilan BIR XIL fayllar (~/.agent-office) ──
+// Sessiya ID bo'yicha; atomik (temp+rename) yoziladi; yaroqsiz faylda bail-out
+// (ustidan yozmaymiz). Bo'sh deb qaraymiz — override ixtiyoriy.
+function aoFile(name: string): string {
+  return path.join(os.homedir(), ".agent-office", name);
+}
+function loadStrMap(name: string): Record<string, string> {
+  try {
+    const o = JSON.parse(fs.readFileSync(aoFile(name), "utf8"));
+    return o && typeof o === "object" && !Array.isArray(o) ? (o as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+function saveStrMap(name: string, map: Record<string, string>): void {
+  try {
+    const p = aoFile(name);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const tmp = `${p}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(map));
+    fs.renameSync(tmp, p); // atomik almashtirish
+  } catch {
+    /* saqlab bo'lmasa — jim */
+  }
+}
+let namesCache: Record<string, string> | null = null;
+let rolesCache: Record<string, string> | null = null;
+function names(): Record<string, string> {
+  if (!namesCache) namesCache = loadStrMap("names.json");
+  return namesCache;
+}
+function roles(): Record<string, string> {
+  if (!rolesCache) rolesCache = loadStrMap("roles.json");
+  return rolesCache;
+}
+
 function adopt(filePath: string, folderName: string): AgentState | null {
   const sessionId = path.basename(filePath, ".jsonl");
   if (store.findByFile(filePath) || store.findBySession(sessionId)) return null;
   const id = store.allocateId();
   const agent = createAgentState(id, filePath, folderName, { isExternal: true, sessionId, task: readFirstTask(filePath) });
+  // Saqlangan nom / qo'lda rol tuzatmasini tiklaymiz (browser aro va CLI qayta
+  // ishga tushganda ham joyida qolsin — extension bilan bir xil xatti-harakat).
+  const savedName = names()[sessionId];
+  if (savedName) agent.customName = savedName;
+  const savedRole = roles()[sessionId];
+  if (savedRole) { agent.role = savedRole; agent.roleManual = true; }
   watcher.primeFromStart(agent);
-  store.add(agent);
-  watcher.emitSnapshot(agent);
+  store.add(agent); // → agentAdded → agentCreated (rol bilan)
+  watcher.emitSnapshot(agent); // customName bo'lsa agentRenamed ham broadcast qilinadi
   return agent;
 }
 
@@ -215,6 +258,57 @@ function handleClient(msg: ClientMessage, ws: import("ws").WebSocket): void {
       break;
     case "closeAgent":
       store.remove(msg.id);
+      break;
+    case "renameAgent": {
+      const agent = store.get(msg.id);
+      if (!agent) break;
+      const name = sanitizeName(msg.name);
+      agent.customName = name || undefined;
+      broadcastAll({ type: "agentRenamed", id: msg.id, name });
+      if (agent.sessionId) {
+        const m = names();
+        if (name) m[agent.sessionId] = name;
+        else delete m[agent.sessionId];
+        saveStrMap("names.json", m);
+      }
+      break;
+    }
+    case "setRole": {
+      const agent = store.get(msg.id);
+      if (!agent) break;
+      const VALID = new Set(["research", "frontend", "backend", "qa", "docs", "data"]);
+      const role = typeof msg.role === "string" && VALID.has(msg.role) ? msg.role : "";
+      if (role) {
+        agent.role = role;
+        agent.roleManual = true;
+      } else {
+        // Bo'sh/yaroqsiz → avtomatik aniqlashga qaytamiz (ballarni 0dan).
+        agent.roleManual = false;
+        agent.role = undefined;
+        agent.roleScores = {};
+      }
+      broadcastAll({ type: "agentRoleDetected", id: msg.id, role });
+      if (agent.sessionId) {
+        const m = roles();
+        if (role) m[agent.sessionId] = role;
+        else delete m[agent.sessionId];
+        saveStrMap("roles.json", m);
+      }
+      break;
+    }
+    case "sessionStats":
+      // toolCalls/turns/activeMs ni keshlaymiz — brauzer qayta yuklanganda snapshot
+      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Kunlik
+      // tarix yozish extension'ga xos qoladi (CLI umumiy history.json ni ikki
+      // marta sanamasligi uchun).
+      for (const s of msg.stats) {
+        const agent = store.get(s.id);
+        if (agent) {
+          agent.snapToolCalls = s.tools;
+          agent.snapTurns = s.turns;
+          agent.snapActiveMs = s.ms;
+        }
+      }
       break;
     // focusAgent / launchAgent / setSoundEnabled — CLI'da ma'nosiz (terminal yo'q)
   }
