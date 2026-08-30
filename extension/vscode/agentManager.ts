@@ -28,6 +28,8 @@ export class AgentManager {
   /** /clear yoki /resume'dan keyin tashlab ketilgan eski transcript fayllari —
    *  scanForNew ularni qayta adopt qilmasin (aks holda zombi qayta paydo bo'ladi). */
   private retired = new Set<string>();
+  /** Skan ustma-ust ketmasin — async statlar oldingi skan tugamasdan yangisi boshlanmasin. */
+  private scanning = false;
 
   constructor(
     private store: AgentStateStore,
@@ -60,7 +62,7 @@ export class AgentManager {
       }),
     );
     this.startupTime = Date.now();
-    this.scanTimer = setInterval(() => this.scanForNew(), PROJECT_SCAN_INTERVAL_MS);
+    this.scanTimer = setInterval(() => void this.scanForNew(), PROJECT_SCAN_INTERVAL_MS);
   }
 
   private workspaceFolders(): string[] {
@@ -126,60 +128,75 @@ export class AgentManager {
     return false;
   }
 
-  /** Shu loyihada YANGI faoliyatli sessiyani avto-qabul qiladi. */
-  private scanForNew(): void {
-    for (const { dir, folderName } of this.sessionDirs()) {
-      const ws = this.wsForDir(dir);
-      for (const f of this.listJsonl(dir)) {
-        const sid = path.basename(f.filePath, ".jsonl");
-        // Dublikatdan himoya — fayl YOKI sessiya allaqachon kuzatilsa o'tkazamiz
-        if (this.store.findByFile(f.filePath) || this.store.findBySession(sid)) continue;
-        // /clear|/resume'dan keyin tashlab ketilgan eski fayl — qayta adopt qilmaymiz
-        if (this.retired.has(f.filePath)) continue;
-        if (f.mtime < this.startupTime) continue; // ochilishdan oldingi — kutamiz
-        // /clear yoki /resume detektsiyasi (hook yo'q bo'lsa) — dublikatsiz reassign
-        if (this.tryReassignNewFile(dir, ws, f.filePath)) continue;
-        this.adopt(f.filePath, folderName, true);
+  /** Shu loyihada YANGI faoliyatli sessiyani avto-qabul qiladi. ASYNC — I/O
+   *  (readdir/stat) extension host asosiy oqimini bloklamaydi. */
+  private async scanForNew(): Promise<void> {
+    if (this.scanning) return; // oldingi skan hali tugamagan — ustma-ust ketmasin
+    this.scanning = true;
+    try {
+      for (const { dir, folderName } of this.sessionDirs()) {
+        const ws = this.wsForDir(dir);
+        for (const f of await this.listJsonl(dir)) {
+          const sid = path.basename(f.filePath, ".jsonl");
+          // Dublikatdan himoya — await oraliqda holat o'zgargan bo'lishi mumkin,
+          // shuning uchun bu yerda ham qayta tekshiramiz (listJsonl ham filtrlaydi).
+          if (this.store.findByFile(f.filePath) || this.store.findBySession(sid)) continue;
+          // /clear|/resume'dan keyin tashlab ketilgan eski fayl — qayta adopt qilmaymiz
+          if (this.retired.has(f.filePath)) continue;
+          if (f.mtime < this.startupTime) continue; // ochilishdan oldingi — kutamiz
+          // /clear yoki /resume detektsiyasi (hook yo'q bo'lsa) — dublikatsiz reassign
+          if (this.tryReassignNewFile(dir, ws, f.filePath)) continue;
+          this.adopt(f.filePath, folderName, true);
+        }
       }
-    }
-    // Bog'lanmagan tashqi agentlarni cwd bo'yicha kech-bog'lash (terminal
-    // shell-integration cwd'ni keyinroq bergan yoki keyin faol bo'lgan bo'lishi mumkin).
-    for (const agent of this.store.values()) {
-      if (agent.isExternal && !this.terminals.has(agent.id)) this.bindByCwd(agent);
-    }
-    // Yopilgan terminalli agentlarni tozalash (onDidCloseTerminal o'tkazib yuborilsa).
-    const open = new Set(vscode.window.terminals);
-    for (const id of [...this.terminals.keys()]) {
-      const t = this.terminals.get(id);
-      if (t && !open.has(t)) this.detach(id);
-    }
-    // Fayli o'chirilgan tashqi agentlarni tozalaymiz
-    for (const agent of this.store.values()) {
-      if (agent.isExternal && !fs.existsSync(agent.filePath)) {
-        this.store.remove(agent.id);
+      // Bog'lanmagan tashqi agentlarni cwd bo'yicha kech-bog'lash (terminal
+      // shell-integration cwd'ni keyinroq bergan yoki keyin faol bo'lgan bo'lishi mumkin).
+      for (const agent of this.store.values()) {
+        if (agent.isExternal && !this.terminals.has(agent.id)) this.bindByCwd(agent);
       }
+      // Yopilgan terminalli agentlarni tozalash (onDidCloseTerminal o'tkazib yuborilsa).
+      const open = new Set(vscode.window.terminals);
+      for (const id of [...this.terminals.keys()]) {
+        const t = this.terminals.get(id);
+        if (t && !open.has(t)) this.detach(id);
+      }
+      // Fayli o'chirilgan tashqi agentlarni tozalaymiz
+      for (const agent of this.store.values()) {
+        if (agent.isExternal && !fs.existsSync(agent.filePath)) {
+          this.store.remove(agent.id);
+        }
+      }
+    } finally {
+      this.scanning = false;
     }
   }
 
-  private listJsonl(dir: string): { filePath: string; mtime: number }[] {
-    const out: { filePath: string; mtime: number }[] = [];
+  /** Sessiya papkasidagi HALI KUZATILMAGAN `.jsonl` fayllar (yo'l + mtime).
+   *  Allaqachon kuzatilayotgan yoki retired fayllarga stat SHART EMAS — mtime ular
+   *  uchun ishlatilmaydi, shu bilan har skanда yuzlab keraksiz stat oldini olamiz.
+   *  Async + parallel (`Promise.all`) — asosiy oqim bloklanmaydi. */
+  private async listJsonl(dir: string): Promise<{ filePath: string; mtime: number }[]> {
     let entries: string[];
     try {
-      entries = fs.readdirSync(dir);
+      entries = await fs.promises.readdir(dir);
     } catch {
-      return out;
+      return [];
     }
-    for (const name of entries) {
-      if (!name.endsWith(".jsonl")) continue;
-      const filePath = path.join(dir, name);
-      try {
-        const st = fs.statSync(filePath);
-        if (st.isFile()) out.push({ filePath, mtime: st.mtimeMs });
-      } catch {
-        /* skip */
-      }
-    }
-    return out;
+    const stats = await Promise.all(
+      entries.map(async (name): Promise<{ filePath: string; mtime: number } | null> => {
+        if (!name.endsWith(".jsonl")) return null;
+        const filePath = path.join(dir, name);
+        if (this.retired.has(filePath)) return null;
+        if (this.store.findByFile(filePath) || this.store.findBySession(path.basename(name, ".jsonl"))) return null;
+        try {
+          const st = await fs.promises.stat(filePath);
+          return st.isFile() ? { filePath, mtime: st.mtimeMs } : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return stats.filter((x): x is { filePath: string; mtime: number } => x !== null);
   }
 
   private adopt(filePath: string, folderName: string, isExternal: boolean, role?: string): AgentState | null {
