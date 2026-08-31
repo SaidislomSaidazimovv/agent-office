@@ -16,7 +16,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { dailyCost, dayStatFor, projectTotals } from "../webview-ui/src/history.js";
+import { dailyCost, dayStatFor, modelTotals, projectTotals } from "../webview-ui/src/history.js";
 import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -844,6 +844,21 @@ test("history: projectTotals — loyiha bo'yicha jam, kamayish tartibida", () =>
 });
 test("history: dayStatFor — topilmasa nol", () => {
   assert.equal(dayStatFor([], "2026-08-01").cost, 0);
+});
+test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi", () => {
+  const sessions = [
+    { project: "a", at: 1, cost: 2, inTok: 100, outTok: 50, tools: 3, ms: 0, model: "claude-opus-4-8" },
+    { project: "b", at: 2, cost: 1, inTok: 200, outTok: 0, tools: 1, ms: 0, model: "claude-opus-4-8" },
+    { project: "c", at: 3, cost: 2, inTok: 10, outTok: 0, tools: 0, ms: 0, model: "claude-sonnet-4-5" },
+    { project: "d", at: 4, cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 }, // modeli yo'q — hisobga olinmaydi
+  ];
+  const mt = modelTotals(sessions);
+  assert.equal(mt.length, 2, "faqat modelli sessiyalar, short bo'yicha guruh");
+  assert.equal(mt[0].model, "Opus 4.8", "eng qimmat model birinchi");
+  assert.equal(mt[0].cost, 3, "ikki Opus sessiyasi jamlanadi (2+1)");
+  assert.equal(mt[0].count, 2);
+  assert.equal(mt[0].tok, 350, "tokenlar jamlanadi (150+200)");
+  assert.equal(mt[1].model, "Sonnet 4.5");
 });
 
 test("agentSnapshotMessages: token snapshot billed + model'ni o'z ichiga oladi (reload'da xarajat saqlanadi)", () => {

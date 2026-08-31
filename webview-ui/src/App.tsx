@@ -109,6 +109,7 @@ function CostSampler() {
           tools: a!.toolCalls,
           turns: a!.turns,
           ms: a!.activeMs + (a!.activeSince != null ? now - a!.activeSince : 0),
+          model: a!.model,
         }));
       if (stats.length > 0) send({ type: "sessionStats", stats });
     };

@@ -174,6 +174,7 @@ const dict = {
   "hist.vsYesterday": { uz: "kechaga nisbatan", ru: "к вчера", en: "vs yesterday" },
   "hist.trend": { uz: "Kunlik xarajat (so'nggi 14 kun)", ru: "Затраты по дням (14 дней)", en: "Daily cost (last 14 days)" },
   "hist.byProject": { uz: "Loyiha bo'yicha jami", ru: "Всего по проектам", en: "Total by project" },
+  "hist.byModel": { uz: "Model bo'yicha jami", ru: "Всего по моделям", en: "Total by model" },
   "hist.totalCost": { uz: "Umumiy xarajat", ru: "Всего затрат", en: "Total cost" },
   "hist.totalTokens": { uz: "Umumiy tokenlar", ru: "Всего токенов", en: "Total tokens" },
   "hist.totalTime": { uz: "Umumiy faol vaqt", ru: "Всего активн. времени", en: "Total active time" },

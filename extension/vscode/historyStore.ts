@@ -10,7 +10,7 @@ import * as path from "path";
 // keladi; host faqat yig'adi (o'lchangan, to'qib chiqarilmagan).
 
 interface Stat { cost: number; inTok: number; outTok: number; tools: number; ms: number; }
-interface SessionAbs extends Stat { project: string; day: string; firstSeen: number; }
+interface SessionAbs extends Stat { project: string; day: string; firstSeen: number; model?: string; }
 interface HistoryData {
   /** date (YYYY-MM-DD) → project → jamlanma. */
   days: Record<string, Record<string, Stat>>;
@@ -63,7 +63,7 @@ export class HistoryStore {
 
   /** Bitta sessiyaning JORIY absolyut jamini yozadi — o'sish (delta) bugungi
    *  kunga qo'shiladi. cur.* kamaymaydi (jami faqat o'sadi); kamaysa 0 deb olamiz. */
-  record(sessionId: string, project: string, cur: Stat): void {
+  record(sessionId: string, project: string, cur: Stat, model?: string): void {
     if (!sessionId || !project) return;
     const day = localDay();
     const prev = this.data.sessions[sessionId];
@@ -78,7 +78,8 @@ export class HistoryStore {
       s.cost += dcost; s.inTok += din; s.outTok += dout; s.tools += dtools; s.ms += dms;
     }
     const firstSeen = prev?.firstSeen ?? Date.now();
-    this.data.sessions[sessionId] = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms };
+    // Model — kelmasa oldingisini saqlaymiz (statlar modeldan oldin kelishi mumkin).
+    this.data.sessions[sessionId] = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms, model: model ?? prev?.model };
     this.dirty = true;
     this.scheduleSave();
   }
@@ -91,13 +92,13 @@ export class HistoryStore {
   }
 
   /** So'nggi sessiyalar arxivi — eng yangi birinchi (nom keyin qo'shiladi). */
-  getSessions(limit = 60): { sessionId: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number }[] {
+  getSessions(limit = 60): { sessionId: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number; model?: string }[] {
     return Object.entries(this.data.sessions)
       .map(([sessionId, s]) => ({
         sessionId,
         project: s.project,
         at: s.firstSeen ?? (Date.parse(`${s.day}T12:00:00`) || 0),
-        cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
+        cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms, model: s.model,
       }))
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);

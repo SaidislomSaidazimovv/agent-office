@@ -343,7 +343,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
 
   // ── Tarix — davriy statistikani (webview'dan) sessiya ID bo'yicha yozamiz. ──
   // Cost webview'da hisoblangan; host faqat delta olib kunlik tarixga qo'shadi.
-  private recordStats(stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number }[]): void {
+  private recordStats(stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[]): void {
     this.history.load();
     for (const s of stats) {
       const agent = this.store.get(s.id);
@@ -351,7 +351,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       // (reload'da tool soni / navbat / faol vaqt 0dan boshlanmasin).
       if (agent) { agent.snapToolCalls = s.tools; agent.snapTurns = s.turns; agent.snapActiveMs = s.ms; }
       if (!agent?.sessionId) continue; // barqaror kalit yo'q — tarixga yozmaymiz
-      this.history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms });
+      this.history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
     }
     // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled).
     this.sendHistory();
@@ -367,7 +367,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     const names = this.loadNames();
     const sessions = this.history.getSessions().map((s) => ({
       name: names[s.sessionId] || undefined,
-      project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms,
+      project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms, model: s.model,
     }));
     this.post({ type: "historyLoaded", days: this.history.getDays(), sessions });
   }

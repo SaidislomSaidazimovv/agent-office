@@ -3,6 +3,8 @@
 // Bu modul faqat KO'RSATISH uchun jamlaydi — hech narsa to'qib chiqarilmaydi,
 // hammasi o'lchangan (host yig'gan) ma'lumotdan. DOM'siz → test qilinadi.
 
+import { shortModel } from "./format";
+
 export interface DayStat {
   /** Taxminiy xarajat ($). */
   cost: number;
@@ -33,6 +35,8 @@ export interface ArchiveSession {
   outTok: number;
   tools: number;
   ms: number;
+  /** Sessiya modeli (xom id, masalan "claude-opus-4-8"). Eski yozuvlarда bo'lmasligi mumkin. */
+  model?: string;
 }
 
 export function emptyStat(): DayStat {
@@ -70,4 +74,23 @@ export function dayStatFor(days: HistoryDay[], date: string): DayStat {
 /** Barcha kunlar bo'yicha umumiy jami. */
 export function grandTotal(days: HistoryDay[]): DayStat {
   return days.map(dayTotal).reduce(addStat, emptyStat());
+}
+
+/** Model bo'yicha jami — arxivlangan sessiyalardan, short-model bo'yicha
+ *  guruhlangan (masalan "Opus 4.8"), xarajat kamayish tartibida. Modeli
+ *  noma'lum sessiyalar hisobga olinmaydi (eski yozuvlar). */
+export function modelTotals(sessions: ArchiveSession[]): { model: string; cost: number; tok: number; count: number }[] {
+  const m = new Map<string, { cost: number; tok: number; count: number }>();
+  for (const s of sessions) {
+    if (!s.model) continue;
+    const key = shortModel(s.model);
+    const cur = m.get(key) ?? { cost: 0, tok: 0, count: 0 };
+    cur.cost += s.cost;
+    cur.tok += s.inTok + s.outTok;
+    cur.count += 1;
+    m.set(key, cur);
+  }
+  return [...m.entries()]
+    .map(([model, v]) => ({ model, cost: v.cost, tok: v.tok, count: v.count }))
+    .sort((a, b) => b.cost - a.cost);
 }

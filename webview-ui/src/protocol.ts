@@ -29,7 +29,7 @@ export type ServerMessage =
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
   | { type: "hookStatus"; active: boolean }
-  | { type: "historyLoaded"; days: { date: string; projects: Record<string, { cost: number; inTok: number; outTok: number; tools: number; ms: number }> }[]; sessions: { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number }[] }
+  | { type: "historyLoaded"; days: { date: string; projects: Record<string, { cost: number; inTok: number; outTok: number; tools: number; ms: number }> }[]; sessions: { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number; model?: string }[] }
   | { type: "layoutLoaded"; items: LayoutItem[]; floorColor?: string | null; wallColor?: string | null; packs?: unknown[] };
 
 export interface LayoutItem {
@@ -51,4 +51,4 @@ export type ClientMessage =
   | { type: "saveText"; kind: "report" | "story"; content: string }
   | { type: "renameAgent"; id: number; name: string }
   | { type: "setRole"; id: number; role: string }
-  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number }[] };
+  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] };

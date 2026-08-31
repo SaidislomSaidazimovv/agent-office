@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
-import { dailyCost, dayStatFor, grandTotal, projectTotals } from "../history";
+import { dailyCost, dayStatFor, grandTotal, modelTotals, projectTotals } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
@@ -540,7 +540,9 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
   const t = useT();
   const daily = useMemo(() => dailyCost(days).slice(-14), [days]); // so'nggi ~2 hafta
   const projects = useMemo(() => projectTotals(days).slice(0, 6), [days]);
+  const models = useMemo(() => modelTotals(archive).slice(0, 6), [archive]);
   const total = useMemo(() => grandTotal(days), [days]);
+  const maxModel = Math.max(...models.map((m) => m.cost), 0.0001);
   const today = dayStatFor(days, localDayISO(0));
   const yday = dayStatFor(days, localDayISO(1));
   const maxDay = Math.max(...daily.map((d) => d.cost), 0.0001);
@@ -608,6 +610,24 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
         </div>
       )}
 
+      {/* Model bo'yicha jami — arxivlangan sessiyalardan (short-model bo'yicha) */}
+      {models.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.byModel")}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {models.map((m, i) => (
+              <div key={m.model} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 96, fontSize: 11, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.model}</span>
+                <div style={{ flex: 1, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max(3, (m.cost / maxModel) * 100)}%`, height: "100%", background: MODEL_PAL_H[i % MODEL_PAL_H.length], borderRadius: 4 }} />
+                </div>
+                <span style={{ width: 52, textAlign: "right", fontSize: 11, color: INK2, fontVariantNumeric: "tabular-nums" }}>~{fmtCost(m.cost)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Umumiy jami */}
       <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${GRID}`, paddingTop: 10 }}>
         <TotalTile label={t("hist.totalCost")} value={`~${fmtCost(total.cost)}`} />
@@ -626,7 +646,7 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
                   <span style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {s.name || s.project}{s.name ? <span style={{ opacity: 0.6, fontWeight: 400 }}> · 📁 {s.project}</span> : null}
                   </span>
-                  <span style={{ display: "block", fontSize: 10, color: MUTED }}>{fmtHistDate(s.at)} · {s.tools} {t("dash.colTools").toLowerCase()} · {fmtDur(s.ms)}</span>
+                  <span style={{ display: "block", fontSize: 10, color: MUTED }}>{fmtHistDate(s.at)}{s.model ? ` · ${shortModel(s.model)}` : ""} · {s.tools} {t("dash.colTools").toLowerCase()} · {fmtDur(s.ms)}</span>
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#30d158", fontVariantNumeric: "tabular-nums" }}>~{fmtCost(s.cost)}</span>
               </div>

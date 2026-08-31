@@ -69,7 +69,7 @@ export interface SetRole {
  *  session statlari 0dan boshlanmasin). */
 export interface SessionStats {
   type: "sessionStats";
-  stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number }[];
+  stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[];
 }
 
 /** Ofis surati/klipi — foydalanuvchi tanlagan joyga saqlanadi (saqlash oynasi orqali). */
@@ -254,7 +254,7 @@ export interface HookStatus {
 /** Saqlangan tarix — ochilganda bir marta yuboriladi (kunlik/loyiha jamlanma
  *  + so'nggi sessiyalar arxivi). */
 export interface HistDayStat { cost: number; inTok: number; outTok: number; tools: number; ms: number; }
-export interface HistArchiveSession { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number; }
+export interface HistArchiveSession { name?: string; project: string; at: number; cost: number; inTok: number; outTok: number; tools: number; ms: number; model?: string; }
 export interface HistoryLoaded {
   type: "historyLoaded";
   days: { date: string; projects: Record<string, HistDayStat> }[];
