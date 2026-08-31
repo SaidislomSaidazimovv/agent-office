@@ -11,7 +11,7 @@ import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
-import { budgetState } from "../webview-ui/src/budget.js";
+import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
@@ -613,6 +613,15 @@ test("budgetState: limit yo'q → o'chiq; 80% → warn; 100% → over", () => {
   assert.ok(Math.abs(b.frac - 0.25) < 1e-9, "ulush 0.25");
   assert.ok(Math.abs(b.left - 0.75) < 1e-9, "qolgani 0.75");
   assert.equal(budgetState(3, 1).left, 0, "oshib ketsa qolgani 0 (manfiy emas)");
+});
+test("budgetCrossing: chegaradan o'tishда BIR marta fire, gisterezis bilan qayta tiklanadi", () => {
+  assert.deepEqual(budgetCrossing(0.5, 1, false), { fire: false, notified: false }, "budjet ostida — xabar yo'q");
+  assert.deepEqual(budgetCrossing(1, 1, false), { fire: true, notified: true }, "o'tishда fire=true");
+  assert.deepEqual(budgetCrossing(1.5, 1, true), { fire: false, notified: true }, "hali oshgan, avval xabar berilган — qayta fire yo'q");
+  // budjet ko'tarilди (sarf endi <95% limit) → qayta tiklanadi
+  assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarilди → reset");
+  assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishда yana fire");
+  assert.deepEqual(budgetCrossing(5, 0, false), { fire: false, notified: false }, "budjet o'chiq (0) → hech qachon fire");
 });
 
 console.log("Sessiya hisoboti (markdown eksport):");

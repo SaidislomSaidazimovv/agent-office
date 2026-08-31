@@ -338,7 +338,28 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "sessionStats":
         this.recordStats(msg.stats);
         break;
+      case "budgetAlert":
+        this.notifyBudget(msg.spent, msg.limit);
+        break;
     }
+  }
+
+  // ── Budjetdan oshish bildirishnomasi (webview chegaradan O'TISHда yuboradi) ──
+  // FAQAT ogohlantirish — hech narsa to'xtatilmaydi. `notifications` sozlamasiga
+  // bo'ysunadi; qo'shimcha host throttle ko'p-panel dublikatlaridan himoya qiladi.
+  private lastBudgetNotify = 0;
+  private notifyBudget(spent: number, limit: number): void {
+    if (!(limit > 0) || !Number.isFinite(limit) || spent < limit) return; // himoya
+    if (!vscode.workspace.getConfiguration("agent-office").get<boolean>("notifications", true)) return;
+    const now = Date.now();
+    if (now - this.lastBudgetNotify < 30000) return;
+    this.lastBudgetNotify = now;
+    const fmt = (n: number) => `$${n.toFixed(2)}`;
+    void vscode.window
+      .showWarningMessage(`Agent Office — 💸 Byudjetdan oshdi: ~${fmt(spent)} / ${fmt(limit)} (faqat ogohlantirish)`, "Panelni ochish")
+      .then((pick) => {
+        if (pick === "Panelni ochish") void vscode.commands.executeCommand("agent-office.showPanel");
+      });
   }
 
   // ── Tarix — davriy statistikani (webview'dan) sessiya ID bo'yicha yozamiz. ──

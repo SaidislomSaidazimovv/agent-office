@@ -51,4 +51,5 @@ export type ClientMessage =
   | { type: "saveText"; kind: "report" | "story" | "history"; content: string }
   | { type: "renameAgent"; id: number; name: string }
   | { type: "setRole"; id: number; role: string }
-  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] };
+  | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] }
+  | { type: "budgetAlert"; spent: number; limit: number };

@@ -45,7 +45,8 @@ export type ClientMessage =
   | SaveText
   | RenameAgent
   | SetRole
-  | SessionStats;
+  | SessionStats
+  | BudgetAlert;
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */
@@ -78,6 +79,17 @@ export interface SaveMedia {
   kind: "png" | "webm";
   /** base64 (data: prefiksisiz). */
   data: string;
+}
+
+/** Budjetdan oshdi (webview → host) — host VS Code bildirishnomasini ko'rsatadi
+ *  (`agent-office.notifications` sozlamasiga bo'ysunadi). Webview har o'tishда
+ *  BIR marta yuboradi (spam yo'q). FAQAT ogohlantirish — hech narsa to'xtatilmaydi. */
+export interface BudgetAlert {
+  type: "budgetAlert";
+  /** Joriy sarf ($). */
+  spent: number;
+  /** Belgilangan budjet ($). */
+  limit: number;
 }
 
 /** Matn eksporti — foydalanuvchi tanlagan joyga saqlanadi. report/story → .md,

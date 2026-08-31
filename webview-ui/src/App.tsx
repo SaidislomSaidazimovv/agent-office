@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import { budgetCrossing } from "./budget";
 import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
 import { setActiveSeats, setPlacedRects } from "./scene/collision";
@@ -92,6 +93,7 @@ function CameraFollow() {
 // host delta olib kunlik jamlanmaga qo'shadi). Sof ma'lumot: render ham, 3D ham yo'q.
 function CostSampler() {
   const sample = useOffice((s) => s.sample);
+  const budgetNotified = useRef(false); // budjetdan oshdi xabari BIR marta (ticklar aro)
   useEffect(() => {
     const tick = () => {
       sample();
@@ -112,6 +114,13 @@ function CostSampler() {
           model: a!.model,
         }));
       if (stats.length > 0) send({ type: "sessionStats", stats });
+      // Budjetdan oshish — chegaradan O'TISHда bir marta host'ga xabar (u toast
+      // ko'rsatadi, notifications sozlamasiga bo'ysunadi). FAQAT ogohlantirish.
+      const spent = stats.reduce((sum, x) => sum + x.cost, 0);
+      const limit = useSettings.getState().budgetUsd;
+      const { fire, notified } = budgetCrossing(spent, limit, budgetNotified.current);
+      budgetNotified.current = notified;
+      if (fire) send({ type: "budgetAlert", spent, limit });
     };
     tick(); // darrov birinchi nuqta
     const t = setInterval(tick, 10000);

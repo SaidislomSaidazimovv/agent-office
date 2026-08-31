@@ -25,6 +25,17 @@ export interface BudgetState {
   color: string;
 }
 
+/** Budjet chegarasidan O'TISH (edge) — bildirishnoma faqat BIR MARTA chiqsin.
+ *  `notified` — avval xabar berilganmi. Qaytaradi: `fire` (endi xabar berilsinmi)
+ *  va yangi `notified`. Budjet ko'tarilса (sarf < 95% limit) qayta tiklanadi —
+ *  keyingi haqiqiy o'tishда yana xabar bera oladi. */
+export function budgetCrossing(spent: number, limit: number, notified: boolean): { fire: boolean; notified: boolean } {
+  if (!(limit > 0) || !Number.isFinite(limit)) return { fire: false, notified: false };
+  if (spent >= limit) return notified ? { fire: false, notified: true } : { fire: true, notified: true };
+  if (spent < limit * 0.95) return { fire: false, notified: false }; // gisterezis
+  return { fire: false, notified };
+}
+
 /** Sarflangan va limitdan budjet holatini hisoblaydi (sof funksiya). */
 export function budgetState(spent: number, limit: number): BudgetState {
   if (!(limit > 0) || !Number.isFinite(limit)) {
