@@ -55,6 +55,18 @@ export function saveMarkdown(kind: "report" | "story", content: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Kunlik tarixni .csv qilib saqlaydi — VS Code'da saqlash oynasi, brauzerda
+ *  (standalone) oddiy yuklab olish. Hech qayerga JO'NATILMAYDI. */
+export function saveHistoryCsv(content: string): void {
+  if (isVsCode) { send({ type: "saveText", kind: "history", content }); return; }
+  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `agent-office-history-${stamp()}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Joriy kadrni PNG qilib saqlaydi. */
 export function captureImage(): boolean {
   const c = canvasEl();

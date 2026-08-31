@@ -80,10 +80,11 @@ export interface SaveMedia {
   data: string;
 }
 
-/** Hisobot/hikoya matni (.md) — foydalanuvchi tanlagan joyga saqlanadi. */
+/** Matn eksporti — foydalanuvchi tanlagan joyga saqlanadi. report/story → .md,
+ *  history → .csv (kunlik tarix). */
 export interface SaveText {
   type: "saveText";
-  kind: "report" | "story";
+  kind: "report" | "story" | "history";
   content: string;
 }
 

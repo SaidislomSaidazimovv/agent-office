@@ -76,6 +76,23 @@ export function grandTotal(days: HistoryDay[]): DayStat {
   return days.map(dayTotal).reduce(addStat, emptyStat());
 }
 
+/** CSV katak — vergul/qo'shtirnoq/yangi qatorни qochiradi (RFC 4180). */
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/** Kunlik tarixni CSV qilib beradi (sana o'sish tartibida). Har qator — bir
+ *  kun × bir loyiha. Jadvalда (Excel/Sheets) pivot uchun tayyor. */
+export function historyCsv(days: HistoryDay[]): string {
+  const rows: string[] = ["date,project,cost_usd,input_tokens,output_tokens,tools,active_ms"];
+  for (const d of [...days].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const [project, s] of Object.entries(d.projects)) {
+      rows.push([d.date, csvCell(project), s.cost.toFixed(4), String(s.inTok), String(s.outTok), String(s.tools), String(s.ms)].join(","));
+    }
+  }
+  return rows.join("\n");
+}
+
 /** Model bo'yicha jami — arxivlangan sessiyalardan, short-model bo'yicha
  *  guruhlangan (masalan "Opus 4.8"), xarajat kamayish tartibida. Modeli
  *  noma'lum sessiyalar hisobga olinmaydi (eski yozuvlar). */

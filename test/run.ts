@@ -16,7 +16,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { dailyCost, dayStatFor, modelTotals, projectTotals } from "../webview-ui/src/history.js";
+import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals } from "../webview-ui/src/history.js";
 import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -859,6 +859,16 @@ test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi"
   assert.equal(mt[0].count, 2);
   assert.equal(mt[0].tok, 350, "tokenlar jamlanadi (150+200)");
   assert.equal(mt[1].model, "Sonnet 4.5");
+});
+test("history: historyCsv — header + kunlik qatorlar (sana o'sish, vergul qochirish)", () => {
+  const days = [
+    { date: "2026-08-02", projects: { repo: { cost: 2.5, inTok: 100, outTok: 20, tools: 3, ms: 5000 } } },
+    { date: "2026-08-01", projects: { "a,b": { cost: 1, inTok: 10, outTok: 0, tools: 1, ms: 100 } } },
+  ];
+  const lines = historyCsv(days).split("\n");
+  assert.equal(lines[0], "date,project,cost_usd,input_tokens,output_tokens,tools,active_ms");
+  assert.equal(lines[1], '2026-08-01,"a,b",1.0000,10,0,1,100', "eng erta sana birinchi + vergulli nom qochiriladi");
+  assert.equal(lines[2], "2026-08-02,repo,2.5000,100,20,3,5000");
 });
 
 test("agentSnapshotMessages: token snapshot billed + model'ni o'z ichiga oladi (reload'da xarajat saqlanadi)", () => {

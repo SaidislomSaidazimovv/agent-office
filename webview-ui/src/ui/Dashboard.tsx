@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
-import { dailyCost, dayStatFor, grandTotal, modelTotals, projectTotals } from "../history";
+import { dailyCost, dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
-import { saveMarkdown } from "../media";
+import { saveHistoryCsv, saveMarkdown } from "../media";
 import { buildReport } from "../report";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
@@ -553,7 +553,19 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 12, background: "#0d1117", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>🕰️ {t("hist.title")}</span>
-        <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {days.length > 0 && (
+            <button
+              onClick={() => saveHistoryCsv(historyCsv(days))}
+              title={t("hist.export")}
+              aria-label={t("hist.export")}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK2, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)" }}
+            >
+              ⬇ {t("hist.exportBtn")}
+            </button>
+          )}
+          <button onClick={onClose} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+        </div>
       </div>
       <div style={{ fontSize: 10.5, color: MUTED, marginTop: -6 }}>{t("hist.hint")}</div>
 
