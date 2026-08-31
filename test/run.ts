@@ -7,6 +7,7 @@ import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
+import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
@@ -853,6 +854,18 @@ test("history: projectTotals — loyiha bo'yicha jam, kamayish tartibida", () =>
 });
 test("history: dayStatFor — topilmasa nol", () => {
   assert.equal(dayStatFor([], "2026-08-01").cost, 0);
+});
+
+console.log("Ko'p-oyna hook yo'naltirish:");
+test("hookRouting: pickServerForCwd — cwd bo'yicha eng aniq (uzun) papkani tanlaydi", () => {
+  const A: ServerEntry = { port: 1, token: "a", pid: 10, folders: ["/home/u/proj"] };
+  const B: ServerEntry = { port: 2, token: "b", pid: 11, folders: ["/home/u/proj/sub", "/home/u/other"] };
+  assert.equal(pickServerForCwd([A, B], "/home/u/proj/sub/x")?.port, 2, "eng uzun mos papka (B/sub)");
+  assert.equal(pickServerForCwd([A, B], "/home/u/proj/deep")?.port, 1, "faqat A mos");
+  assert.equal(pickServerForCwd([A, B], "/home/u/other")?.port, 2, "B ning ikkinchi papkasi");
+  assert.equal(pickServerForCwd([A, B], "/home/u/proj")?.port, 1, "aynan A papkasi");
+  assert.equal(pickServerForCwd([A, B], "/tmp/elsewhere"), null, "mos yo'q → null");
+  assert.equal(pickServerForCwd([], "/home/u/proj"), null, "server yo'q → null");
 });
 test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi", () => {
   const sessions = [

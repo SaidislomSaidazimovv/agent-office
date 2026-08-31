@@ -160,7 +160,7 @@ const hookServer = new HookServer((sessionId, raw) => {
     if (agent) agent.sessionId = sessionId;
   }
   if (agent) handleHookEvent(store, agent, raw);
-});
+}, () => paths);
 void hookServer.start().then((h) => {
   hookActive = !!h;
   broadcastAll({ type: "hookStatus", active: hookActive });

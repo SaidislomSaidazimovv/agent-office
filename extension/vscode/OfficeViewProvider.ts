@@ -30,7 +30,10 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private store = new AgentStateStore();
   private watcher = new FileWatcher(this.store);
   private manager = new AgentManager(this.store, this.watcher, (m) => this.logMsg(m));
-  private hookServer = new HookServer((sessionId, raw) => this.onHookEvent(sessionId, raw));
+  private hookServer = new HookServer(
+    (sessionId, raw) => this.onHookEvent(sessionId, raw),
+    () => (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
+  );
   private hookActive = false;
   private autoSpawnTimer?: ReturnType<typeof setTimeout>;
   private pending: ServerMessage[] = [];
@@ -202,7 +205,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (hooksEnabled) {
       void this.hookServer.start().then((handle) => {
         if (!handle) {
-          this.logMsg("⚠ Hook server ishga tushmadi (boshqa oyna egallagan) — shu oynada faqat JSONL kuzatuvi.");
+          this.logMsg("⚠ Hook server ishga tushmadi (port xatosi) — shu oynada faqat JSONL kuzatuvi.");
           this.setHookActive(false);
           return;
         }
