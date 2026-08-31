@@ -8,6 +8,7 @@ import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
+import { HistoryStore } from "../extension/vscode/historyStore.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
@@ -866,6 +867,75 @@ test("hookRouting: pickServerForCwd — cwd bo'yicha eng aniq (uzun) papkani tan
   assert.equal(pickServerForCwd([A, B], "/home/u/proj")?.port, 1, "aynan A papkasi");
   assert.equal(pickServerForCwd([A, B], "/tmp/elsewhere"), null, "mos yo'q → null");
   assert.equal(pickServerForCwd([], "/home/u/proj"), null, "server yo'q → null");
+});
+
+console.log("Tarix saqlashi (host — HistoryStore, scratch home):");
+function withScratchHome<T>(fn: (home: string) => T): T {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "ao-hist-"));
+  const prevU = process.env.USERPROFILE;
+  const prevH = process.env.HOME;
+  process.env.USERPROFILE = home;
+  process.env.HOME = home; // os.homedir() runtime env'ni hurmat qiladi
+  try {
+    return fn(home);
+  } finally {
+    if (prevU === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = prevU;
+    if (prevH === undefined) delete process.env.HOME; else process.env.HOME = prevH;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
+test("HistoryStore: record delta — kunlik jamlanma IKKI BAROBAR bo'lmaydi", () => {
+  withScratchHome(() => {
+    const h = new HistoryStore();
+    h.load();
+    h.record("s1", "repo", { cost: 1, inTok: 100, outTok: 10, tools: 2, ms: 1000 });
+    h.record("s1", "repo", { cost: 3, inTok: 300, outTok: 30, tools: 5, ms: 3000 }); // kumulyativ o'sdi
+    const proj = Object.values(h.getDays()[0].projects)[0];
+    assert.equal(proj.cost, 3, "delta: 1 + (3-1) = 3, ikki barobar (4) EMAS");
+    assert.equal(proj.tools, 5, "2 + (5-2) = 5");
+    h.flush();
+  });
+});
+
+test("HistoryStore: model round-trip (B1) — sessiya modeli saqlanadi, kelmasa oldingisi qoladi", () => {
+  withScratchHome(() => {
+    const h = new HistoryStore();
+    h.load();
+    h.record("s1", "repo", { cost: 1, inTok: 10, outTok: 0, tools: 1, ms: 0 }, "claude-opus-4-8");
+    assert.equal(h.getSessions()[0].model, "claude-opus-4-8", "model saqlanadi");
+    h.record("s1", "repo", { cost: 2, inTok: 20, outTok: 0, tools: 2, ms: 0 }); // modelsiz
+    assert.equal(h.getSessions()[0].model, "claude-opus-4-8", "model kelmasa oldingisi saqlanadi");
+    h.flush();
+  });
+});
+
+test("HistoryStore: BUZUQ history.json → USTIDAN YOZMAYDI (ma'lumot saqlanadi)", () => {
+  withScratchHome((home) => {
+    const dir = path.join(home, ".agent-office");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "history.json");
+    fs.writeFileSync(file, "{ buzuq ,, json }");
+    const h = new HistoryStore();
+    h.load();
+    h.record("s1", "repo", { cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+    h.flush(); // corrupt → yozmaydi
+    assert.equal(fs.readFileSync(file, "utf8"), "{ buzuq ,, json }", "buzuq fayl o'zgarmasligi kerak");
+  });
+});
+
+test("HistoryStore: atomik yozuv + qayta yuklash — kun/sessiya/model saqlanadi", () => {
+  withScratchHome(() => {
+    const h1 = new HistoryStore();
+    h1.load();
+    h1.record("s1", "repo", { cost: 2, inTok: 100, outTok: 0, tools: 3, ms: 0 }, "claude-sonnet-4-5");
+    h1.flush(); // diskka
+    const h2 = new HistoryStore();
+    h2.load();
+    assert.equal(h2.getSessions().length, 1, "qayta yuklashda sessiya bor");
+    assert.equal(h2.getSessions()[0].model, "claude-sonnet-4-5", "model qayta yuklanadi");
+    assert.equal(Object.values(h2.getDays()[0].projects)[0].cost, 2, "kunlik cost qayta yuklanadi");
+  });
 });
 test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi", () => {
   const sessions = [
