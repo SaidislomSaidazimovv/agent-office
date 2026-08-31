@@ -13,9 +13,10 @@ export default defineConfig({
     outDir: "../dist/webview",
     emptyOutDir: true,
     assetsInlineLimit: 0,
-    // three.js o'zi ~600KB (siqib bo'lmaydi) — alohida chunkда; ilova kodi kichik
-    // chunkда qoladi. Limitni three hajmiga moslaymiz (soxta ogohlantirish bo'lmasin).
-    chunkSizeWarningLimit: 750,
+    // 3D stack (three + @react-three + drei) ~750KB (siqib bo'lmaydi) — alohida
+    // chunkда; ilova kodi kichik chunkда qoladi. Limitni stack hajmidan sal
+    // yuqori qo'yamiz (three yangilanishida soxta ogohlantirish chiqmasin).
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
         entryFileNames: "assets/[name].js",
