@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
-import { dailyCost, dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals } from "../history";
+import { dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, type Granularity } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
@@ -538,16 +538,20 @@ function fmtHistDate(ms: number): string {
 }
 function HistoryPanel({ days, archive, onClose }: { days: import("../history").HistoryDay[]; archive: import("../history").ArchiveSession[]; onClose: () => void }) {
   const t = useT();
-  const daily = useMemo(() => dailyCost(days).slice(-14), [days]); // so'nggi ~2 hafta
+  const [gran, setGran] = useState<Granularity>("day");
+  const trend = useMemo(() => {
+    const all = rollupCost(days, gran);
+    const n = gran === "day" ? 14 : gran === "week" ? 12 : 6; // so'nggi ~2 hafta / 12 hafta / 6 oy
+    return all.slice(-n);
+  }, [days, gran]);
   const projects = useMemo(() => projectTotals(days).slice(0, 6), [days]);
   const models = useMemo(() => modelTotals(archive).slice(0, 6), [archive]);
   const total = useMemo(() => grandTotal(days), [days]);
   const maxModel = Math.max(...models.map((m) => m.cost), 0.0001);
   const today = dayStatFor(days, localDayISO(0));
   const yday = dayStatFor(days, localDayISO(1));
-  const maxDay = Math.max(...daily.map((d) => d.cost), 0.0001);
+  const maxTrend = Math.max(...trend.map((d) => d.cost), 0.0001);
   const maxProj = Math.max(...projects.map((p) => p.stat.cost), 0.0001);
-  const todayISO = localDayISO(0);
 
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 14, gap: 12, background: "#0d1117", overflowY: "auto" }}>
@@ -583,20 +587,38 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
         </div>
       </div>
 
-      {/* Kunlik trend — bar chart (so'nggi 14 kun) */}
+      {/* Trend — bar chart, kun/hafta/oy granularligi bilan */}
       <div>
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.trend")}</div>
-        {daily.length === 0 ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: INK2 }}>{t("hist.trend")}</span>
+          <div style={{ display: "flex", gap: 3 }}>
+            {(["day", "week", "month"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGran(g)}
+                aria-pressed={gran === g}
+                style={{
+                  padding: "3px 8px", borderRadius: 7, cursor: "pointer", fontSize: 10, fontWeight: 600, color: INK2,
+                  border: `1px solid ${gran === g ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.12)"}`,
+                  background: gran === g ? "rgba(94,155,255,0.22)" : "transparent",
+                }}
+              >
+                {t(`hist.gran.${g}` as never)}
+              </button>
+            ))}
+          </div>
+        </div>
+        {trend.length === 0 ? (
           <div style={{ fontSize: 11.5, color: MUTED }}>{t("dash.noData")}</div>
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 110, padding: "0 2px" }}>
-            {daily.map((d) => {
-              const h = Math.max(2, (d.cost / maxDay) * 96);
-              const isToday = d.date === todayISO;
+            {trend.map((d, i) => {
+              const h = Math.max(2, (d.cost / maxTrend) * 96);
+              const isCurrent = i === trend.length - 1; // joriy davr (bugun/shu hafta/shu oy)
               return (
-                <div key={d.date} title={`${d.date}: ~${fmtCost(d.cost)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 0 }}>
-                  <div style={{ width: "100%", maxWidth: 22, height: h, borderRadius: 3, background: isToday ? "#3987e5" : "#2c6aa8" }} />
-                  <span style={{ fontSize: 8.5, color: MUTED, whiteSpace: "nowrap" }}>{d.date.slice(5)}</span>
+                <div key={d.key} title={`${d.key}: ~${fmtCost(d.cost)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 0 }}>
+                  <div style={{ width: "100%", maxWidth: 22, height: h, borderRadius: 3, background: isCurrent ? "#3987e5" : "#2c6aa8" }} />
+                  <span style={{ fontSize: 8.5, color: MUTED, whiteSpace: "nowrap" }}>{d.label}</span>
                 </div>
               );
             })}

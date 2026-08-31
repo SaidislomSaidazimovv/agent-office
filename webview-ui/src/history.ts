@@ -56,6 +56,33 @@ export function dailyCost(days: HistoryDay[]): { date: string; cost: number }[] 
   return [...days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, cost: dayTotal(d).cost }));
 }
 
+export type Granularity = "day" | "week" | "month";
+
+/** Sana (YYYY-MM-DD) uchun haftaning DUSHANBAsi (YYYY-MM-DD). */
+function weekStart(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const dow = (d.getDay() + 6) % 7; // Dushanba=0 … Yakshanba=6
+  d.setDate(d.getDate() - dow);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function bucketKey(date: string, gran: Granularity): string {
+  return gran === "month" ? date.slice(0, 7) : gran === "week" ? weekStart(date) : date;
+}
+
+/** Kunlik xarajatni kun/hafta/oy bo'yicha guruhlaydi (trend grafigi granularligi).
+ *  `key` — sortlanadigan bucket kaliti; `label` — qisqa ko'rsatiladigan yorliq. */
+export function rollupCost(days: HistoryDay[], gran: Granularity): { key: string; label: string; cost: number }[] {
+  const buckets = new Map<string, number>();
+  for (const d of days) {
+    const key = bucketKey(d.date, gran);
+    buckets.set(key, (buckets.get(key) ?? 0) + dayTotal(d).cost);
+  }
+  return [...buckets.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, cost]) => ({ key, label: gran === "month" ? key : key.slice(5), cost }));
+}
+
 /** Loyiha (repo) bo'yicha jami — barcha kunlar, kamayish tartibida. */
 export function projectTotals(days: HistoryDay[]): { project: string; stat: DayStat }[] {
   const m = new Map<string, DayStat>();

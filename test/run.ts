@@ -16,7 +16,7 @@ import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals } from "../webview-ui/src/history.js";
+import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals, rollupCost } from "../webview-ui/src/history.js";
 import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -869,6 +869,24 @@ test("history: historyCsv — header + kunlik qatorlar (sana o'sish, vergul qoch
   assert.equal(lines[0], "date,project,cost_usd,input_tokens,output_tokens,tools,active_ms");
   assert.equal(lines[1], '2026-08-01,"a,b",1.0000,10,0,1,100', "eng erta sana birinchi + vergulli nom qochiriladi");
   assert.equal(lines[2], "2026-08-02,repo,2.5000,100,20,3,5000");
+});
+test("history: rollupCost — kun/oy guruhlash + hafta kaliti dushanba, jami saqlanadi", () => {
+  const st = (c: number) => ({ cost: c, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+  const days = [
+    { date: "2026-08-10", projects: { r: st(1) } },
+    { date: "2026-08-11", projects: { r: st(2) } },
+    { date: "2026-08-25", projects: { r: st(4) } },
+    { date: "2026-09-02", projects: { r: st(8) } },
+  ];
+  assert.equal(rollupCost(days, "day").length, 4, "kun: har kun alohida");
+  const byMonth = rollupCost(days, "month");
+  assert.deepEqual(byMonth.map((b) => b.key), ["2026-08", "2026-09"], "oy: YYYY-MM, sortlangan");
+  assert.equal(byMonth[0].cost, 7, "avgust = 1+2+4");
+  assert.equal(byMonth[1].cost, 8, "sentabr = 8");
+  const byWeek = rollupCost(days, "week");
+  assert.equal(byWeek.reduce((s, b) => s + b.cost, 0), 15, "hafta guruhida jami saqlanadi");
+  assert.ok(byWeek.length <= 4, "hafta guruhi kunlardan ko'p emas");
+  for (const b of byWeek) assert.equal(new Date(b.key + "T00:00:00").getDay(), 1, "hafta kaliti dushanbaga to'g'ri keladi");
 });
 
 test("agentSnapshotMessages: token snapshot billed + model'ni o'z ichiga oladi (reload'da xarajat saqlanadi)", () => {
