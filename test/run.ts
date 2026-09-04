@@ -14,6 +14,7 @@ import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STU
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
+import { costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
@@ -624,6 +625,19 @@ test("budgetCrossing: chegaradan o'tishда BIR marta fire, gisterezis bilan qay
   assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarilди → reset");
   assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishда yana fire");
   assert.deepEqual(budgetCrossing(5, 0, false), { fire: false, notified: false }, "budjet o'chiq (0) → hech qachon fire");
+});
+test("forecast: costVelocity — so'nggi oynada $/daqiqa; kam namuna → 0", () => {
+  const s = (t: number, cost: number) => ({ t, cost, inTok: 0, outTok: 0, active: 0 });
+  const samples = [s(0, 0), s(60000, 0.5), s(120000, 1), s(180000, 1.5), s(240000, 2), s(300000, 2.5)];
+  assert.ok(Math.abs(costVelocity(samples) - 0.5) < 1e-6, "5 daqiqada $2.5 → 0.5 $/daqiqa");
+  assert.equal(costVelocity([]), 0, "namuna yo'q → 0");
+  assert.equal(costVelocity([s(0, 1)]), 0, "bitta namuna → 0");
+});
+test("forecast: timeToBudgetMin — qolgan daqiqa; budjet/tezlik yo'q → null", () => {
+  assert.equal(timeToBudgetMin(2, 0.5, 5), 6, "(5-2)/0.5 = 6 daqiqa");
+  assert.equal(timeToBudgetMin(5, 0.5, 5), 0, "allaqachon oshgan → 0");
+  assert.equal(timeToBudgetMin(2, 0.5, 0), null, "budjet yo'q → null");
+  assert.equal(timeToBudgetMin(2, 0, 5), null, "tezlik 0 → null");
 });
 
 console.log("Sessiya hisoboti (markdown eksport):");

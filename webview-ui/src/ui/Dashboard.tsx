@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
+import { costVelocity, timeToBudgetMin } from "../forecast";
 import { dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, type Granularity } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
@@ -377,6 +378,24 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
 
             {/* Budjet (sozlamalarda belgilangan bo'lsa) */}
             {budgetUsd > 0 && <BudgetBar spent={totalCost} limit={budgetUsd} />}
+
+            {/* Prognoz — o'lchangan xarajat tezligi + budjetga yetish vaqti */}
+            {(() => {
+              const velMin = costVelocity(samples);
+              if (velMin <= 0) return null;
+              const ttb = timeToBudgetMin(totalCost, velMin, budgetUsd);
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 11.5 }}>
+                  <span style={{ color: INK2 }}>📈 {t("dash.forecast")}</span>
+                  <span style={{ fontWeight: 700, color: INK, fontVariantNumeric: "tabular-nums" }}>~{fmtCost(velMin * 60)}/{t("dash.perHour")}</span>
+                  {ttb != null && (
+                    <span style={{ marginLeft: "auto", color: ttb === 0 ? "#ff9f0a" : MUTED }}>
+                      {ttb === 0 ? `⚠️ ${t("dash.budgetOver")}` : `${t("dash.toBudget")} ${fmtDur(ttb * 60000)}`}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Xarajat — vaqt bo'yicha */}
             <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 7 }}>{t("dash.costOverTime")}</div>
