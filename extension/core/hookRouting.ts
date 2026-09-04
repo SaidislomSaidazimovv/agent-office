@@ -14,18 +14,20 @@ export interface ServerEntry {
   folders: string[];
 }
 
-/** Yo'lni taqqoslash uchun normallashtiradi — oxirgi ajratgichlar olib
- *  tashlanadi, Windows'da katta-kichik harf farqsiz. */
+/** Yo'lni taqqoslash uchun normallashtiradi — barcha ajratgichlar bittalik "/"
+ *  ga keltiriladi (Windows'da `cwd` va vscode fsPath aralash "/"/"\\" bo'lishi
+ *  mumkin — aks holda prefiks-moslik uzилиб yo'naltirish buzilardi), oxirgisi
+ *  olib tashlanadi, Windows'da katta-kichik harf farqsiz. */
 export function normPath(p: string): string {
-  const s = p.replace(/[\\/]+$/, "");
+  const s = p.replace(/[\\/]+/g, "/").replace(/\/+$/, "");
   return process.platform === "win32" ? s.toLowerCase() : s;
 }
 
-/** `cwd` `folder` ichidami (yoki aynan o'zi)? Ikkala ajratgich ham qo'llanadi. */
+/** `cwd` `folder` ichidami (yoki aynan o'zi)? */
 export function within(cwd: string, folder: string): boolean {
   const c = normPath(cwd);
   const f = normPath(folder);
-  return c === f || c.startsWith(f + "/") || c.startsWith(f + "\\");
+  return c === f || c.startsWith(f + "/");
 }
 
 /** `cwd` uchun eng mos serverni tanlaydi — folders ichida ENG UZUN mos papka

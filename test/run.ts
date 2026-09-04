@@ -867,6 +867,11 @@ test("hookRouting: pickServerForCwd — cwd bo'yicha eng aniq (uzun) papkani tan
   assert.equal(pickServerForCwd([A, B], "/home/u/proj")?.port, 1, "aynan A papkasi");
   assert.equal(pickServerForCwd([A, B], "/tmp/elsewhere"), null, "mos yo'q → null");
   assert.equal(pickServerForCwd([], "/home/u/proj"), null, "server yo'q → null");
+  // Aralash ajratgich (Windows): folder "\\", cwd "/" — baribir mos kelishi kerak.
+  const W: ServerEntry = { port: 9, token: "w", pid: 9, folders: ["C:\\Users\\x\\proj"] };
+  assert.equal(pickServerForCwd([W], "C:/Users/x/proj/sub")?.port, 9, "forward cwd + backslash folder mos");
+  assert.equal(pickServerForCwd([W], "C:\\Users\\x\\proj\\sub")?.port, 9, "backslash cwd ham mos");
+  assert.equal(pickServerForCwd([W], "C:\\Users\\x\\projector"), null, "qisman nom prefiksi mos EMAS (proj ≠ projector)");
 });
 
 console.log("Tarix saqlashi (host — HistoryStore, scratch home):");

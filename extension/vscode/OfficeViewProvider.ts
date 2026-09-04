@@ -35,6 +35,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     () => (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
   );
   private hookActive = false;
+  private folderWatch?: vscode.Disposable;
   private autoSpawnTimer?: ReturnType<typeof setTimeout>;
   private pending: ServerMessage[] = [];
   private ready = false;
@@ -214,6 +215,10 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
         this.setHookActive(true);
       });
+      // Ish-papkalar o'zgarsa (folder qo'shildi/olib tashlandi) — servers/<pid>.json
+      // dagi papkalar ro'yxatini yangilaymiz, aks holda yangi papkaning hooklari
+      // shu oynaga yo'naltirilmasdi.
+      this.folderWatch = vscode.workspace.onDidChangeWorkspaceFolders(() => this.hookServer.refreshFolders());
 
       const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
       if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
@@ -664,6 +669,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     if (this.gitTimer) clearInterval(this.gitTimer);
     if (this.stuckTimer) clearInterval(this.stuckTimer);
+    this.folderWatch?.dispose();
     this.history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
     this.statusBar.dispose();
     this.watcher.stop();
