@@ -75,6 +75,7 @@ const dict = {
   "insp.queue": { uz: "Navbat", ru: "Очередь", en: "Queue" },
   "insp.tool": { uz: "Tool", ru: "Инстр.", en: "Tool" },
   "insp.active": { uz: "Faol", ru: "Активно", en: "Active" },
+  "insp.activity": { uz: "Faollik ritmi", ru: "Ритм активности", en: "Activity rhythm" },
   "insp.terminal": { uz: "💻 Terminal", ru: "💻 Терминал", en: "💻 Terminal" },
   "insp.move": { uz: "🪑 Ko'chirish", ru: "🪑 Переместить", en: "🪑 Move" },
   "insp.close": { uz: "✕ Yopish", ru: "✕ Закрыть", en: "✕ Close" },

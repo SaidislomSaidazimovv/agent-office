@@ -74,6 +74,10 @@ export interface AgentView {
   activeSince: number | null;
   /** So'nggi tool chaqiruvlari (eng yangi boshda, cheklangan) — inspektor tarixi. */
   toolHistory: { label: string; at: number }[];
+  /** Faollik ritmi — har namunada (sample) faol edimi (1) yoki idle (0), eng
+   *  yangi oxirda, cheklangan. Inspektor sparkline'i uchun; o'lchangan, to'qib
+   *  chiqarilmagan. */
+  activity: number[];
   // Hisoblangan
   status: AgentStatus;
 }
@@ -152,6 +156,7 @@ export interface CostSample {
 }
 /** ~1 soat (10s oralig'ida 360 namuna). Ring buffer — eskisi tushib ketadi. */
 const MAX_SAMPLES = 360;
+const MAX_ACTIVITY = 48; // per-agent sparkline nuqtalari (~8 daqiqa @ 10s namuna)
 
 interface OfficeState {
   agents: Record<number, AgentView>;
@@ -293,6 +298,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         activeMs: 0,
         activeSince: null,
         toolHistory: [],
+        activity: [],
         status: "idle",
       };
       return {
@@ -409,7 +415,15 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const smp: CostSample = { t: Date.now(), cost, inTok, outTok, active };
     set((st) => {
       const next = [...st.samples, smp];
-      return { samples: next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next };
+      // Per-agent faollik ritmini ham yozamiz (inspektor sparkline'i).
+      const agents = { ...st.agents };
+      for (const id of st.order) {
+        const a = agents[id];
+        if (!a) continue;
+        const act = [...a.activity, a.active ? 1 : 0];
+        agents[id] = { ...a, activity: act.length > MAX_ACTIVITY ? act.slice(act.length - MAX_ACTIVITY) : act };
+      }
+      return { samples: next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next, agents };
     });
   },
 

@@ -777,6 +777,13 @@ export default function Hud() {
               </div>
             ))}
           </div>
+          {/* Faollik ritmi — sparkline (o'lchangan: har namunada faol/idle) */}
+          {sel.activity.length >= 2 && (
+            <div style={{ marginTop: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 9.5, opacity: 0.6, marginBottom: 4 }}>{t("insp.activity")}</div>
+              <ActivitySparkline data={sel.activity} />
+            </div>
+          )}
           {/* Tool tarixi (yig'iladigan) */}
           {sel.toolHistory.length > 0 && (
             <div style={{ marginTop: 8 }}>
@@ -844,6 +851,22 @@ export default function Hud() {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Faollik sparkline'i — har namunada faol (baland+yorqin) yoki idle (past+xira).
+//    Ma'lumot O'LCHANGAN (store.sample har 10s faol/idle yozadi), to'qib chiqarilmagan.
+function ActivitySparkline({ data }: { data: number[] }) {
+  const n = data.length;
+  const W = 220, H = 22, gap = 1;
+  const bw = Math.max(1, (W - (n - 1) * gap) / n);
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-hidden="true" style={{ display: "block" }}>
+      {data.map((v, i) => {
+        const h = v ? H : 3;
+        return <rect key={i} x={i * (bw + gap)} y={H - h} width={bw} height={h} rx={0.5} fill={v ? "#5e9bff" : "rgba(255,255,255,0.18)"} />;
+      })}
+    </svg>
   );
 }
 
