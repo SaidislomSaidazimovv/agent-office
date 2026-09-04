@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
-import { costVelocity, timeToBudgetMin } from "../forecast";
+import { agentEfficiency, costVelocity, timeToBudgetMin } from "../forecast";
 import { dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, type Granularity } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
@@ -312,6 +312,16 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
   modelRows.forEach((r, i) => { modelColors[r.key] = MODEL_PAL[i % MODEL_PAL.length]; });
 
   const roleRowsLabeled = roleRows.map((r) => ({ ...r, label: t(`role.${r.key}` as never) }));
+  // Per-agent samaradorlik — eng qimmat (tool boshiga) birinchi.
+  const effRows = useMemo(
+    () =>
+      order
+        .map((id) => agents[id])
+        .filter((a): a is NonNullable<typeof a> => !!a && (a.toolCalls > 0 || a.turns > 0))
+        .map((a) => ({ id: a.id, roleKey: roleKeyFor(a.role, a.seatIndex), name: a.customName, eff: agentEfficiency(a) }))
+        .sort((x, y) => y.eff.costPerTool - x.eff.costPerTool),
+    [agents, order],
+  );
   const empty = order.length === 0;
 
   return (
@@ -440,6 +450,26 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
               <>
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 9 }}>{t("dash.byModel")}</div>
                 <div style={{ marginBottom: 18 }}><RoleBars rows={modelRows} colors={modelColors} /></div>
+              </>
+            )}
+
+            {/* Samaradorlik — per-agent (o'lchangan): tool boshiga xarajat,
+                navbat boshiga token, faol ulush. Eng qimmat (tool boshiga) birinchi. */}
+            {effRows.length > 0 && (
+              <>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 7 }}>{t("dash.efficiency")}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 18 }}>
+                  {effRows.map((r) => (
+                    <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.name || t(`role.${r.roleKey}` as never)}
+                      </span>
+                      <span title={t("dash.perTool")} style={{ fontSize: 11, color: INK2, fontVariantNumeric: "tabular-nums" }}>~{fmtCost(r.eff.costPerTool)}/{t("dash.toolShort")}</span>
+                      <span title={t("dash.perTurn")} style={{ fontSize: 11, color: MUTED, fontVariantNumeric: "tabular-nums" }}>{fmtTok(Math.round(r.eff.tokensPerTurn))}/{t("dash.turnShort")}</span>
+                      <span title={t("dash.activeShare")} style={{ fontSize: 11, color: MUTED, fontVariantNumeric: "tabular-nums", width: 40, textAlign: "right" }}>{Math.round(r.eff.activeRatio * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 

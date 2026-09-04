@@ -14,7 +14,7 @@ import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STU
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
-import { costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
+import { agentEfficiency, costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
@@ -638,6 +638,16 @@ test("forecast: timeToBudgetMin — qolgan daqiqa; budjet/tezlik yo'q → null",
   assert.equal(timeToBudgetMin(5, 0.5, 5), 0, "allaqachon oshgan → 0");
   assert.equal(timeToBudgetMin(2, 0.5, 0), null, "budjet yo'q → null");
   assert.equal(timeToBudgetMin(2, 0, 5), null, "tezlik 0 → null");
+});
+test("forecast: agentEfficiency — cost/tool, token/turn, faol ulush; bo'luvchi 0 → 0", () => {
+  const e = agentEfficiency({ costUsd: 1.2, toolCalls: 4, turns: 3, inputTokens: 120, outputTokens: 30, activity: [1, 1, 0, 0] });
+  assert.ok(Math.abs(e.costPerTool - 0.3) < 1e-9, "1.2/4 = 0.3");
+  assert.ok(Math.abs(e.tokensPerTurn - 50) < 1e-9, "(120+30)/3 = 50");
+  assert.ok(Math.abs(e.activeRatio - 0.5) < 1e-9, "2/4 faol = 0.5");
+  const z = agentEfficiency({ costUsd: 1, toolCalls: 0, turns: 0, inputTokens: 10, outputTokens: 0, activity: [] });
+  assert.equal(z.costPerTool, 0, "tool 0 → 0");
+  assert.equal(z.tokensPerTurn, 0, "turn 0 → 0");
+  assert.equal(z.activeRatio, 0, "activity yo'q → 0");
 });
 
 console.log("Sessiya hisoboti (markdown eksport):");

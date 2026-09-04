@@ -29,3 +29,23 @@ export function timeToBudgetMin(spent: number, velocityPerMin: number, budget: n
   if (spent >= budget) return 0;
   return (budget - spent) / velocityPerMin;
 }
+
+export interface AgentEff {
+  /** Bir tool chaqiruviga o'rtacha xarajat ($). */
+  costPerTool: number;
+  /** Bir navbatga (turn) o'rtacha token (kirish+chiqish). */
+  tokensPerTurn: number;
+  /** Faol ulush (0..1) — faollik ritmi namunalarining qanchasi faol edi. */
+  activeRatio: number;
+}
+
+/** Agent samaradorligi — o'lchangan hisoblardan (bo'luvchi 0 bo'lsa 0). */
+export function agentEfficiency(a: {
+  costUsd: number; toolCalls: number; turns: number; inputTokens: number; outputTokens: number; activity: number[];
+}): AgentEff {
+  return {
+    costPerTool: a.toolCalls > 0 ? a.costUsd / a.toolCalls : 0,
+    tokensPerTurn: a.turns > 0 ? (a.inputTokens + a.outputTokens) / a.turns : 0,
+    activeRatio: a.activity.length > 0 ? a.activity.reduce((s, v) => s + v, 0) / a.activity.length : 0,
+  };
+}
