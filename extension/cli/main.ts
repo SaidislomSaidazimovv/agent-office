@@ -14,6 +14,7 @@ import { HookServer } from "../server/hookServer.js";
 import { agentSnapshotMessages } from "../server/stateActions.js";
 import { createAgentState, type AgentState } from "../server/types.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
+import { HistoryStore } from "../vscode/historyStore.js";
 
 // ── Standalone CLI — ofisni brauzerda kuzatish (VS Code shart emas) ──
 // `npx agent-office` → lokal server + WebSocket + brauzer SPA. Aniqlash
@@ -44,6 +45,14 @@ if (paths.length === 0) paths.push(process.cwd());
 const store = new AgentStateStore();
 const watcher = new FileWatcher(store);
 watcher.start();
+
+// Kunlik tarix — extension bilan BIR XIL fayl (~/.agent-office/history.json).
+// CLI-only foydalanuvchilar uchun tarix panelini (per-model, CSV, granularlik)
+// ishlatadi. ESLATMA: extension VA CLI bir vaqtda BIR loyihani kuzatsa, ikkalasi
+// ham yozgani uchun tarix nomuvofiq bo'lishi mumkin — ular alternativ yo'llar,
+// bir vaqtda ishlatilishi kutilmaydi.
+const history = new HistoryStore();
+history.load();
 
 const startupTime = Date.now();
 const dirs = paths.map((p) => ({ dir: getSessionDir(p), folderName: path.basename(p) }));
@@ -298,20 +307,36 @@ function handleClient(msg: ClientMessage, ws: import("ws").WebSocket): void {
     }
     case "sessionStats":
       // toolCalls/turns/activeMs ni keshlaymiz — brauzer qayta yuklanganda snapshot
-      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Kunlik
-      // tarix yozish extension'ga xos qoladi (CLI umumiy history.json ni ikki
-      // marta sanamasligi uchun).
+      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Cost
+      // esa delta bo'lib kunlik tarixga qo'shiladi (extension bilan bir xil mantiq).
       for (const s of msg.stats) {
         const agent = store.get(s.id);
-        if (agent) {
-          agent.snapToolCalls = s.tools;
-          agent.snapTurns = s.turns;
-          agent.snapActiveMs = s.ms;
-        }
+        if (!agent) continue;
+        agent.snapToolCalls = s.tools;
+        agent.snapTurns = s.turns;
+        agent.snapActiveMs = s.ms;
+        if (agent.sessionId) history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
       }
+      broadcastHistory(); // "Bugun" jonli yangilansin (throttled)
       break;
     // focusAgent / launchAgent / setSoundEnabled — CLI'da ma'nosiz (terminal yo'q)
   }
+}
+
+function historyMsg(): ServerMessage {
+  const nm = names();
+  const sessions = history.getSessions().map((s) => ({
+    name: nm[s.sessionId] || undefined,
+    project: s.project, at: s.at, cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms, model: s.model,
+  }));
+  return { type: "historyLoaded", days: history.getDays(), sessions };
+}
+let lastHistoryBroadcast = 0;
+function broadcastHistory(): void {
+  const now = Date.now();
+  if (now - lastHistoryBroadcast < 8000) return; // throttle
+  lastHistoryBroadcast = now;
+  broadcastAll(historyMsg());
 }
 
 function sendSnapshot(send: (m: ServerMessage) => void): void {
@@ -330,6 +355,7 @@ function sendSnapshot(send: (m: ServerMessage) => void): void {
     externals: agents.filter((a) => a.isExternal).map((a) => a.id),
   });
   for (const a of agents) for (const m of agentSnapshotMessages(a)) send(m);
+  send(historyMsg()); // saqlangan tarix (per-model, CSV, granularlik paneli uchun)
 }
 
 // Faqat 127.0.0.1 — tarmoqqa OCHILMAYDI (sessiya faoliyati boshqalarga ko'rinmasin).
@@ -345,9 +371,12 @@ server.on("error", (e: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 
-process.on("SIGINT", () => {
+function shutdown(): void {
+  history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
   watcher.stop();
   hookServer.stop();
   server.close();
   process.exit(0);
-});
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown); // SIGINT graceful bo'lmagan platformalar uchun ham
