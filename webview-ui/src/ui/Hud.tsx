@@ -358,7 +358,7 @@ export default function Hud() {
             </div>
           )}
           {/* Chip'lar (filtrlangan) */}
-          <div data-tour="agents" style={{ display: "flex", gap: 6, maxWidth: "62vw", overflowX: "auto", padding: 4 }}>
+          <div data-tour="agents" role="group" aria-label={t("hud.agentBar")} style={{ display: "flex", gap: 6, maxWidth: "62vw", overflowX: "auto", padding: 4 }}>
             {filterInfo.shown.length === 0 ? (
               <span style={{ fontSize: 11, opacity: 0.6, color: "#e8ecf2", padding: "4px 8px", whiteSpace: "nowrap" }}>{t("filter.none")}</span>
             ) : filterInfo.shown.map((id) => {
@@ -370,6 +370,8 @@ export default function Hud() {
                 <button
                   key={id}
                   onClick={() => { select(a.id); send({ type: "focusAgent", id: a.id }); }}
+                  aria-pressed={on}
+                  aria-label={`${a.customName || a.folderName} · ${t(`status.${a.status}` as Key)}`}
                   title={`${a.folderName} · ${t(`status.${a.status}` as Key)}`}
                   style={{
                     display: "flex", alignItems: "center", gap: 6, padding: "4px 11px", borderRadius: 20,
@@ -542,6 +544,8 @@ export default function Hud() {
           o'zida hamma narsa bor, takrorlamaymiz. */}
       {sel && !textMode && (
         <div
+          role="dialog"
+          aria-label={`${sel.customName || sel.folderName} — ${t(`status.${sel.status}` as Key)}`}
           style={{
             position: "absolute", bottom: 16, left: 16, width: 250, pointerEvents: "auto",
             background: "rgba(16,20,27,0.95)", border: "1px solid rgba(255,255,255,0.12)",

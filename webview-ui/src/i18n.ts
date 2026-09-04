@@ -21,6 +21,7 @@ const dict = {
   "hud.feed": { uz: "Faoliyat tasmasi", ru: "Лента активности", en: "Activity feed" },
   "hud.feedEmpty": { uz: "Hozircha hodisa yo'q", ru: "Пока событий нет", en: "No events yet" },
   "hud.agents": { uz: "agent", ru: "агентов", en: "agents" },
+  "hud.agentBar": { uz: "Agentlar ro'yxati", ru: "Список агентов", en: "Agent list" },
   // Kamera / tahrir
   "cam.inside": { uz: "🚶 Ichki", ru: "🚶 Внутри", en: "🚶 Inside" },
   "cam.top": { uz: "🔭 Yuqori", ru: "🔭 Сверху", en: "🔭 Top" },
