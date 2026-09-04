@@ -91,6 +91,21 @@ function CameraFollow() {
 // Xarajat/token vaqt qatori — har 10s bir namuna (dashboard grafigi uchun) +
 // har agentning JORIY absolyut jamini host'ga yuboramiz (TARIXga yozish uchun;
 // host delta olib kunlik jamlanmaga qo'shadi). Sof ma'lumot: render ham, 3D ham yo'q.
+// Qadalgan (pin) agentning yorlig'i + JORIY xarajatini host'ga yuboradi — u
+// status-bar'da ko'rsatadi (panel yopiq bo'lsa ham kuzatiladi). Xarajat sentgacha
+// yaxlitlanib kuzatiladi — har mayda o'zgarishda emas, ~sentda bir yuboriladi.
+function PinReporter() {
+  const pinnedId = useOffice((s) => s.pinnedId);
+  const pinned = useOffice((s) => (s.pinnedId != null ? s.agents[s.pinnedId] : undefined));
+  const label = pinned ? pinned.customName || pinned.folderName : null;
+  const cost = pinned ? pinned.costUsd : 0;
+  const cents = Math.round(cost * 100);
+  useEffect(() => {
+    send({ type: "pinnedAgent", label, cost });
+  }, [pinnedId, label, cents, cost]);
+  return null;
+}
+
 function CostSampler() {
   const sample = useOffice((s) => s.sample);
   const budgetNotified = useRef(false); // budjetdan oshdi xabari BIR marta (ticklar aro)
@@ -209,6 +224,7 @@ export default function App() {
       <div style={{ position: "relative", width: "100%", height: "100%", background: "#0d1117" }}>
         <TextOffice />
         <CostSampler />
+        <PinReporter />
         <Hud />
       </div>
     );
@@ -266,6 +282,7 @@ export default function App() {
           (boshqaruv elementlari qorayib qolmaydi). */}
       <div ref={focusEl} style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0, transition: "opacity 220ms ease" }} />
       <CostSampler />
+      <PinReporter />
       <Hud />
       {PERF_ENABLED && <PerfOverlay />}
     </div>

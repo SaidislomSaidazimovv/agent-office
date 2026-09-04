@@ -52,4 +52,5 @@ export type ClientMessage =
   | { type: "renameAgent"; id: number; name: string }
   | { type: "setRole"; id: number; role: string }
   | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] }
-  | { type: "budgetAlert"; spent: number; limit: number };
+  | { type: "budgetAlert"; spent: number; limit: number }
+  | { type: "pinnedAgent"; label: string | null; cost: number };

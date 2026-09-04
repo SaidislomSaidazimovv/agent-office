@@ -165,6 +165,8 @@ interface OfficeState {
   /** Xarajat/token vaqt qatori (10s'da bir namuna). */
   samples: CostSample[];
   selectedId: number | null;
+  /** Status-barда qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
+  pinnedId: number | null;
   movingId: number | null;
   seatCount: number;
   soundEnabled: boolean;
@@ -207,6 +209,8 @@ interface OfficeState {
   setHistory(days: HistoryDay[], archive: ArchiveSession[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
+  /** Agentni status-barга qadaydi/yechadi (bir xil id → yechadi). */
+  pin(id: number | null): void;
   setMoving(id: number | null): void;
   reassignSeat(id: number, seatIndex: number): void;
   setSound(on: boolean): void;
@@ -250,6 +254,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   events: [],
   samples: [],
   selectedId: null,
+  pinnedId: null,
   movingId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,
@@ -319,6 +324,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         agents,
         order: s.order.filter((x) => x !== id),
         selectedId: s.selectedId === id ? null : s.selectedId,
+        pinnedId: s.pinnedId === id ? null : s.pinnedId,
         events: pushEvent(s.events, gone.folderName, "#8e8e93", { key: "event.left" }),
       };
     });
@@ -527,6 +533,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
 
   select(id) {
     set({ selectedId: id });
+  },
+
+  pin(id) {
+    set((s) => ({ pinnedId: s.pinnedId === id ? null : id }));
   },
 
   setMoving(id) {

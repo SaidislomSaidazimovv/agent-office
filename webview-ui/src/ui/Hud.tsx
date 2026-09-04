@@ -55,6 +55,8 @@ export default function Hud() {
   const t = useT();
   const select = useOffice((s) => s.select);
   const setRole = useOffice((s) => s.setRole);
+  const pin = useOffice((s) => s.pin);
+  const pinnedId = useOffice((s) => s.pinnedId);
   const movingId = useOffice((s) => s.movingId);
   const setMoving = useOffice((s) => s.setMoving);
   const cameraMode = useOffice((s) => s.cameraMode);
@@ -784,6 +786,19 @@ export default function Hud() {
               <ActivitySparkline data={sel.activity} />
             </div>
           )}
+          {/* Status-barga qadash — panel yopiq bo'lsa ham shu agent + xarajati ko'rinadi */}
+          <button
+            onClick={() => pin(sel.id)}
+            aria-pressed={pinnedId === sel.id}
+            title={t("insp.pinTip")}
+            style={{
+              width: "100%", marginTop: 8, padding: "6px 0", borderRadius: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 600,
+              border: `1px solid ${pinnedId === sel.id ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.14)"}`,
+              background: pinnedId === sel.id ? "rgba(94,155,255,0.2)" : "rgba(255,255,255,0.04)", color: "#cdd6e2",
+            }}
+          >
+            📌 {pinnedId === sel.id ? t("insp.unpin") : t("insp.pin")}
+          </button>
           {/* Tool tarixi (yig'iladigan) */}
           {sel.toolHistory.length > 0 && (
             <div style={{ marginTop: 8 }}>

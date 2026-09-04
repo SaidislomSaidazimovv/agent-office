@@ -9,10 +9,29 @@ import { type AttentionAgent, needsAttention, statusText, summarize } from "../c
 
 export class OfficeStatusBar {
   private item: vscode.StatusBarItem;
+  /** Qadalgan (pin) agent uchun ALOHIDA element — asosiy xulosaga tegmaydi.
+   *  Xarajat webview'da hisoblanadi (yagona manba), bu yerda faqat ko'rsatiladi. */
+  private pinItem: vscode.StatusBarItem;
 
   constructor() {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.item.command = "agent-office.showPanel";
+    this.pinItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
+    this.pinItem.command = "agent-office.showPanel";
+  }
+
+  /** Qadalgan agentni yangilaydi (label=null → yashiriladi). statusBar sozlamasiga
+   *  bo'ysunadi (asosiy element bilan bir xil). */
+  setPinned(label: string | null, cost: number): void {
+    const on = vscode.workspace.getConfiguration("agent-office").get<boolean>("statusBar", true);
+    if (!on || !label) {
+      this.pinItem.hide();
+      return;
+    }
+    const c = cost > 0 ? ` ~$${cost.toFixed(2)}` : "";
+    this.pinItem.text = `$(pin) ${label}${c}`;
+    this.pinItem.tooltip = `Agent Office — ${label}${c ? ` · ${c.trim()}` : ""}`;
+    this.pinItem.show();
   }
 
   /** Agentlar holatini status barда yangilaydi (agent yo'q → yashiriladi). */
@@ -43,5 +62,6 @@ export class OfficeStatusBar {
 
   dispose(): void {
     this.item.dispose();
+    this.pinItem.dispose();
   }
 }

@@ -349,6 +349,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "budgetAlert":
         this.notifyBudget(msg.spent, msg.limit);
         break;
+      case "pinnedAgent":
+        this.statusBar.setPinned(msg.label, msg.cost);
+        break;
     }
   }
 

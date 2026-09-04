@@ -46,7 +46,8 @@ export type ClientMessage =
   | RenameAgent
   | SetRole
   | SessionStats
-  | BudgetAlert;
+  | BudgetAlert
+  | PinnedAgent;
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */
@@ -90,6 +91,16 @@ export interface BudgetAlert {
   spent: number;
   /** Belgilangan budjet ($). */
   limit: number;
+}
+
+/** Status-barда qadalgan (pin) agent — webview host'ga uning yorlig'i + JORIY
+ *  xarajatini yuboradi (host status-bar'da ko'rsatadi, panel yopiq bo'lsa ham).
+ *  Xarajat webview'da hisoblanadi (yagona manba) — host faqat ko'rsatadi.
+ *  label=null → pin yechildi (status-bar item yashiriladi). */
+export interface PinnedAgent {
+  type: "pinnedAgent";
+  label: string | null;
+  cost: number;
 }
 
 /** Matn eksporti — foydalanuvchi tanlagan joyga saqlanadi. report/story → .md,
