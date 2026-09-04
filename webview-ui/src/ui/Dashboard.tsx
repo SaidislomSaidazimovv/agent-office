@@ -6,8 +6,9 @@ import { dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals, rollupC
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
-import { saveHistoryCsv, saveMarkdown } from "../media";
+import { saveHistoryCsv, saveHtmlReport, saveMarkdown } from "../media";
 import { buildReport } from "../report";
+import { buildReportHtml } from "../reportHtml";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
 import { buildStory, storyMarkdown } from "../story";
@@ -539,6 +540,16 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
               }}
             >
               💾 {t("rep.save")}
+            </button>
+            <button
+              onClick={() => saveHtmlReport(buildReportHtml({ agents: order.map((id) => agents[id]).filter(Boolean), now: Date.now(), budgetUsd, t }))}
+              title={t("rep.htmlTip")}
+              style={{
+                padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#fff",
+                border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.06)",
+              }}
+            >
+              🌐 {t("rep.html")}
             </button>
             <button
               onClick={copyReport}

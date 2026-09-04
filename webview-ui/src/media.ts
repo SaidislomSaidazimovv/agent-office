@@ -67,6 +67,18 @@ export function saveHistoryCsv(content: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Sessiya hisobotini o'zi-yetarli .html qilib saqlaydi — VS Code'da saqlash
+ *  oynasi, brauzerda (standalone) oddiy yuklab olish. Hech qayerga JO'NATILMAYDI. */
+export function saveHtmlReport(content: string): void {
+  if (isVsCode) { send({ type: "saveText", kind: "html", content }); return; }
+  const url = URL.createObjectURL(new Blob([content], { type: "text/html;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `agent-office-report-${stamp()}.html`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Joriy kadrni PNG qilib saqlaydi. */
 export function captureImage(): boolean {
   const c = canvasEl();

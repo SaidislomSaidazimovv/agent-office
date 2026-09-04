@@ -520,16 +520,17 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
 
   /** Hisobot/hikoya matni (.md) — FOYDALANUVCHI tanlagan joyga (saqlash oynasi).
    *  Matn webview'da o'lchangan holatdan yasaladi; hech qayerga jo'natilmaydi. */
-  private async saveText(kind: "report" | "story" | "history", content: string): Promise<void> {
+  private async saveText(kind: "report" | "story" | "history" | "html", content: string): Promise<void> {
     if (typeof content !== "string" || content.length === 0 || content.length > 5_000_000) return;
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
-    const ext = kind === "history" ? "csv" : "md";
+    const ext = kind === "history" ? "csv" : kind === "html" ? "html" : "md";
     const name = `agent-office-${kind}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${ext}`;
     const dir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
+    const filters: Record<string, string[]> = kind === "history" ? { CSV: ["csv"] } : kind === "html" ? { HTML: ["html"] } : { Markdown: ["md"] };
     const uri = await vscode.window.showSaveDialog({
       defaultUri: vscode.Uri.file(path.join(dir, name)),
-      filters: kind === "history" ? { CSV: ["csv"] } : { Markdown: ["md"] },
+      filters,
     });
     if (!uri) return; // foydalanuvchi bekor qildi
     try {

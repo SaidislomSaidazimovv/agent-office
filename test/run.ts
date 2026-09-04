@@ -16,6 +16,7 @@ import { createAgentState } from "../extension/server/types.js";
 import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
 import { agentEfficiency, costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
 import { buildReport } from "../webview-ui/src/report.js";
+import { buildReportHtml } from "../webview-ui/src/reportHtml.js";
 import { cacheStats } from "../webview-ui/src/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
@@ -682,6 +683,24 @@ test("buildReport: jamlar, saralash, model, budjet qatori va | ekranlash", () =>
 
   const noBudget = buildReport({ agents, now: 1_700_000_000_000, budgetUsd: 0, t: (k) => k });
   assert.ok(!noBudget.includes("budget.title"), "budjet o'chiq bo'lsa qator chiqmasligi kerak");
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+});
+test("buildReportHtml: mustaqil HTML hujjat, XSS-escaping, jami/model/budjet", () => {
+  useOffice.setState({ agents: {}, order: [], samples: [] });
+  const s = useOffice.getState();
+  s.addAgent({ id: 500, folderName: "a<b>", role: "frontend" }); // < > → escaping (XSS emas)
+  const a0 = useOffice.getState().agents;
+  useOffice.setState({ agents: { 500: { ...a0[500], costUsd: 3, inputTokens: 20000, outputTokens: 2000, toolCalls: 7, turns: 2, activeMs: 65000, model: "claude-opus-4-8" } } });
+  const st = useOffice.getState();
+  const html = buildReportHtml({ agents: st.order.map((id) => st.agents[id]), now: 1_700_000_000_000, budgetUsd: 5, t: (k) => k });
+  assert.ok(html.startsWith("<!doctype html>"), "to'liq HTML hujjat");
+  assert.ok(html.includes("<style>") && html.includes("</html>"), "inline uslub + yopiq hujjat");
+  assert.ok(!html.includes("http://") && !html.includes("https://"), "TASHQI resurs yo'q (offline/CSP-safe)");
+  assert.ok(html.includes("a&lt;b&gt;"), "folderName ichidagi < > ekranlanishi kerak");
+  assert.ok(!html.includes("a<b>"), "xom < > qolmasligi kerak (XSS emas)");
+  assert.ok(html.includes("~$3.00"), "jami xarajat");
+  assert.ok(html.includes("Opus 4.8"), "model qisqa nom");
+  assert.ok(html.includes("$3.00 / $5.00"), "budjet qatori");
   useOffice.setState({ agents: {}, order: [], samples: [] });
 });
 

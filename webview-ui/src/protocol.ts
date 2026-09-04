@@ -48,7 +48,7 @@ export type ClientMessage =
   | { type: "setSoundEnabled"; enabled: boolean }
   | { type: "saveLayout"; items: LayoutItem[]; floorColor?: string | null; wallColor?: string | null; packs?: unknown[] }
   | { type: "saveMedia"; kind: "png" | "webm"; data: string }
-  | { type: "saveText"; kind: "report" | "story" | "history"; content: string }
+  | { type: "saveText"; kind: "report" | "story" | "history" | "html"; content: string }
   | { type: "renameAgent"; id: number; name: string }
   | { type: "setRole"; id: number; role: string }
   | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] }

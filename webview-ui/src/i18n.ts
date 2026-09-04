@@ -236,6 +236,8 @@ const dict = {
   "rep.panel": { uz: "📄 Sessiya hisoboti", ru: "📄 Отчёт о сессии", en: "📄 Session report" },
   "rep.copy": { uz: "Nusxalash", ru: "Скопировать", en: "Copy" },
   "rep.save": { uz: "Saqlash", ru: "Сохранить", en: "Save" },
+  "rep.html": { uz: "HTML", ru: "HTML", en: "HTML" },
+  "rep.htmlTip": { uz: "Ulashsa bo'ladigan mustaqil HTML hisobot saqlash", ru: "Сохранить автономный HTML-отчёт для обмена", en: "Save a shareable self-contained HTML report" },
   "rep.saveTip": { uz: "Markdown (.md) fayl sifatida saqlash", ru: "Сохранить как файл Markdown (.md)", en: "Save as a Markdown (.md) file" },
   "rep.copied": { uz: "✓ Nusxalandi", ru: "✓ Скопировано", en: "✓ Copied" },
   "rep.hint": { uz: "Markdown — GitHub / Notion / Jira'ga joylashtiring", ru: "Markdown — вставьте в GitHub / Notion / Jira", en: "Markdown — paste into GitHub / Notion / Jira" },

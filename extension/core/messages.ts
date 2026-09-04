@@ -107,7 +107,7 @@ export interface PinnedAgent {
  *  history → .csv (kunlik tarix). */
 export interface SaveText {
   type: "saveText";
-  kind: "report" | "story" | "history";
+  kind: "report" | "story" | "history" | "html";
   content: string;
 }
 
