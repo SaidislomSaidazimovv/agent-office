@@ -13,10 +13,10 @@ export default defineConfig({
     outDir: "../dist/webview",
     emptyOutDir: true,
     assetsInlineLimit: 0,
-    // 3D stack (three + @react-three + drei) ~750KB (siqib bo'lmaydi) — alohida
+    // 3D stack (three + @react-three + drei) ~920KB (siqib bo'lmaydi) — alohida
     // chunkда; ilova kodi kichik chunkда qoladi. Limitni stack hajmidan sal
-    // yuqori qo'yamiz (three yangilanishida soxta ogohlantirish chiqmasin).
-    chunkSizeWarningLimit: 800,
+    // yuqori qo'yamiz (three/drei yangilanishida soxta ogohlantirish chiqmasin).
+    chunkSizeWarningLimit: 950,
     rollupOptions: {
       output: {
         entryFileNames: "assets/[name].js",

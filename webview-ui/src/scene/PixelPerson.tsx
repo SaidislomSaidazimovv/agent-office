@@ -307,7 +307,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   const bottomMat = cloth(s.bottom), topMat = cloth(s.top), shoeMat = cloth(s.shoes);
 
   // Oyoq (son + tizza + boldir + TO'PIQ + poyabzal)
-  const leg = (x: number, hipRef: React.RefObject<THREE.Group>, kneeRef: React.RefObject<THREE.Group>, ankleRef: React.RefObject<THREE.Group>) => (
+  const leg = (x: number, hipRef: React.RefObject<THREE.Group | null>, kneeRef: React.RefObject<THREE.Group | null>, ankleRef: React.RefObject<THREE.Group | null>) => (
     <group ref={hipRef} position={[x, 0, 0]}>
       <VB p={[0, -0.2, 0]} s={[0.13, 0.42, 0.14]} m={bottomMat} />
       <group ref={kneeRef} position={[0, -0.4, 0]}>
@@ -321,7 +321,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
   );
 
   // Qo'l (yelka pivot → TIRSAK → bilak + kaft)
-  const arm = (x: number, shoRef: React.RefObject<THREE.Group>, elbowRef: React.RefObject<THREE.Group>) => (
+  const arm = (x: number, shoRef: React.RefObject<THREE.Group | null>, elbowRef: React.RefObject<THREE.Group | null>) => (
     <group ref={shoRef} position={[x, 0.28, 0]}>
       <VB p={[0, -0.13, 0]} s={[0.1, 0.26, 0.1]} m={topMat} />
       <group ref={elbowRef} position={[0, -0.26, 0]}>
