@@ -8,6 +8,7 @@ import {
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
+import { toolCat } from "../core/toolcat.js";
 import { formatError, formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
 
@@ -185,6 +186,7 @@ export function processTranscriptLine(
           agent.activeToolIds.add(toolId);
           agent.currentToolLabel = status;
           agent.currentToolName = name;
+          agent.toolCats[toolCat(status)] = (agent.toolCats[toolCat(status)] ?? 0) + 1;
           store.broadcast({
             type: "agentToolStart",
             id: agent.id,

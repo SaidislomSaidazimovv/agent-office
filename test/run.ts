@@ -1078,6 +1078,34 @@ test("primeFromStart: token akkumulyatorlari qayta o'qishda IKKI BAROBAR bo'lmay
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("primeFromStart: tool turkumlari (toolCats) — to'g'ri sanaydi, qayta o'qishda ikki barobar emas", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-tc-"));
+  const file = path.join(dir, "s.jsonl");
+  const tu = (id: string, name: string, inp: Record<string, unknown>) => JSON.stringify({
+    type: "assistant",
+    message: { model: "claude-opus-4-8", usage: { input_tokens: 100, output_tokens: 10 }, content: [{ type: "tool_use", id, name, input: inp }] },
+  });
+  fs.writeFileSync(file, [
+    tu("a", "Edit", { file_path: "x.ts" }),
+    tu("b", "Read", { file_path: "y.ts" }),
+    tu("c", "Bash", { command: "npm test" }),
+    tu("d", "Bash", { command: "npm run build" }),
+  ].join("\n") + "\n");
+  const store = new AgentStateStore();
+  const agent = createAgentState(1, file, "proj", { isExternal: true, sessionId: "s" });
+  const w = new FileWatcher(store);
+  w.primeFromStart(agent);
+  assert.equal(agent.toolCats.edit, 1, "Edit → edit");
+  assert.equal(agent.toolCats.read, 1, "Read → read");
+  assert.equal(agent.toolCats.test, 1, "Bash npm test → test");
+  assert.equal(agent.toolCats.run, 1, "Bash npm run build → run");
+  w.primeFromStart(agent); // /clear · /resume · truncate simulyatsiyasi
+  assert.equal(agent.toolCats.edit, 1, "QAYTA o'qish: edit ikki barobar EMAS");
+  assert.equal(agent.toolCats.run, 1, "run ikki barobar EMAS");
+  if (agent.waitingTimer) clearTimeout(agent.waitingTimer);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 console.log("Personaj — rol imzo aksessuari:");
 test("characterFor: rol bo'yicha ustuvor aksessuar + id bo'yicha xilma-xillik", () => {
   // Ustuvor (id 0) — rolni bir qarashda tanitadi

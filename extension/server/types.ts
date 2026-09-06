@@ -87,6 +87,10 @@ export interface AgentState {
   snapToolCalls?: number;
   snapTurns?: number;
   snapActiveMs?: number;
+  /** Tool turkumlari bo'yicha kumulyativ sanoq (edit/read/test/run/research/other) —
+   *  har tool_use'da HAQIQIY nomi bilan oshadi (tarixiy + jonli). Snapshot'da
+   *  webview'ga yuboriladi (dashboard "tool taqsimoti" uchun — o'lchangan). */
+  toolCats: Record<string, number>;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;
@@ -108,6 +112,7 @@ export function createAgentState(
     folderName,
     role: opts.role,
     roleScores: {},
+    toolCats: {},
     task: opts.task,
     isExternal: opts.isExternal ?? false,
     hadToolsInTurn: false,

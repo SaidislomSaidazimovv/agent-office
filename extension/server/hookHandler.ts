@@ -1,4 +1,5 @@
 import { SUBAGENT_TOOL_NAMES } from "../core/constants.js";
+import { toolCat } from "../core/toolcat.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
 import { formatError, formatSubagent, formatToolStatus, markWaiting, setActive, setBlocked } from "./stateActions.js";
@@ -112,6 +113,7 @@ export function handleHookEvent(
         agent.activeToolIds.add(toolId);
         agent.currentToolLabel = status;
         agent.currentToolName = name;
+        agent.toolCats[toolCat(status)] = (agent.toolCats[toolCat(status)] ?? 0) + 1;
         store.broadcast({ type: "agentToolStart", id: agent.id, toolId, status, toolName: name, runInBackground });
       }
       break;
