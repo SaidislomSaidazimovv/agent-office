@@ -180,6 +180,7 @@ const dict = {
   "dash.toBudget": { uz: "budjetga", ru: "до бюджета", en: "to budget", tr: "bütçeye", ja: "予算まで", zh: "距预算", ko: "예산까지", fr: "avant le budget" },
   "dash.budgetOver": { uz: "budjet oshib ketdi", ru: "бюджет превышен", en: "over budget", tr: "bütçe aşıldı", ja: "予算超過", zh: "已超预算", ko: "예산 초과", fr: "budget dépassé" },
   "dash.efficiency": { uz: "Samaradorlik", ru: "Эффективность", en: "Efficiency", tr: "Verimlilik", ja: "効率", zh: "效率", ko: "효율", fr: "Efficacité" },
+  "dash.toolUsage": { uz: "Tool taqsimoti", ru: "Использование инструментов", en: "Tool usage", tr: "Araç kullanımı", ja: "ツール使用状況", zh: "工具使用分布", ko: "도구 사용", fr: "Utilisation des outils" },
   "dash.perTool": { uz: "Bir tool chaqiruviga o'rtacha xarajat", ru: "Средняя стоимость на вызов инструмента", en: "Average cost per tool call", tr: "Araç çağrısı başına ortalama maliyet", ja: "ツール呼び出しあたりの平均コスト", zh: "每次工具调用的平均费用", ko: "도구 호출당 평균 비용", fr: "Coût moyen par appel d'outil" },
   "dash.perTurn": { uz: "Bir navbatga o'rtacha token", ru: "Среднее число токенов на ход", en: "Average tokens per turn", tr: "Tur başına ortalama token", ja: "ターンあたりの平均トークン", zh: "每轮的平均 token", ko: "차례당 평균 토큰", fr: "Tokens moyens par tour" },
   "dash.activeShare": { uz: "Faol ulush", ru: "Доля активности", en: "Active share", tr: "Aktif oran", ja: "稼働率", zh: "活跃占比", ko: "활성 비율", fr: "Part active" },

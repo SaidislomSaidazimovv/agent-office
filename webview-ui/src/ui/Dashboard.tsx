@@ -12,6 +12,7 @@ import { buildReportHtml } from "../reportHtml";
 import { roleKeyFor } from "../scene/roles";
 import { useSettings } from "../settings";
 import { buildStory, storyMarkdown } from "../story";
+import { TOOL_CATS } from "../toolcat";
 import { type AgentView, useOffice } from "../store";
 import { send } from "../transport";
 
@@ -323,6 +324,18 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
         .sort((x, y) => y.eff.costPerTool - x.eff.costPerTool),
     [agents, order],
   );
+  // Tool turkumlari bo'yicha jami (edit/read/test/run/research/other) — o'lchangan.
+  const toolCatRows = useMemo(() => {
+    const tot: Record<string, number> = {};
+    let sum = 0;
+    for (const id of order) {
+      const a = agents[id];
+      if (!a) continue;
+      for (const c of TOOL_CATS) { const n = a.toolCats[c] ?? 0; if (n) { tot[c] = (tot[c] ?? 0) + n; sum += n; } }
+    }
+    const rows = TOOL_CATS.filter((c) => (tot[c] ?? 0) > 0).map((c) => ({ key: c as string, n: tot[c], pct: sum > 0 ? tot[c] / sum : 0 }));
+    return rows.sort((a, b) => b.n - a.n);
+  }, [agents, order]);
   const empty = order.length === 0;
 
   return (
@@ -451,6 +464,24 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
               <>
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 9 }}>{t("dash.byModel")}</div>
                 <div style={{ marginBottom: 18 }}><RoleBars rows={modelRows} colors={modelColors} /></div>
+              </>
+            )}
+
+            {/* Tool taqsimoti — qaysi turdagi ish ko'p (edit/read/test/run/…). O'lchangan. */}
+            {toolCatRows.length > 0 && (
+              <>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("dash.toolUsage")}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
+                  {toolCatRows.map((r, i) => (
+                    <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 96, fontSize: 11, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t(`story.cat.${r.key}` as never)}</span>
+                      <div style={{ flex: 1, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                        <div style={{ width: `${Math.max(3, r.pct * 100)}%`, height: "100%", background: MODEL_PAL_H[i % MODEL_PAL_H.length], borderRadius: 4 }} />
+                      </div>
+                      <span style={{ width: 66, textAlign: "right", fontSize: 11, color: INK2, fontVariantNumeric: "tabular-nums" }}>{r.n} · {Math.round(r.pct * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 
