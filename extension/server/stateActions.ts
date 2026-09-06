@@ -50,6 +50,12 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   if (a.snapToolCalls !== undefined) {
     msgs.push({ type: "agentSessionStats", id: a.id, toolCalls: a.snapToolCalls, turns: a.snapTurns ?? 0, activeMs: a.snapActiveMs ?? 0 });
   }
+  // Tool turkumlari (authoritative) — ENG OXIRIDA, snapToolCalls'dan mustaqil
+  // (fresh adopt'da ham tarixiy toollar ko'rinsin). agentToolStart replay'idan
+  // KEYIN keladi → bir xil yorliqli pollutionni to'g'rilaydi.
+  if (Object.keys(a.toolCats).length > 0) {
+    msgs.push({ type: "agentToolCats", id: a.id, toolCats: a.toolCats });
+  }
   return msgs;
 }
 

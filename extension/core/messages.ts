@@ -22,6 +22,7 @@ export type ServerMessage =
   | AgentRoleDetected
   | AgentPermissionMode
   | AgentSessionStats
+  | AgentToolCats
   | SubagentToolStart
   | SubagentToolDone
   | SubagentClear
@@ -233,6 +234,14 @@ export interface AgentSessionStats {
   toolCalls: number;
   turns: number;
   activeMs: number;
+}
+/** Tool turkumlari bo'yicha kumulyativ sanoq (edit/read/test/run/research/other) —
+ *  host AUTHORITATIVE qiymati (tarixiy + jonli). Snapshot'da ENG OXIRIDA yuboriladi,
+ *  agentToolStart replay'idagi bir xil yorliqli pollutionni to'g'rilaydi. */
+export interface AgentToolCats {
+  type: "agentToolCats";
+  id: number;
+  toolCats: Record<string, number>;
 }
 /** Sessiya ruxsat rejimi aniqlandi/o'zgardi. "bypassPermissions" =
  *  --dangerously-skip-permissions (XAVFSIZLIK signali: tool ruxsat so'ramaydi).

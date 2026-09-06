@@ -3,6 +3,7 @@ import type { ArchiveSession, HistoryDay } from "./history";
 import type { Key } from "./i18n";
 import { type BilledTokens, estimateCost } from "./pricing";
 import { MAX_CONTEXT_TOKENS, SEAT_COUNT } from "./scene/roles";
+import { type ToolCat, toolCat } from "./toolcat";
 
 // ── Sahna agent holati ───────────────────────────────────────
 // Server xabarlari flaglarni yangilaydi; `status` ular asosida hisoblanadi
@@ -78,6 +79,9 @@ export interface AgentView {
    *  yangi oxirda, cheklangan. Inspektor sparkline'i uchun; o'lchangan, to'qib
    *  chiqarilmagan. */
   activity: number[];
+  /** Tool turkumlari bo'yicha kumulyativ sanoq (edit/read/test/run/research/other).
+   *  Har tool boshlanishida oshadi — dashboard "tool taqsimoti" uchun (o'lchangan). */
+  toolCats: Partial<Record<ToolCat, number>>;
   // Hisoblangan
   status: AgentStatus;
 }
@@ -194,6 +198,8 @@ interface OfficeState {
   setRole(id: number, role: string): void;
   setPermissionMode(id: number, mode: string): void;
   setSessionStats(id: number, toolCalls: number, turns: number, activeMs: number): void;
+  /** Tool turkumlari (authoritative, host'dan) — snapshot'da o'rnatiladi. */
+  setToolCats(id: number, toolCats: Record<string, number>): void;
   setName(id: number, name: string): void;
   toolDone(id: number): void;
   clearTools(id: number): void;
@@ -304,6 +310,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
         activeSince: null,
         toolHistory: [],
         activity: [],
+        toolCats: {},
         status: "idle",
       };
       return {
@@ -362,6 +369,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
           toolCalls: a.toolCalls + 1,
           toolLabel: label,
           toolHistory: [{ label, at: Date.now() }, ...a.toolHistory].slice(0, MAX_TOOL_HISTORY),
+          toolCats: { ...a.toolCats, [toolCat(label)]: (a.toolCats[toolCat(label)] ?? 0) + 1 },
           reading: toolName ? get().readingTools.has(toolName) : false,
           // Fon vazifasi ishga tushdi → bayroqni ushlab qolamiz (tool chaqiruvi
           // darrov tugasa ham). Faol ish davomida yonadi; toolDone uni O'CHIRMAYDI.
@@ -400,8 +408,16 @@ export const useOffice = create<OfficeState>((set, get) => ({
     if (!a) return;
     // Reconnect snapshot'dan tiklash: JAMI qiymatlarни o'rnatamiz. activeMs —
     // keshlangan JAMI; joriy interval (activeSince) qaytadan boshlanadi, aks
-    // holda activeMs + (now - activeSince) intervalни ikki marta hisoblardi.
+    // holda activeMs + (now - activeSince) intervalni ikki marta hisoblardi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, toolCalls, turns, activeMs, activeSince: a.active ? Date.now() : null } } }));
+  },
+
+  setToolCats(id, toolCats) {
+    const a = get().agents[id];
+    if (!a) return;
+    // Host AUTHORITATIVE qiymati — jonli accumulate qilingan (snapshot replay'ida
+    // bir xil yorliqli) qiymatning ustidan yozadi.
+    set((s) => ({ agents: { ...s.agents, [id]: { ...a, toolCats } } }));
   },
 
   sample() {

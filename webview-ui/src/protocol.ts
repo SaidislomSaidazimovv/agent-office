@@ -18,6 +18,7 @@ export type ServerMessage =
   | { type: "agentRoleDetected"; id: number; role: string }
   | { type: "agentPermissionMode"; id: number; mode: string }
   | { type: "agentSessionStats"; id: number; toolCalls: number; turns: number; activeMs: number }
+  | { type: "agentToolCats"; id: number; toolCats: Record<string, number> }
   | { type: "agentStuck"; id: number; stuck: boolean }
   | { type: "agentRenamed"; id: number; name: string }
   | { type: "agentBlocked"; id: number; blocked: boolean; reason?: string }

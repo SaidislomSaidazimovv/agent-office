@@ -56,6 +56,9 @@ export function useExtensionMessages(): void {
         case "agentSessionStats":
           store.setSessionStats(msg.id, msg.toolCalls, msg.turns, msg.activeMs);
           break;
+        case "agentToolCats":
+          store.setToolCats(msg.id, msg.toolCats);
+          break;
         case "agentToolDone":
           store.toolDone(msg.id);
           break;
