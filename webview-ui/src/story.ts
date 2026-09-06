@@ -3,25 +3,15 @@ import type { Key } from "./i18n";
 import { cacheStats, fmtCost } from "./pricing";
 import { roleKeyFor } from "./scene/roles";
 import { type AgentView, displayName } from "./store";
+import { type ToolCat, toolCat } from "./toolcat";
 
 // ── Sessiya hikoyasi ─────────────────────────────────────────
 // Har agent NIMA qilganini o'qiladigan hikoya qilib beradi — HAMMASI o'lchangan
 // holatdan (tool tarixi, navbat, xarajat, sub-agentlar, xato). Hech narsa to'qib
 // chiqarilmaydi. Sof funksiya (DOM'siz) → test qilinadi; til UI'da qo'llanadi.
 
-export type ToolCat = "edit" | "read" | "test" | "run" | "research" | "other";
-
-/** Tool yorlig'idan ("Edit x.ts", "Bash npm test") turkumni aniqlaydi. */
-export function toolCat(label: string): ToolCat {
-  const w = (label.split(/\s+/)[0] || "").toLowerCase();
-  if (["edit", "write", "multiedit", "notebookedit"].includes(w)) return "edit";
-  if (["read", "grep", "glob", "ls", "notebookread"].includes(w)) return "read";
-  if (["websearch", "webfetch"].includes(w)) return "research";
-  if (w === "bash") {
-    return /\b(test|jest|vitest|pytest|go test|npm t|rspec|phpunit|cargo test|mocha)\b/.test(label.toLowerCase()) ? "test" : "run";
-  }
-  return "other";
-}
+// toolCat/ToolCat endi ./toolcat modulida (store ham ishlatadi — aylanma import yo'q).
+export { type ToolCat, toolCat };
 
 export interface AgentStory {
   id: number;
