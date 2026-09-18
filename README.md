@@ -3,9 +3,11 @@
 <p align="center"><i>Watch your Claude Code agents come to life in a living, isometric 3D office.</i></p>
 
 <div align="center">
+    <a href="https://github.com/SaidislomSaidazimovv/agent-office/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/SaidislomSaidazimovv/agent-office/ci.yml?branch=main&style=for-the-badge&label=CI"/></a>
     <img alt="VS Code" src="https://img.shields.io/badge/VS%20Code-1.84+-7d57c2?style=for-the-badge&logo=visual%20studio%20code&logoColor=white"/>
     <img alt="License" src="https://img.shields.io/badge/License-MIT-249847?style=for-the-badge"/>
     <a href="https://marketplace.visualstudio.com/items?itemName=thomasarisu.agent-office"><img alt="Marketplace" src="https://img.shields.io/visual-studio-marketplace/v/thomasarisu.agent-office?style=for-the-badge&label=Marketplace&color=1f6feb"/></a>
+    <a href="https://marketplace.visualstudio.com/items?itemName=thomasarisu.agent-office"><img alt="Installs" src="https://img.shields.io/visual-studio-marketplace/i/thomasarisu.agent-office?style=for-the-badge&label=Installs&color=1f6feb"/></a>
 </div>
 
 <br/>
