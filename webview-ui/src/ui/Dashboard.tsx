@@ -470,7 +470,10 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
             {/* Tool taqsimoti — qaysi turdagi ish ko'p (edit/read/test/run/…). O'lchangan. */}
             {toolCatRows.length > 0 && (
               <>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("dash.toolUsage")}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span>{t("dash.toolUsage")}</span>
+                  <span style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums", color: "rgba(195,194,183,0.6)" }}>{toolCatRows.reduce((s, r) => s + r.n, 0)}</span>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
                   {toolCatRows.map((r, i) => (
                     <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
