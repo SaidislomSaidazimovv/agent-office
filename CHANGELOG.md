@@ -3,6 +3,33 @@
 All notable changes to **Agent Office 3D** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+The office learns to look ahead, speaks eight languages, and can hand you a
+report you can share.
+
+### Added
+
+- **Cost forecast.** From the live spend rate ($/hr) the dashboard projects how
+  long until you reach your budget, so a runaway session shows up before it
+  lands on the bill.
+- **Per-agent efficiency.** A breakdown of cost per tool call, tokens per turn,
+  and active-vs-idle ratio — all from measured state — ranks which agents are
+  spending the most per unit of work.
+- **Per-agent tool-category breakdown.** The dashboard groups each agent's tool
+  calls into edit / read / test / run / research / other and shows ranked bars
+  with a running total, so you can see at a glance where the effort is going.
+- **Shareable session report.** Export a self-contained HTML report (inline SVG
+  and CSS, no external references, fully escaped) you can open or send on.
+- **Eight languages.** The UI now ships in English (default), Uzbek, Russian,
+  Turkish, Japanese, Chinese, Korean, and French, with build-time checks that
+  every string is translated.
+
+### Changed
+
+- Upgraded the 3D stack to React 19, React Three Fiber 9, drei 10, and
+  three 0.185; the React bundle is smaller than before.
+
 ## [0.1.6] — 2026-08-30
 
 The office grows a memory and a sharper eye — it now remembers your days,
