@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type BudgetLevel, budgetState } from "../budget";
 import { shortModel } from "../format";
 import { THEMES, useLayout } from "../layoutStore";
@@ -103,6 +103,37 @@ export default function Hud() {
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Markaziy agent-bar tor ekranda chap/o'ng toolbarlar USTIGA chiqib, tugmalarni
+  // yopib qo'yardi. Gorizontal to'qnashuvni o'lchaymiz — bo'lsa, bar toolbarlar
+  // OSTIGA tushadi (keng ekranda ko'rinish o'zgarmaydi). Gorizontal geometriya
+  // `top`ga bog'liq emas — tebranish (oscillation) bo'lmaydi.
+  const leftBarRef = useRef<HTMLDivElement>(null);
+  const centerBarRef = useRef<HTMLDivElement>(null);
+  const camBtnRef = useRef<HTMLDivElement>(null);
+  const editBtnRef = useRef<HTMLDivElement>(null);
+  const [dropBar, setDropBar] = useState(false);
+  useLayoutEffect(() => {
+    const check = () => {
+      const c = centerBarRef.current?.getBoundingClientRect();
+      if (!c || c.width === 0) return setDropBar(false);
+      const l = leftBarRef.current?.getBoundingClientRect();
+      const rights = [camBtnRef, editBtnRef, menuRef]
+        .map((r) => r.current?.getBoundingClientRect())
+        .filter((r): r is DOMRect => !!r && r.width > 0);
+      const rightEdge = rights.length ? Math.min(...rights.map((r) => r.left)) : Infinity;
+      const GAP = 8;
+      setDropBar((!!l && c.left < l.right + GAP) || c.right > rightEdge - GAP);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    for (const r of [leftBarRef, centerBarRef, camBtnRef, editBtnRef, menuRef]) if (r.current) ro.observe(r.current);
+    window.addEventListener("resize", check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+    // Elementlar paydo/yo'q bo'ladigan holatlar; o'lcham o'zgarishini ResizeObserver kuzatadi.
+  }, [order.length, textMode, cameraMode, filterInfo.shown.length]);
 
   // Menyu tashqarisiga bosilsa yoki Esc — yopamiz (osilib qolmasin).
   useEffect(() => {
@@ -204,7 +235,7 @@ export default function Hud() {
         button:active { transform: translateY(1px); }
       `}</style>
       {/* Yuqori panel */}
-      <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
+      <div ref={leftBarRef} style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} {t("hud.agents")}
@@ -335,7 +366,7 @@ export default function Hud() {
 
       {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) + holat filtri */}
       {order.length > 0 && (
-        <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: "62vw", pointerEvents: "auto" }}>
+        <div ref={centerBarRef} style={{ position: "absolute", top: dropBar ? 54 : 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: dropBar ? "calc(100% - 28px)" : "62vw", pointerEvents: "auto" }}>
           {/* Holat filtri — faqat ko'p agent bo'lganda (keraklilarini topish oson). */}
           {order.length >= 4 && (
             <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 20, background: "rgba(20,24,32,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -399,7 +430,7 @@ export default function Hud() {
 
       {/* Kamera rejimi toggle — matn rejimida 3D yo'q, kamera ham yo'q */}
       {!textMode && (
-      <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
+      <div ref={camBtnRef} style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
         <button
           onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
           aria-label={cameraMode === "iso" ? t("cam.insideTip") : t("cam.topTip")}
@@ -418,7 +449,7 @@ export default function Hud() {
 
       {/* Tahrirlash (Layout editor) toggle — faqat iso rejimda */}
       {!textMode && cameraMode === "iso" && (
-        <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
+        <div ref={editBtnRef} style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
           <button
             onClick={() => setEditMode(!editMode)}
             aria-label={t("edit.tip")}
