@@ -29,6 +29,11 @@ export function activate(context: vscode.ExtensionContext): void {
       await provider.uninstallHooksCommand();
       vscode.window.showInformationMessage(provider.t("hooks.removed"));
     }),
+    // Buyruqlar palitrasi (S7-4)
+    vscode.commands.registerCommand("agent-office.focusAgent", () => provider.focusAgentCommand()),
+    vscode.commands.registerCommand("agent-office.pinAgent", () => provider.pinAgentCommand()),
+    vscode.commands.registerCommand("agent-office.openDashboard", () => provider.openDashboardCommand()),
+    vscode.commands.registerCommand("agent-office.exportReport", () => provider.exportReportCommand()),
     { dispose: () => provider.dispose() },
   );
 

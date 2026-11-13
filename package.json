@@ -68,6 +68,26 @@
         "command": "agent-office.showDiagnostics",
         "title": "%cmd.showDiagnostics%",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "agent-office.focusAgent",
+        "title": "%cmd.focusAgent%",
+        "icon": "$(person)"
+      },
+      {
+        "command": "agent-office.pinAgent",
+        "title": "%cmd.pinAgent%",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "agent-office.openDashboard",
+        "title": "%cmd.openDashboard%",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "agent-office.exportReport",
+        "title": "%cmd.exportReport%",
+        "icon": "$(export)"
       }
     ],
     "menus": {

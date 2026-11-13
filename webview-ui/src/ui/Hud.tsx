@@ -82,6 +82,11 @@ export default function Hud() {
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
   const [dash, setDash] = useState(false);
+  // VS Code buyruqlar palitrasidan "Open Analytics" (har so'rovda hisoblagich oshadi).
+  const dashRequest = useOffice((s) => s.dashRequest);
+  useEffect(() => {
+    if (dashRequest > 0) setDash(true);
+  }, [dashRequest]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Chip-bar filtri uchun guruh sanoqlari + ko'rsatiladigan id'lar.
   const filterInfo = useMemo(() => {

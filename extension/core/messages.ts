@@ -9,6 +9,7 @@ export type ServerMessage =
   | AgentCreated
   | AgentClosed
   | AgentSelected
+  | UiCommand
   | ExistingAgents
   | AgentStatus
   | AgentToolStart
@@ -35,6 +36,14 @@ export type ServerMessage =
   | LayoutLoaded;
 
 // ── Webview → extension ──────────────────────────────────────
+/** VS Code buyruqlar palitrasidan panelga buyruq (dashboard, eksport, pin). */
+export interface UiCommand {
+  type: "uiCommand";
+  command: "openDashboard" | "exportHtml" | "exportMarkdown" | "pin" | "unpin";
+  /** pin uchun — agent id. */
+  id?: number;
+}
+
 export type ClientMessage =
   | WebviewReady
   | LaunchAgent

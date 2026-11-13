@@ -324,6 +324,87 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.setHookActive(false);
   }
 
+  // ── Buyruqlar palitrasi (S7-4): agentni topish, pin, analitika, eksport ──
+  private hasPinned = false;
+  /** Panel tayyor bo'lmaganda berilgan UI buyruqlari — tayyor bo'lgach yuboriladi
+   *  (snapshot buferi `pending` ready'da tashlanadi, shuning uchun alohida). */
+  private pendingUi: ServerMessage[] = [];
+  private sendUi(msg: ServerMessage): void {
+    if (this.ready && this.view) {
+      this.post(msg);
+      return;
+    }
+    this.pendingUi.push(msg);
+    if (this.pendingUi.length > 5) this.pendingUi.shift();
+  }
+  private revealPanel(): void {
+    void vscode.commands.executeCommand("agent-office.panelView.focus");
+  }
+
+  /** Agent tanlash ro'yxati (nom · holat · xarajat) — xost holatidan. */
+  private async pickAgent(extra: vscode.QuickPickItem[] = []): Promise<{ id?: number; extra?: vscode.QuickPickItem } | undefined> {
+    const agents = this.store.values();
+    if (agents.length === 0 && extra.length === 0) {
+      void vscode.window.showInformationMessage(this.t("qp.noAgents"));
+      return undefined;
+    }
+    type Item = vscode.QuickPickItem & { id?: number };
+    const items: Item[] = agents.map((a) => {
+      const state = a.blocked ? this.t("sb.blocked") : a.permissionActive ? (this.stuck.has(a.id) ? this.t("sb.stuck") : this.t("sb.waiting")) : this.t("sb.working");
+      return {
+        id: a.id,
+        label: a.customName || a.folderName,
+        description: a.customName ? a.folderName : undefined,
+        detail: `${state}${a.costUsd > 0 ? ` · ~$${a.costUsd.toFixed(2)}` : ""}${a.task ? ` · ${a.task}` : ""}`,
+      };
+    });
+    const pick = await vscode.window.showQuickPick<Item>([...extra, ...items], { placeHolder: this.t("qp.pickAgent"), matchOnDescription: true, matchOnDetail: true });
+    if (!pick) return undefined;
+    return pick.id !== undefined ? { id: pick.id } : { extra: pick };
+  }
+
+  /** "Focus Agent…" — terminalini ochadi va ofisda tanlaydi. */
+  async focusAgentCommand(): Promise<void> {
+    const r = await this.pickAgent();
+    if (r?.id === undefined || !this.store.has(r.id)) return;
+    this.manager.focusAgent(r.id);
+    this.sendUi({ type: "agentSelected", id: r.id });
+  }
+
+  /** "Pin Agent…" — status barga qadash (yoki olib tashlash). */
+  async pinAgentCommand(): Promise<void> {
+    const unpin: vscode.QuickPickItem = { label: `$(close) ${this.t("qp.unpin")}` };
+    const r = await this.pickAgent(this.hasPinned ? [unpin] : []);
+    if (!r) return;
+    if (r.extra) {
+      this.sendUi({ type: "uiCommand", command: "unpin" });
+    } else if (r.id !== undefined && this.store.has(r.id)) {
+      this.sendUi({ type: "uiCommand", command: "pin", id: r.id });
+    }
+    if (!this.view) this.revealPanel(); // pin holati panelda — u yaratilsin
+  }
+
+  /** "Open Analytics" — panelni ochib dashboard'ni ko'rsatadi. */
+  openDashboardCommand(): void {
+    this.revealPanel();
+    this.sendUi({ type: "uiCommand", command: "openDashboard" });
+  }
+
+  /** "Export Session Report…" — hisobotni panel yasaydi (o'lchangan holatdan), saqlash oynasi. */
+  async exportReportCommand(): Promise<void> {
+    type Item = vscode.QuickPickItem & { cmd: "exportHtml" | "exportMarkdown" };
+    const pick = await vscode.window.showQuickPick<Item>(
+      [
+        { label: "$(globe) HTML", description: this.t("qp.exportHtml"), cmd: "exportHtml" },
+        { label: "$(markdown) Markdown", description: this.t("qp.exportMd"), cmd: "exportMarkdown" },
+      ],
+      { placeHolder: this.t("qp.exportPick") },
+    );
+    if (!pick) return;
+    if (!this.view) this.revealPanel();
+    this.sendUi({ type: "uiCommand", command: pick.cmd });
+  }
+
   /** settings.json'ga yoziladigan hook-skript yo'li — BARQAROR nusxa
    *  (~/.agent-office/hooks), versiyali kengaytma papkasi emas: yangilanish yoki
    *  o'chirishdan keyin ham buyruq o'lik yo'lga qaramaydi. Nusxalab bo'lmasa —
@@ -454,6 +535,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
         break;
       case "pinnedAgent":
         this.statusBar.setPinned(msg.label, msg.cost);
+        this.hasPinned = !!msg.label;
         break;
     }
   }
@@ -752,6 +834,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     for (const id of this.stuck) this.post({ type: "agentStuck", id, stuck: true });
     // Snapshot joriy holatni to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];
+    // Palitra buyruqlari (panel ochilmasdan oldin berilgan) — endi yuboramiz.
+    for (const m of this.pendingUi.splice(0)) this.post(m);
   }
 
   private getWebviewContent(webview: vscode.Webview): string {

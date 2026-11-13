@@ -171,6 +171,9 @@ interface OfficeState {
   selectedId: number | null;
   /** Status-barda qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
   pinnedId: number | null;
+  /** VS Code palitrasidan "Open Analytics" — har so'rovda oshadi (Hud dashboard'ni ochadi). */
+  dashRequest: number;
+  requestDashboard(): void;
   movingId: number | null;
   seatCount: number;
   soundEnabled: boolean;
@@ -261,6 +264,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
   samples: [],
   selectedId: null,
   pinnedId: null,
+  dashRequest: 0,
+  requestDashboard() {
+    set((s) => ({ dashRequest: s.dashRequest + 1 }));
+  },
   movingId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,

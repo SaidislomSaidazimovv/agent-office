@@ -1,5 +1,9 @@
 import { useEffect } from "react";
-import { useLang } from "./i18n";
+import { type Key, translate, useLang } from "./i18n";
+import { saveHtmlReport, saveMarkdown } from "./media";
+import { buildReport } from "./report";
+import { buildReportHtml } from "./reportHtml";
+import { useSettings } from "./settings";
 import { useLayout } from "./layoutStore";
 import { playDone, playPermission, unlockAudio } from "./notificationSound";
 import type { ServerMessage } from "./protocol";
@@ -9,6 +13,36 @@ import { onMessage, send } from "./transport";
 // ── Xabar → holat ko'prigi ───────────────────────────────────
 // Server xabarlarini store amallariga tarjima qiladi. Mount bo'lganda
 // webviewReady yuboradi (extension boot ketma-ketligini boshlaydi).
+
+/** VS Code buyruqlar palitrasidan kelgan buyruq (S7-4). Hisobotlar panel
+ *  tugmalari bilan AYNAN bir xil funksiyalardan yasaladi (o'lchangan holatdan). */
+function runUiCommand(command: "openDashboard" | "exportHtml" | "exportMarkdown" | "pin" | "unpin", id?: number): void {
+  const st = useOffice.getState();
+  switch (command) {
+    case "openDashboard":
+      st.requestDashboard();
+      return;
+    case "pin":
+      if (id != null && st.agents[id] && st.pinnedId !== id) st.pin(id);
+      return;
+    case "unpin":
+      if (st.pinnedId != null) st.pin(st.pinnedId); // pin() — almashtirgich
+      return;
+    case "exportHtml":
+    case "exportMarkdown": {
+      const lang = useLang.getState().lang;
+      const input = {
+        agents: st.order.map((i) => st.agents[i]).filter(Boolean),
+        now: Date.now(),
+        budgetUsd: useSettings.getState().budgetUsd,
+        t: (k: Key) => translate(lang, k),
+      };
+      if (command === "exportHtml") saveHtmlReport(buildReportHtml(input));
+      else saveMarkdown("report", buildReport(input));
+      return;
+    }
+  }
+}
 
 export function useExtensionMessages(): void {
   useEffect(() => {
@@ -36,6 +70,9 @@ export function useExtensionMessages(): void {
         }
         case "agentSelected":
           store.select(msg.id);
+          break;
+        case "uiCommand":
+          runUiCommand(msg.command, msg.id);
           break;
         case "agentStatus": {
           // Faqat active→waiting O'TISHIDA chime — snapshot/reload'da bo'sh
