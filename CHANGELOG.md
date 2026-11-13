@@ -22,6 +22,14 @@ report you can share — and its cost numbers are now the real ones.
   status bar with its live cost, and screen-reader labels for the agent bar,
   chips and inspector.
 - **The standalone CLI keeps history too**, in the same `~/.agent-office` file.
+- **Drill into a project and compare sessions.** Click a project in the history
+  panel and every chart and total switches to that project; pick any two
+  recent sessions to see them side by side (cost, tokens, tool calls, active
+  time, cost per tool call) with the change in %.
+- **Cost-spike insight.** A warning when spend in the last two minutes runs at
+  least 3× the session's pace over the previous 20 minutes.
+- **Command palette.** *Focus Agent…*, *Pin Agent to Status Bar…*, *Open
+  Analytics* and *Export Session Report…* (HTML or Markdown).
 - **Cost forecast.** From the live spend rate ($/hr) the dashboard projects how
   long until you reach your budget, so a runaway session shows up before it
   lands on the bill.
