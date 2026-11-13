@@ -76,9 +76,22 @@ export class AgentStateStore extends EventEmitter {
     if (this.silent > 0) this.silent--;
   }
 
+  /** Faqat BITTA agentning broadcast'larini o'chiradi (async prime davomida —
+   *  boshqa agentlar jonli qoladi). Hisoblagich — ichma-ich chaqiruvga chidamli. */
+  private muted = new Map<number, number>();
+  muteAgent(id: number): void {
+    this.muted.set(id, (this.muted.get(id) ?? 0) + 1);
+  }
+  unmuteAgent(id: number): void {
+    const n = (this.muted.get(id) ?? 0) - 1;
+    if (n > 0) this.muted.set(id, n);
+    else this.muted.delete(id);
+  }
+
   /** Webview'ga faoliyat xabarini uzatadi (silent rejimda o'tkazib yuboriladi). */
   broadcast(msg: ServerMessage): void {
     if (this.silent > 0) return;
+    if (this.muted.size > 0 && "id" in msg && typeof msg.id === "number" && this.muted.has(msg.id)) return;
     this.emit("broadcast", msg);
   }
 

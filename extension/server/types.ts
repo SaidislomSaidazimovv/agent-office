@@ -97,6 +97,10 @@ export interface AgentState {
    *  hisoblamasak xarajat 2-3 barobar oshib ketadi. Takrorlar yonma-yon keladi,
    *  shuning uchun faqat so'nggi ID'lar saqlanadi (cheklangan). */
   seenMsgIds: Set<string>;
+  /** Katta transcript tarixi hozir async o'qilmoqda (tick o'tkazib yuboradi). */
+  priming?: boolean;
+  /** Prime avlodi — yangi prime boshlansa eskisi to'xtaydi. */
+  primeGen?: number;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;

@@ -39,6 +39,9 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Task", label: info.label, kind: info.kind });
   }
   if (a.customName) msgs.push({ type: "agentRenamed", id: a.id, name: a.customName });
+  // Rol (tarixdan aniqlangan yoki qo'lda) — katta transcript async o'qilganda
+  // agentCreated roldan OLDIN ketadi, shuning uchun snapshot ham yuboradi.
+  if (a.role) msgs.push({ type: "agentRoleDetected", id: a.id, role: a.role });
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
   if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true, reason: a.blockedReason });
   // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishда yoki

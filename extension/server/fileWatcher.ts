@@ -1,6 +1,12 @@
 import * as fs from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_LINE_CHARS, MAX_READ_BYTES } from "../core/constants.js";
+
+/** Shu hajmgacha transcript sinxron o'qiladi (bir necha o'n ms) — undan katta
+ *  bo'lsa bo'laklab async (extension host qotmasin). */
+export const PRIME_SYNC_MAX_BYTES = 4 * 1024 * 1024;
+/** Async prime'da har shuncha bo'lakdan (×64KB) keyin event loop'ga navbat. */
+const PRIME_CHUNKS_PER_YIELD = 8;
 import type { AgentStateStore } from "./agentStateStore.js";
 import { agentSnapshotMessages } from "./stateActions.js";
 import { processTranscriptLine } from "./transcriptParser.js";
@@ -32,6 +38,79 @@ export class FileWatcher {
    *  keyin emitSnapshot() orqali BIR marta yuboriladi. Sinxron — tick oraliqda
    *  tushmaydi. */
   primeFromStart(agent: AgentState): void {
+    agent.primeGen = (agent.primeGen ?? 0) + 1; // davom etayotgan async prime'ni bekor qiladi
+    this.resetForReplay(agent);
+    this.store.beginSilent();
+    try {
+      let guard = 0;
+      // Butun mavjud faylni chunk-chunk o'qib tugatamiz (offset EOF'gacha).
+      while (this.readNewLines(agent) && guard++ < 200_000) {
+        /* davom */
+      }
+    } finally {
+      this.store.endSilent();
+    }
+  }
+
+  /** Fayl hajmi (yo'q bo'lsa 0). */
+  private sizeOf(agent: AgentState): number {
+    try {
+      return fs.statSync(agent.filePath).size;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** ADOPT: kichik transcript → SINXRON (avvalgidek: prime → add → snapshot).
+   *  KATTA transcript (yuzlab MB bo'lishi mumkin) → sinxron o'qish butun
+   *  extension host'ni (boshqa kengaytmalarni ham) soniyalab qotirardi. Shuning
+   *  uchun avval agent qo'shiladi (personaj darrov ko'rinadi), tarix bo'laklab
+   *  ASYNC o'qiladi (har bo'lak orasida event loop'ga navbat), so'ng snapshot. */
+  primeAndAdd(agent: AgentState, add: () => void): void {
+    if (this.sizeOf(agent) <= PRIME_SYNC_MAX_BYTES) {
+      this.primeFromStart(agent);
+      add();
+      this.emitSnapshot(agent);
+      return;
+    }
+    add();
+    void this.primeAsync(agent);
+  }
+
+  /** /clear · /resume qayta biriktirish — agent allaqachon store'da. */
+  reprime(agent: AgentState): void {
+    if (this.sizeOf(agent) <= PRIME_SYNC_MAX_BYTES) {
+      this.primeFromStart(agent);
+      this.emitSnapshot(agent);
+      return;
+    }
+    void this.primeAsync(agent);
+  }
+
+  /** Bo'laklab, bloklamasdan qayta o'qish. Faqat SHU agentning broadcast'lari
+   *  o'chiriladi (boshqa agentlar jonli qoladi); tick bu agentni o'tkazib
+   *  yuboradi (ikki o'quvchi bo'lmasin). Yangiroq prime boshlansa — to'xtaydi. */
+  private async primeAsync(agent: AgentState): Promise<void> {
+    const gen = (agent.primeGen = (agent.primeGen ?? 0) + 1);
+    agent.priming = true;
+    this.resetForReplay(agent);
+    this.store.muteAgent(agent.id);
+    let finished = false;
+    try {
+      let n = 0;
+      while (agent.primeGen === gen && this.store.has(agent.id) && this.readNewLines(agent)) {
+        if (++n % PRIME_CHUNKS_PER_YIELD === 0) await new Promise<void>((r) => setImmediate(r));
+      }
+      finished = agent.primeGen === gen;
+    } finally {
+      this.store.unmuteAgent(agent.id);
+      if (agent.primeGen === gen) agent.priming = false;
+    }
+    if (finished && this.store.has(agent.id)) this.emitSnapshot(agent);
+  }
+
+  /** Qayta o'qishdan oldin holatni 0ga qaytaradi. */
+  private resetForReplay(agent: AgentState): void {
     agent.fileOffset = 0;
     agent.lineBuffer = "";
     agent.lineDecoder = undefined; // yangi UTF-8 dekoder
@@ -47,16 +126,6 @@ export class FileWatcher {
     agent.billedCacheRead = 0;
     agent.toolCats = {}; // qayta o'qishda tool turkumlari ikki barobar bo'lmasin
     agent.seenMsgIds.clear(); // 0dan qayta o'qiymiz — dedupe ham 0dan
-    this.store.beginSilent();
-    try {
-      let guard = 0;
-      // Butun mavjud faylni chunk-chunk o'qib tugatamiz (offset EOF'gacha).
-      while (this.readNewLines(agent) && guard++ < 200_000) {
-        /* davom */
-      }
-    } finally {
-      this.store.endSilent();
-    }
   }
 
   /** Agentning JORIY holatini webview'ga yuboradi (adopt/rebind'dan keyin).
@@ -68,6 +137,7 @@ export class FileWatcher {
 
   private tick(): void {
     for (const agent of this.store.values()) {
+      if (agent.priming) continue; // async prime o'qiyapti — ikki o'quvchi bo'lmasin
       this.readNewLines(agent);
     }
   }

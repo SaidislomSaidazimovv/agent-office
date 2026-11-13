@@ -118,9 +118,9 @@ function adopt(filePath: string, folderName: string): AgentState | null {
   if (savedName) agent.customName = savedName;
   const savedRole = roles()[sessionId];
   if (savedRole) { agent.role = savedRole; agent.roleManual = true; }
-  watcher.primeFromStart(agent);
-  store.add(agent); // → agentAdded → agentCreated (rol bilan)
-  watcher.emitSnapshot(agent); // customName bo'lsa agentRenamed ham broadcast qilinadi
+  // → agentAdded → agentCreated; snapshot (customName → agentRenamed). Katta
+  // transcript async o'qiladi (CLI ham qotmaydi).
+  watcher.primeAndAdd(agent, () => store.add(agent));
   return agent;
 }
 

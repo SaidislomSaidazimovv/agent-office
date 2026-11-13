@@ -402,7 +402,7 @@ const WS = "F:\\zzz-bind-ws-unlikely-path";
 function mgrSetup() {
   resetState(WS);
   const store = new AgentStateStore();
-  const watcher = { primeFromStart() {}, emitSnapshot() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+  const watcher = { primeFromStart() {}, emitSnapshot() {}, primeAndAdd(_a: unknown, add: () => void) { add(); }, reprime() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
   const mgr = new AgentManager(store, watcher, () => {});
   mgr.start();
   return { store, mgr };
@@ -1659,5 +1659,60 @@ test("presence: band (busy) agent uchrashuvga tanlanmaydi", () => {
   assert.equal(seekMeeting(1, -5, -3, 0), null, "yagona sherik band bo'lsa uchrashuv yo'q");
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed ? 1 : 0);
+// ── Async testlar (ketma-ket, sinxronlardan keyin) ──
+const asyncTests: { name: string; fn: () => Promise<void> }[] = [];
+function testAsync(name: string, fn: () => Promise<void>): void {
+  asyncTests.push({ name, fn });
+}
+
+testAsync("katta transcript bo'laklab o'qiladi: darrov qaytadi, boshqa agent jonli, oxirida to'g'ri snapshot", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-bigprime-"));
+  const file = path.join(dir, "big.jsonl");
+  const pad = "z".repeat(4000);
+  const lines: string[] = [];
+  for (let i = 0; i < 1300; i++) {
+    // Har xabar 2 qatorga bo'lingan (dedupe ham tekshiriladi) + katta matn.
+    const l = JSON.stringify({ type: "assistant", message: { id: `m${i}`, content: [{ type: "text", text: pad }], usage: { input_tokens: 1, output_tokens: 2 } } });
+    lines.push(l, l);
+  }
+  fs.writeFileSync(file, lines.join("\n") + "\n");
+  assert.ok(fs.statSync(file).size > 4 * 1024 * 1024, "sinov fayli > 4MB");
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const other = createAgentState(store.allocateId(), path.join(dir, "o.jsonl"), "o", { sessionId: "o" });
+  store.add(other);
+  const ev: { type: string; id?: number }[] = [];
+  store.on("broadcast", (m: { type: string; id?: number }) => ev.push(m));
+  const big = createAgentState(store.allocateId(), file, "p", { sessionId: "big" });
+  let added = false;
+  watcher.primeAndAdd(big, () => {
+    store.add(big);
+    added = true;
+  });
+  assert.ok(added && store.has(big.id), "agent darrov qo'shildi (personaj ko'rinadi)");
+  assert.equal(big.priming, true, "hali o'qilmoqda — sinxron bloklamadi");
+  store.broadcast({ type: "agentStatus", id: other.id, status: "active" });
+  assert.ok(ev.some((e) => e.id === other.id), "boshqa agent broadcast'i o'tadi");
+  const bigDuring = ev.filter((e) => e.id === big.id).length;
+  while (big.priming) await new Promise((r) => setImmediate(r));
+  assert.equal(bigDuring, 0, "o'qish davomida shu agentning tarixi flood qilinmadi");
+  assert.equal(big.outputTokens, 2600, "1300 xabar × 2 (dedupe — 5200 EMAS)");
+  assert.ok(ev.some((e) => e.id === big.id && e.type === "agentTokenUsage"), "yakuniy snapshot yuborildi");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+void (async () => {
+  if (asyncTests.length) console.log("Async (katta transcript — host qotmaydi):");
+  for (const t of asyncTests) {
+    try {
+      await t.fn();
+      passed++;
+      console.log("  ✓", t.name);
+    } catch (e) {
+      failed++;
+      console.log("  ✗", t.name, "\n     ", (e as Error).message);
+    }
+  }
+  console.log(`\n${passed} passed, ${failed} failed`);
+  process.exit(failed ? 1 : 0);
+})();

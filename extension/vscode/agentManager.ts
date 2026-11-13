@@ -205,9 +205,8 @@ export class AgentManager {
     const id = this.store.allocateId();
     const task = this.readFirstTask(filePath);
     const agent = createAgentState(id, filePath, folderName, { role, task, isExternal, sessionId });
-    this.watcher.primeFromStart(agent);
-    this.store.add(agent);
-    this.watcher.emitSnapshot(agent);
+    // Kichik transcript — sinxron (prime → add → snapshot); katta — async (host qotmaydi).
+    this.watcher.primeAndAdd(agent, () => this.store.add(agent));
     // Tashqi agentni terminalga bog'laymiz — terminal yopilsa agent ham o'chadi,
     // "Terminal" tugmasi ham shu terminalni ochadi.
     //  1) cwd (ish papkasi) mos keladigan terminal — eng ishonchli.
@@ -358,8 +357,7 @@ export class AgentManager {
     a.permissionActive = false;
     a.currentToolLabel = undefined;
     a.currentToolName = undefined;
-    this.watcher.primeFromStart(a);
-    this.watcher.emitSnapshot(a);
+    this.watcher.reprime(a); // /resume fayli katta bo'lishi mumkin — kerak bo'lsa async
   }
 
   /** Shu papkadagi, terminali HALI OCHIQ, boshqa fayldagi agentlar. */
