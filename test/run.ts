@@ -160,6 +160,37 @@ test("host xarajati javob bo'yicha hisoblanadi (har javob o'z modeli) va agentTo
   assert.ok(Math.abs((last.costUsd ?? 0) - 9) < 1e-9, "costUsd broadcast qilinadi");
 });
 
+test("sub-agent transkriptlari (<sessiya>/subagents/*.jsonl) xarajatga qo'shiladi — dedupe, o'z modeli, jonli", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-sub-"));
+  const main = path.join(dir, "sess1.jsonl");
+  const subDir = path.join(dir, "sess1", "subagents");
+  fs.mkdirSync(subDir, { recursive: true });
+  const line = (id: string, model: string, usage: Record<string, number>) =>
+    JSON.stringify({ type: "assistant", isSidechain: true, message: { id, model, content: [{ type: "text", text: "x" }], usage } });
+  fs.writeFileSync(main, line("m1", "claude-opus-5-5", { input_tokens: 1_000_000 }) + "\n"); // $4
+  const subA = path.join(subDir, "agent-a.jsonl");
+  const s1 = line("s1", "claude-haiku-4-5", { output_tokens: 1_000_000 }); // $5
+  fs.writeFileSync(subA, `${s1}\n${s1}\n`); // dublikat qator
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const agent = createAgentState(1, main, "p", { sessionId: "sess1" });
+  watcher.primeAndAdd(agent, () => store.add(agent));
+  assert.ok(Math.abs(agent.costUsd - 9) < 1e-9, `asosiy $4 + sub-agent $5 = $9, ${agent.costUsd}`);
+  assert.ok(Math.abs((agent.subagentCostUsd ?? 0) - 5) < 1e-9);
+  assert.equal(agent.outputTokens, 0, "sub-agent tokenlari asosiy kontekst/output'ga aralashmaydi");
+  // Jonli: yangi sub-agent fayli paydo bo'ladi → tick xarajatni oshiradi va yuboradi.
+  const ev: { type: string; costUsd?: number }[] = [];
+  store.on("broadcast", (m: { type: string; costUsd?: number }) => ev.push(m));
+  fs.writeFileSync(path.join(subDir, "agent-b.jsonl"), line("s2", "claude-sonnet-5-5", { input_tokens: 1_000_000 }) + "\n"); // $2
+  (watcher as unknown as { tick(): void }).tick();
+  assert.ok(Math.abs(agent.costUsd - 11) < 1e-9, `+ $2 = $11, ${agent.costUsd}`);
+  assert.ok(ev.some((e) => e.type === "agentTokenUsage" && Math.abs((e.costUsd ?? 0) - 11) < 1e-9), "yangilanish yuborildi");
+  // Qayta o'qish (/clear·/resume yo'li) — ikki barobar emas.
+  watcher.primeFromStart(agent);
+  assert.ok(Math.abs(agent.costUsd - 11) < 1e-9, `qayta o'qishda ham $11, ${agent.costUsd}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test("primeFromStart qayta o'qishda dedupe 0dan boshlanadi (xarajat yo'qolmaydi)", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-dedupe-"));
   const file = path.join(dir, "s.jsonl");

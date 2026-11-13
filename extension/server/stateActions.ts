@@ -9,6 +9,14 @@ import type { ServerMessage } from "../core/messages.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import type { AgentState } from "./types.js";
 
+/** Joriy token/xarajat holati (bitta xabar) — snapshot va sub-agent yangilanishi. */
+export function tokenUsageMessage(a: AgentState): ServerMessage {
+  return {
+    type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
+    model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead, costUsd: a.costUsd,
+  };
+}
+
 /** Agentning JORIY holatini tasvirlaydigan xabarlar (snapshot). Webview qayta
  *  yuklanganda VA yangi agent adopt qilinganda bir xil ishlatiladi — shunda
  *  butun tarixni qayta broadcast qilish shart emas. */
@@ -20,10 +28,10 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     // MODEL + BILLED tokenlarni ham yuboramiz — aks holda webview qayta ochilganda
     // xarajat (billed'dan hisoblanadi) faqat output qismini ko'rsatib, input+kesh
     // qismini yo'qotardi (idle agentda butunlay noto'g'ri qolardi).
-    msgs.push({
-      type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
-      model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead, costUsd: a.costUsd,
-    });
+    msgs.push(tokenUsageMessage(a));
+  } else if (a.costUsd > 0) {
+    // Faqat sub-agentlar sarf qilgan bo'lsa ham xarajat ko'rinsin.
+    msgs.push(tokenUsageMessage(a));
   }
   // Har REAL faol tool uchun bitta start — webview sanog'i server bilan aniq mos
   // keladi va tugaganda to'g'ri tozalanadi (sun'iy "restore" id'siz — u hech

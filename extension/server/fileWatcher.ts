@@ -1,5 +1,7 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { StringDecoder } from "node:string_decoder";
+import { messageCost, type UsageLike } from "../core/pricing.js";
 import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_LINE_CHARS, MAX_READ_BYTES } from "../core/constants.js";
 
 /** Shu hajmgacha transcript sinxron o'qiladi (bir necha o'n ms) — undan katta
@@ -7,8 +9,65 @@ import { FILE_WATCHER_POLL_INTERVAL_MS, MAX_LINE_CHARS, MAX_READ_BYTES } from ".
 export const PRIME_SYNC_MAX_BYTES = 4 * 1024 * 1024;
 /** Async prime'da har shuncha bo'lakdan (×64KB) keyin event loop'ga navbat. */
 const PRIME_CHUNKS_PER_YIELD = 8;
+/** Sub-agent papkasi har shuncha tick'da (×500ms) tekshiriladi. */
+const SUBAGENT_SCAN_EVERY = 4;
+/** Sub-agent fayli bo'yicha dedupe uchun saqlanadigan so'nggi id'lar. */
+const SUB_SEEN_CAP = 512;
+
+/** Fayldan `offset`dan boshlab ko'pi bilan `max` bayt o'qiydi. */
+function readChunk(file: string, offset: number, max: number): { bytes: Buffer; more: boolean } | null {
+  let size: number;
+  try {
+    size = fs.statSync(file).size;
+  } catch {
+    return null;
+  }
+  if (size <= offset) return null;
+  const len = Math.min(size - offset, max);
+  const buf = Buffer.alloc(len);
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(file, "r");
+    const n = fs.readSync(fd, buf, 0, len, offset);
+    if (n <= 0) return null;
+    return { bytes: n < len ? buf.subarray(0, n) : buf, more: offset + n < size };
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+/** Sub-agent transkript qatori — assistant javobi bo'lsa uning narxi (dedupe). */
+function subagentLineCost(line: string, seen: Set<string>): number {
+  if (!line || !line.includes('"usage"')) return 0;
+  let o: { type?: string; message?: { id?: unknown; model?: unknown; usage?: UsageLike } };
+  try {
+    o = JSON.parse(line);
+  } catch {
+    return 0;
+  }
+  const m = o.message;
+  if (o.type !== "assistant" || !m || !m.usage) return 0;
+  if (typeof m.id === "string") {
+    if (seen.has(m.id)) return 0;
+    seen.add(m.id);
+    if (seen.size > SUB_SEEN_CAP) {
+      const first = seen.values().next().value;
+      if (first !== undefined) seen.delete(first);
+    }
+  }
+  const model = typeof m.model === "string" && m.model !== "<synthetic>" ? m.model : undefined;
+  return messageCost(model, m.usage);
+}
 import type { AgentStateStore } from "./agentStateStore.js";
-import { agentSnapshotMessages } from "./stateActions.js";
+import { agentSnapshotMessages, tokenUsageMessage } from "./stateActions.js";
 import { processTranscriptLine } from "./transcriptParser.js";
 import type { AgentState } from "./types.js";
 
@@ -47,6 +106,7 @@ export class FileWatcher {
       while (this.readNewLines(agent) && guard++ < 200_000) {
         /* davom */
       }
+      this.readSubagents(agent, true);
     } finally {
       this.store.endSilent();
     }
@@ -102,6 +162,7 @@ export class FileWatcher {
         if (++n % PRIME_CHUNKS_PER_YIELD === 0) await new Promise<void>((r) => setImmediate(r));
       }
       finished = agent.primeGen === gen;
+      if (finished) this.readSubagents(agent, true);
     } finally {
       this.store.unmuteAgent(agent.id);
       if (agent.primeGen === gen) agent.priming = false;
@@ -127,6 +188,53 @@ export class FileWatcher {
     agent.costUsd = 0;
     agent.toolCats = {}; // qayta o'qishda tool turkumlari ikki barobar bo'lmasin
     agent.seenMsgIds.clear(); // 0dan qayta o'qiymiz — dedupe ham 0dan
+    agent.subFiles = undefined; // sub-agent transkriptlari ham 0dan
+    agent.subagentCostUsd = 0;
+  }
+
+  // ── Sub-agent transkriptlari (xarajat) ──
+  // Claude Code har sub-agent (Task/Agent tool) suhbatini ALOHIDA faylga yozadi:
+  // <sessiya-papka>/<sessionId>/subagents/agent-*.jsonl. Bu xabarlar asosiy
+  // transkriptda YO'Q — o'qilmasa sub-agent sarfi xarajatda umuman ko'rinmasdi.
+  // Faqat usage o'qiladi (holat/tool asosiy transkriptdan); har fayl o'z
+  // dedupe'i bilan, har javob o'z modeli narxida (core/pricing.ts).
+  private subagentsDir(agent: AgentState): string {
+    return path.join(path.dirname(agent.filePath), path.basename(agent.filePath, ".jsonl"), "subagents");
+  }
+
+  /** drain=true — fayllar oxirigacha jimgina o'qiladi (prime). Aks holda har
+   *  fayldan bitta bo'lak va xarajat o'zgarsa agentTokenUsage yuboriladi. */
+  private readSubagents(agent: AgentState, drain: boolean): void {
+    let names: string[];
+    try {
+      names = fs.readdirSync(this.subagentsDir(agent)).filter((n) => n.endsWith(".jsonl"));
+    } catch {
+      return; // sub-agent yo'q
+    }
+    const files = (agent.subFiles ??= new Map());
+    let added = 0;
+    for (const name of names) {
+      let cur = files.get(name);
+      if (!cur) files.set(name, (cur = { offset: 0, buf: "", seen: new Set() }));
+      const file = path.join(this.subagentsDir(agent), name);
+      let guard = 0;
+      do {
+        const r = readChunk(file, cur.offset, MAX_READ_BYTES);
+        if (!r) break;
+        cur.offset += r.bytes.length;
+        cur.dec ??= new StringDecoder("utf8");
+        const lines = (cur.buf + cur.dec.write(r.bytes)).split("\n");
+        cur.buf = lines.pop() ?? "";
+        if (cur.buf.length > MAX_LINE_CHARS) cur.buf = "";
+        for (const line of lines) added += subagentLineCost(line, cur.seen);
+        if (!r.more) break;
+      } while (drain && guard++ < 100_000);
+    }
+    if (added > 0) {
+      agent.subagentCostUsd = (agent.subagentCostUsd ?? 0) + added;
+      agent.costUsd += added;
+      if (!drain) this.store.broadcast(tokenUsageMessage(agent));
+    }
   }
 
   /** Agentning JORIY holatini webview'ga yuboradi (adopt/rebind'dan keyin).
@@ -136,10 +244,14 @@ export class FileWatcher {
     for (const msg of agentSnapshotMessages(agent)) this.store.broadcast(msg);
   }
 
+  private tickN = 0;
   private tick(): void {
+    // Sub-agent papkalari har ~2 soniyada (readdir arzon, lekin har 500ms shart emas).
+    const subScan = this.tickN++ % SUBAGENT_SCAN_EVERY === 0;
     for (const agent of this.store.values()) {
       if (agent.priming) continue; // async prime o'qiyapti — ikki o'quvchi bo'lmasin
       this.readNewLines(agent);
+      if (subScan) this.readSubagents(agent, false);
     }
   }
 
