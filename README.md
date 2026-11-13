@@ -117,7 +117,7 @@ Then reload the window (`Ctrl+Shift+P` → *Developer: Reload Window*).
 
 | Setting | Default | Description |
 | ------- | ------- | ----------- |
-| `agent-office.hooksEnabled` | `true` | Use Claude Code Hooks for reliable detection (writes a hook into `~/.claude/settings.json`). |
+| `agent-office.hooksEnabled` | `true` | Use Claude Code Hooks for reliable detection. On a new install the office asks once before adding a hook to `~/.claude/settings.json`; **Agent Office: Uninstall Claude Hooks** removes it for good, and uninstalling the extension cleans it up. |
 | `agent-office.notifications` | `true` | Show a VS Code toast when an agent needs permission (or has waited 3+ minutes) while the panel is hidden. |
 | `agent-office.notifyOnErrors` | `false` | Also toast every failed tool call (the office always shows it in red with the reason). |
 | `agent-office.autoShowPanel` | `false` | Open the panel automatically on startup. |
