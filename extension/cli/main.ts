@@ -208,8 +208,39 @@ function saveLayout(items: unknown[], floorColor: string | null, wallColor: stri
 const WEB_ROOT = path.join(__dirname, "webview");
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
+// ── Brauzer himoyasi ──
+// Server faqat 127.0.0.1'da, lekin foydalanuvchi BRAUZERIDAGI istalgan sayt
+// localhost'ga murojaat qila oladi: WebSocket'ga CORS qo'llanmaydi (cross-site
+// WebSocket hijacking) va DNS-rebinding orqali begona domen 127.0.0.1'ga
+// yo'naltirilishi mumkin. Shuning uchun Host (HTTP+WS) va Origin (WS)
+// sarlavhalari FAQAT o'zimizning manzil bo'lishi shart.
+function allowedHosts(): Set<string> {
+  return new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
+}
+function hostOk(host: string | undefined): boolean {
+  return typeof host === "string" && allowedHosts().has(host.toLowerCase());
+}
+function originOk(origin: string | undefined): boolean {
+  if (typeof origin !== "string") return false;
+  const o = origin.toLowerCase();
+  return [...allowedHosts()].some((h) => o === `http://${h}`);
+}
+
 const server = http.createServer((req, res) => {
-  let rel = decodeURIComponent((req.url || "/").split("?")[0]);
+  if (!hostOk(req.headers.host)) {
+    res.writeHead(403);
+    res.end();
+    return;
+  }
+  let rel: string;
+  try {
+    rel = decodeURIComponent((req.url || "/").split("?")[0]);
+  } catch {
+    // Buzuq %-kodlash (masalan "/%E0%A4%A") — avval bu istisno butun CLI'ni yiqitardi.
+    res.writeHead(400);
+    res.end();
+    return;
+  }
   if (rel === "/") rel = "/index.html";
   const filePath = path.join(WEB_ROOT, path.normalize(rel));
   if (!filePath.startsWith(WEB_ROOT)) {
@@ -229,7 +260,13 @@ const server = http.createServer((req, res) => {
 });
 
 // ── WebSocket bridge ──
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  // Bitta xabar chegarasi (layout/statlar kichik) — katta payload bilan disk/xotira to'ldirilmasin.
+  maxPayload: 4 * 1024 * 1024,
+  // Faqat shu server bergan sahifa ulanishi mumkin (boshqa saytlar — yo'q).
+  verifyClient: (info: { origin: string; req: http.IncomingMessage }) => hostOk(info.req.headers.host) && originOk(info.origin),
+});
 const clients = new Set<import("ws").WebSocket>();
 
 function broadcastAll(msg: ServerMessage): void {
