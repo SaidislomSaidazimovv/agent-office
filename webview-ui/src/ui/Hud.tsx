@@ -193,7 +193,10 @@ export default function Hud() {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
+    // zIndex — HUD (paneller, dashboard, tour) 3D yorliqlardan DOIM yuqorida. drei
+    // <Html> yorliqlari o'z z-index'ini oladi (barchasi ≤100 qilib cheklangan);
+    // avval cheklanmaganlari 16 777 271 bilan dashboard ustiga chiqib qolardi.
+    <div style={{ position: "absolute", inset: 0, zIndex: 200, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
       {/* Klaviatura fokusi — barcha interaktiv elementlarda ko'rinadigan halqa. */}
       <style>{`
         button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-visible { outline: 2px solid #5e9bff; outline-offset: 2px; border-radius: 6px; }

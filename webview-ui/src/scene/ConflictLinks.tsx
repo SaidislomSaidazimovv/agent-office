@@ -57,7 +57,7 @@ export default function ConflictLinks() {
               </group>
             ))}
             {/* Fayl nomi — o'rtada, tepada */}
-            <Html position={[cx, 1.95, cz]} center style={{ pointerEvents: "none" }}>
+            <Html position={[cx, 1.95, cz]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
               <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(255,159,10,0.95)", color: "#241800", fontFamily: "system-ui", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.45)" }}>⚠️ {c.file}</div>
             </Html>
           </group>

@@ -170,7 +170,7 @@ function Gallery() {
             <group rotation={[0, Math.PI, 0]}>
               <PixelPerson skin={preset} status="idle" pose="stand" />
             </group>
-            <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }}>
+            <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
               <div style={{ fontFamily: "system-ui", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{preset.label}</div>
             </Html>
           </group>

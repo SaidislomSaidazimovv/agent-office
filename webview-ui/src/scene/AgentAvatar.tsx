@@ -403,7 +403,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           Ustuvorlik emotes.ts'da; hech biri o'ylab topilmagan. */}
       {/* Balandligi yorliq/pufaklarga qarab (faceY) — hech qachon ustma-ust tushmaydi. */}
       {face && (
-        <Html position={[0, faceY, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, faceY, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
           <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
         </Html>
       )}
@@ -412,7 +412,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           run_in_background bilan bir narsa ishga tushirgan va u fonda ishlayapti.
           Yon tomonda, boshdagi qatlamlardan pastroqda — hech narsani yopmaydi. */}
       {agent.background && (
-        <Html position={[0.6, 1.55, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0.6, 1.55, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
           <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 10, background: "rgba(94,155,255,0.9)", color: "#f2f7ff", fontFamily: "system-ui", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" }}>🔄 {t("bg.badge")}</div>
         </Html>
       )}
@@ -421,21 +421,21 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           (tool ruxsat so'ramaydi). Amber ogohlantirish, chap tomonda (fon belgisi
           bilan to'qnashmaydi). Faqat KUZATILGAN permissionMode'dan. */}
       {agent.permissionMode === "bypassPermissions" && (
-        <Html position={[-0.6, 1.55, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[-0.6, 1.55, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
           <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 10, background: "rgba(255,159,10,0.95)", color: "#241800", fontFamily: "system-ui", fontSize: 10.5, fontWeight: 800, whiteSpace: "nowrap", boxShadow: "0 2px 6px rgba(0,0,0,0.45)" }}>🔓 {t("bypass.badge")}</div>
         </Html>
       )}
 
       {/* "Sub-agent yolladi" pufagi — yollangan zahoti qisqa vaqt ko'rinadi */}
       {hiring && (
-        <Html position={[0, hireY, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, hireY, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
           <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ffd60a", color: "#1a1500", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.subHire")}</div>
         </Html>
       )}
 
       {/* Ruxsat pufagi */}
       {agent.permission && (
-        <Html position={[0, permY, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, permY, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
           <div style={{ padding: "4px 10px", borderRadius: 12, background: "#ff9f0a", color: "#1a1300", fontFamily: "system-ui", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{t("bubble.permission")}</div>
         </Html>
       )}
