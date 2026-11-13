@@ -81,7 +81,10 @@ report you can share — and its cost numbers are now the real ones.
   writes, fast mode, Haiku 5.5's long-prompt tier — and include sub-agents'
   own transcripts, which were missing. Checked against Claude Code's own cost
   record on a real session: $21.19 vs $21.02. Days already in your history
-  keep the amounts recorded before this fix.
+  keep the amounts recorded before this fix. Known limit, now stated in the
+  cost tooltips: background requests Claude Code does not write to the
+  transcript (e.g. away summaries, retried requests) can't be counted, so
+  short sessions may read a little low (8–12% in our checks).
 - Opening a session with a very large transcript (hundreds of MB) no longer
   freezes VS Code for seconds — it is read in the background.
 - Hook mode: failed tools now show as blocked (`PostToolUseFailure` was never

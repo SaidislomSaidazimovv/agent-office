@@ -12,6 +12,15 @@
 //   • inference_geo "us" (Claude 4.6+): barcha toifalarga × 1.1;
 //   • web search: 1000 qidiruv uchun $10.
 // DOM/Node'siz sof modul — test qilinadi.
+//
+// MA'LUM CHEKLOV (2026-11-13 da haqiqiy transkriptlarda tekshirilgan): Claude
+// Code ba'zi so'rovlarni transkriptga assistant javobi sifatida YOZMAYDI —
+// masalan "away summary" (system:away_summary), xato bilan tugagan/qayta
+// urinilgan so'rovlar. Ular pul turadi va Claude Code'ning o'z `cost-state`
+// jamiga kiradi, lekin bu yerda ko'rinmaydi. Bitta toza sessiyada farq 0.8%,
+// ikkita qisqa sessiyada 8–12% (bizniki kam) chiqdi. `cost-state` yozuvi esa
+// jonli manba bo'la olmaydi (tartibsiz yoziladi, vaqt belgisi yo'q, /resume'da
+// tiklanadi) — shuning uchun bu cheklov UI'da ochiq aytiladi.
 
 export const PRICING_AS_OF = "2026-11-13";
 
