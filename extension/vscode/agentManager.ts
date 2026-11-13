@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { CLAUDE_TERMINAL_NAME_PREFIX, MAX_CONTEXT_TOKENS, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
-import { getSessionDir } from "../core/paths.js";
+import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
@@ -247,11 +247,12 @@ export class AgentManager {
   }
 
   /** Hook sessiyasi uchun agent topadi yoki yaratadi (avto-kashfiyot). */
-  ensureSessionAgent(sessionId: string, cwd?: string): AgentState {
+  ensureSessionAgent(sessionId: string, cwd?: string, transcriptPath?: string): AgentState {
     const existing = this.store.findBySession(sessionId);
     if (existing) return existing;
     const base = cwd || this.workspaceFolders()[0] || os.homedir();
-    const filePath = path.join(getSessionDir(base), `${sessionId}.jsonl`);
+    // Hook bergan aniq yo'l (tekshirilgan) — bo'lmasa slug bo'yicha taxmin.
+    const filePath = trustedTranscriptPath(transcriptPath) ?? path.join(getSessionDir(base), `${sessionId}.jsonl`);
     const byFile = this.store.findByFile(filePath);
     if (byFile) {
       byFile.sessionId = sessionId;

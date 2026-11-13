@@ -6,7 +6,7 @@ import { WebSocketServer } from "ws";
 import { sanitizeName } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
-import { getSessionDir } from "../core/paths.js";
+import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
 import { handleHookEvent } from "../server/hookHandler.js";
@@ -165,7 +165,8 @@ const hookServer = new HookServer((sessionId, raw) => {
   if (!agent) {
     const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
     if (!cwd || !inProjects(cwd)) return;
-    agent = adopt(path.join(getSessionDir(cwd), `${sessionId}.jsonl`), path.basename(cwd)) ?? undefined;
+    const file = trustedTranscriptPath(raw.transcript_path) ?? path.join(getSessionDir(cwd), `${sessionId}.jsonl`);
+    agent = adopt(file, path.basename(cwd)) ?? undefined;
     if (agent) agent.sessionId = sessionId;
   }
   if (agent) handleHookEvent(store, agent, raw);

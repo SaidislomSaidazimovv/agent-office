@@ -269,7 +269,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
           return;
         }
       }
-      agent = this.manager.ensureSessionAgent(sessionId, cwd);
+      agent = this.manager.ensureSessionAgent(sessionId, cwd, typeof raw.transcript_path === "string" ? raw.transcript_path : undefined);
     }
     handleHookEvent(this.store, agent, raw);
   }
