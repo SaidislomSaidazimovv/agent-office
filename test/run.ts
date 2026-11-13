@@ -27,7 +27,7 @@ import { messageCost } from "../extension/core/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
 import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals, rollupCost } from "../webview-ui/src/history.js";
-import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
+import { buildInsights, costSpike, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
@@ -1850,6 +1850,35 @@ test("manifest i18n: package.json'dagi har %kalit% package.nls.json'da bor, har 
     assert.deepEqual(Object.keys(tr).sort(), Object.keys(base).sort(), `${f} kalitlari to'liq`);
     for (const [k, v] of Object.entries(tr)) assert.ok(typeof v === "string" && v.trim(), `${f}:${k} bo'sh`);
   }
+});
+
+test("costSpike: so'nggi 2 daq odatiy 20 daqdan ≥3× tez → sakrash; bir tekis sarf / qisqa tarix / mayda summa → yo'q", () => {
+  const mk = (pts: [number, number][]) => pts.map(([min, cost]) => ({ t: min * 60_000, cost, inTok: 0, outTok: 0, active: 1 }));
+  // 0..20 daq: $0.05/daq (jami $1), 20..22 daq: $0.5/daq (+$1) → 10×.
+  const steady: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) steady.push([m, m * 0.05]);
+  const spiky = mk([...steady, [21, 1.5], [22, 2]]);
+  const s = costSpike(spiky);
+  assert.ok(s && Math.abs(s.rate - 0.5) < 1e-9 && Math.abs(s.ratio - 10) < 1e-9, JSON.stringify(s));
+  const ins = buildInsights([], spiky, 22 * 60_000);
+  assert.ok(ins.some((i) => i.id === "cost-spike" && i.level === "warn"), "warn insight");
+  assert.ok(!ins.some((i) => i.id === "cost-rate"), "costFast takrorlanmaydi");
+  // Bir tekis tez sarf — sakrash EMAS (odatiy ritm).
+  const flat: [number, number][] = [];
+  for (let m = 0; m <= 22; m++) flat.push([m, m * 0.5]);
+  assert.equal(costSpike(mk(flat)), null, "bir tekis");
+  // Tarix qisqa (odatiy oyna to'liq emas) — baholamaymiz.
+  assert.equal(costSpike(mk([[0, 0], [5, 0.1], [7, 2]])), null, "qisqa tarix");
+  // Mayda summa — shovqin.
+  const tiny: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) tiny.push([m, m * 0.001]);
+  assert.equal(costSpike(mk([...tiny, [22, 0.02 + 0.1]])), null, "≥$0.10/daq dan kam");
+  // Avval sarf yo'q edi, endi boshlandi → info.
+  const idle: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) idle.push([m, 0]);
+  const fresh = mk([...idle, [22, 1]]);
+  const f = buildInsights([], fresh, 22 * 60_000).find((i) => i.id === "cost-spike");
+  assert.ok(f && f.level === "info" && f.key === "insight.costSpikeNew");
 });
 
 test("isStaleExternal: faqat bog'lanmagan + kutayotgan + band emas + 30 daqiqa faoliyatsiz", () => {
