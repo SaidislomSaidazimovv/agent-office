@@ -164,6 +164,11 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       id = msg.id;
       text = "ruxsat so'radi 🔔";
     } else if (msg.type === "agentBlocked" && msg.blocked) {
+      // Tool xatolari juda ko'p uchraydi (topilmagan fayl, yiqilgan test) va
+      // Claude ko'pincha o'zi tuzatadi — har biriga toast shovqin edi. Endi
+      // faqat foydalanuvchi yoqsa (agent-office.notifyOnErrors); ofisda baribir
+      // qizil holat + sabab ko'rinadi.
+      if (!vscode.workspace.getConfiguration("agent-office").get<boolean>("notifyOnErrors", false)) return;
       id = msg.id;
       // Sababi bo'lsa — bildirishnomada ham ko'rsatamiz (terminalni ochmasdan bilinadi).
       text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : "bloklandi (xato) ⛔";

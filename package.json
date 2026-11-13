@@ -125,6 +125,11 @@
           "default": true,
           "description": "Agent ruxsat so'raganda yoki bloklanganda (xato) VS Code bildirishnomasini ko'rsatish."
         },
+        "agent-office.notifyOnErrors": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also show a toast every time a tool call fails (off by default: failed tool calls are frequent and usually self-corrected; the office still shows the agent in red with the reason)."
+        },
         "agent-office.statusBar": {
           "type": "boolean",
           "default": true,
