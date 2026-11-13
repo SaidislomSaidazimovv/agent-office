@@ -33,7 +33,8 @@ const hookCtx = await esbuild.context({
   banner: { js: "#!/usr/bin/env node" },
 });
 
-// 3) Standalone CLI → dist/cli.js (`npx agent-office`, brauzerda kuzatish)
+// 3) Standalone CLI → dist/cli.js (`node dist/cli.js`, brauzerda kuzatish; npm'da E'LON QILINMAGAN —
+//    npm'dagi "agent-office" nomi boshqa muallifga tegishli)
 const cliCtx = await esbuild.context({
   ...common,
   entryPoints: ["extension/cli/main.ts"],

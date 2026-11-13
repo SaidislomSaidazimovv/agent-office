@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Secrets / local env (repo public — hech qachon commit qilinmasin)
+.env
+.env.*
+
 # Build output
 dist/
 dist-ssr/
