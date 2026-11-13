@@ -7,7 +7,7 @@ import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, decideHookInstall, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
-import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
+import { pickServerForCwd, type ServerEntry, within } from "../extension/core/hookRouting.js";
 import { HistoryStore, recordFromAgents } from "../extension/vscode/historyStore.js";
 import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
 import { slimHookPayload } from "../extension/core/hookPayload.js";
@@ -1184,6 +1184,11 @@ test("hookRouting: pickServerForCwd — cwd bo'yicha eng aniq (uzun) papkani tan
   assert.equal(pickServerForCwd([A, B], "/home/u/proj")?.port, 1, "aynan A papkasi");
   assert.equal(pickServerForCwd([A, B], "/tmp/elsewhere"), null, "mos yo'q → null");
   assert.equal(pickServerForCwd([], "/home/u/proj"), null, "server yo'q → null");
+  // within — ish-papka tekshiruvi (OfficeViewProvider.isInWorkspace + CLI inProjects ham shuni ishlatadi).
+  assert.equal(within("/home/u/proj/sub", "/home/u/proj"), true);
+  assert.equal(within("/home/u/project2", "/home/u/proj"), false, "prefiks-o'xshash boshqa papka EMAS");
+  assert.equal(within("/home/u/proj/", "/home/u/proj"), true, "oxirgi ajratgich");
+  if (process.platform === "win32") assert.equal(within("c:/Users/x/proj/a", "C:\\Users\\x\\proj"), true, "aralash ajratgich + harf");
   // Aralash ajratgich (Windows): folder "\\", cwd "/" — baribir mos kelishi kerak.
   const W: ServerEntry = { port: 9, token: "w", pid: 9, folders: ["C:\\Users\\x\\proj"] };
   assert.equal(pickServerForCwd([W], "C:/Users/x/proj/sub")?.port, 9, "forward cwd + backslash folder mos");

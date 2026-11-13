@@ -6,6 +6,7 @@ import { WebSocketServer } from "ws";
 import { sanitizeName } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
+import { within } from "../core/hookRouting.js";
 import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
@@ -156,9 +157,8 @@ scan();
 // ── Hook server (ixtiyoriy — extension bilan bir xil detektsiya) ──
 let hookActive = false;
 function inProjects(cwd: string): boolean {
-  const norm = (p: string) => path.resolve(p).replace(/[\\/]+$/, "").toLowerCase();
-  const c = norm(cwd);
-  return paths.some((p) => c === norm(p) || c.startsWith(norm(p) + path.sep.toLowerCase()) || c.startsWith(norm(p) + "/"));
+  // Extension va hook yo'naltirish bilan bir xil qoida (hookRouting.within).
+  return paths.some((p) => within(cwd, p));
 }
 const hookServer = new HookServer((sessionId, raw) => {
   let agent = store.findBySession(sessionId);

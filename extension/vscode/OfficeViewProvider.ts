@@ -18,6 +18,7 @@ import { AgentManager } from "./agentManager.js";
 import { HistoryStore, recordFromAgents } from "./historyStore.js";
 import { decideHookInstall, findOnPath, hasOurHooks, type HookConsent, installHooks, installStableHookScript, uninstallHooks } from "./hookInstaller.js";
 import { buildWebviewHtml } from "./webviewHtml.js";
+import { within } from "../core/hookRouting.js";
 
 export const VIEW_ID = "agent-office.panelView";
 const MAX_PENDING = 1000;
@@ -352,13 +353,12 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   }
 
   private isInWorkspace(cwd: string): boolean {
-    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
-    const norm = (p: string) => p.replace(/[\\/]+$/, "").toLowerCase();
-    const c = norm(cwd);
-    return folders.some((f) => {
-      const nf = norm(f);
-      return c === nf || c.startsWith(nf + "/") || c.startsWith(nf + "\\");
-    });
+    // hookRouting.within — hook yo'naltirish bilan BIR XIL qoida: ajratgichlar
+    // ("/" va "\") bir xillashtiriladi, katta-kichik harf faqat Windows'da
+    // farqsiz. Avval bu yerda o'z normallashtirishi bor edi: aralash
+    // ajratgichli cwd (masalan "F:/proj/sub" va "F:\proj") mos kelmasdi, Linux'da
+    // esa harf farqi e'tiborsiz qolardi (boshqa papka loyiha deb qabul qilinardi).
+    return (vscode.workspace.workspaceFolders ?? []).some((f) => within(cwd, f.uri.fsPath));
   }
 
   private sendOrBuffer(msg: ServerMessage): void {
