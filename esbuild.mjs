@@ -1,4 +1,7 @@
 import esbuild from "esbuild";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 // Extension host (Node/CJS) bundle → dist/extension.js
 const watch = process.argv.includes("--watch");
@@ -36,6 +39,8 @@ const cliCtx = await esbuild.context({
   entryPoints: ["extension/cli/main.ts"],
   outfile: "dist/cli.js",
   banner: { js: "#!/usr/bin/env node" },
+  // Versiya — yagona manba package.json (qo'lda takrorlanmaydi).
+  define: { __AO_VERSION__: JSON.stringify(pkg.version) },
 });
 
 // 4) `vscode:uninstall` skripti → dist/uninstall.js (o'chirishda hooklarni tozalaydi)

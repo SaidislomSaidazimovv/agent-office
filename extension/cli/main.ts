@@ -22,7 +22,10 @@ import { HistoryStore, recordFromAgents } from "../vscode/historyStore.js";
 // pipeline'i extension bilan bir xil (JSONL watcher + hook server). Kuzatuv-
 // only: terminal ochish/+Agent yo'q (u VS Code'ga xos).
 
-const VERSION = "0.1.6";
+// Versiya build vaqtida package.json'dan qo'yiladi (esbuild define) — avval qo'lda
+// yozilgan va bir marta eskirib qolgan edi (0.1.6 paytida 0.1.4 ko'rsatardi).
+declare const __AO_VERSION__: string | undefined;
+const VERSION = typeof __AO_VERSION__ === "string" ? __AO_VERSION__ : "dev";
 const HEAD_BYTES = 8192;
 
 // ── Argumentlar ──
