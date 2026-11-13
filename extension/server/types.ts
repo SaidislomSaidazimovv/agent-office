@@ -101,6 +101,10 @@ export interface AgentState {
   seenMsgIds: Set<string>;
   /** Sub-agent transkriptlari kursori (fayl nomi → o'qilgan joy + dedupe). */
   subFiles?: Map<string, { offset: number; buf: string; dec?: import("node:string_decoder").StringDecoder; seen: Set<string> }>;
+  /** Host o'lchagan faol vaqt (ms) va joriy faol oraliq boshi — tarix webview'siz
+   *  ham yozilishi uchun. */
+  activeMs?: number;
+  activeSince?: number;
   /** costUsd ichidagi sub-agentlar ulushi ($). */
   subagentCostUsd?: number;
   /** Katta transcript tarixi hozir async o'qilmoqda (tick o'tkazib yuboradi). */

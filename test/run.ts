@@ -8,7 +8,7 @@ import { FileWatcher } from "../extension/server/fileWatcher.js";
 import { areHooksInstalled, decideHookInstall, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
-import { HistoryStore } from "../extension/vscode/historyStore.js";
+import { HistoryStore, recordFromAgents } from "../extension/vscode/historyStore.js";
 import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
 import { slimHookPayload } from "../extension/core/hookPayload.js";
 import { trustedTranscriptPath } from "../extension/core/paths.js";
@@ -1283,6 +1283,37 @@ test("HistoryStore: ikki oyna bitta faylga yozadi — bir-birini O'CHIRMAYDI, bi
     const D = new HistoryStore();
     D.load();
     assert.equal(D.getDays()[0].projects.repoA.cost, 6, "1 + 5 (10 EMAS)");
+  });
+});
+
+test("tarix HOST holatidan yoziladi (webview'siz): xarajat/tool; o'qilayotgan agent o'tkaziladi; o'zgarishsiz — yozuv yo'q", () => {
+  withScratchHome((home) => {
+    const h = new HistoryStore();
+    h.load();
+    const a = createAgentState(1, "/x/s1.jsonl", "repo", { sessionId: "s1" });
+    a.costUsd = 2.5;
+    a.outputTokens = 100;
+    a.toolCats = { edit: 3, read: 2 };
+    a.model = "claude-opus-5-5";
+    const busy = createAgentState(2, "/x/s2.jsonl", "repo", { sessionId: "s2" });
+    busy.priming = true; // tarix hali o'qilmoqda — qisman qiymat yozilmasin
+    busy.costUsd = 9;
+    recordFromAgents(h, [a, busy]);
+    const day = h.getDays()[0].projects.repo;
+    assert.equal(day.cost, 2.5);
+    assert.equal(day.tools, 5, "tool soni = host toolCats yig'indisi");
+    assert.equal(h.getSessions().length, 1, "priming agent yozilmadi");
+    assert.equal(h.getSessions()[0].model, "claude-opus-5-5");
+    h.flush();
+    const file = path.join(home, ".agent-office", "history.json");
+    const m1 = fs.statSync(file).mtimeMs;
+    recordFromAgents(h, [a]); // hech narsa o'zgarmadi
+    h.flush();
+    assert.equal(fs.statSync(file).mtimeMs, m1, "o'zgarishsiz — fayl qayta yozilmadi");
+    a.costUsd = 4;
+    recordFromAgents(h, [a]);
+    assert.equal(h.getDays()[0].projects.repo.cost, 4, "delta: 2.5 + 1.5");
+    h.flush();
   });
 });
 

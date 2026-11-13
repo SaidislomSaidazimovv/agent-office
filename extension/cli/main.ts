@@ -14,7 +14,7 @@ import { HookServer } from "../server/hookServer.js";
 import { agentSnapshotMessages } from "../server/stateActions.js";
 import { createAgentState, type AgentState } from "../server/types.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
-import { HistoryStore } from "../vscode/historyStore.js";
+import { HistoryStore, recordFromAgents } from "../vscode/historyStore.js";
 
 // ── Standalone CLI — ofisni brauzerda kuzatish (VS Code shart emas) ──
 // `npx agent-office` → lokal server + WebSocket + brauzer SPA. Aniqlash
@@ -345,17 +345,15 @@ function handleClient(msg: ClientMessage, ws: import("ws").WebSocket): void {
     }
     case "sessionStats":
       // toolCalls/turns/activeMs ni keshlaymiz — brauzer qayta yuklanganda snapshot
-      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Cost
-      // esa delta bo'lib kunlik tarixga qo'shiladi (extension bilan bir xil mantiq).
+      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Tarixni
+      // host o'zi yozadi (recordFromAgents taymeri) — brauzer ochilmagan bo'lsa ham.
       for (const s of msg.stats) {
         const agent = store.get(s.id);
         if (!agent) continue;
         agent.snapToolCalls = s.tools;
         agent.snapTurns = s.turns;
         agent.snapActiveMs = s.ms;
-        if (agent.sessionId) history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
       }
-      broadcastHistory(); // "Bugun" jonli yangilansin (throttled)
       break;
     // focusAgent / launchAgent / setSoundEnabled — CLI'da ma'nosiz (terminal yo'q)
   }
@@ -409,7 +407,15 @@ server.on("error", (e: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 
+// Kunlik tarix — host holatidan (extension bilan bir xil yagona manba).
+const historyTimer = setInterval(() => {
+  recordFromAgents(history, store.values());
+  broadcastHistory(); // "Bugun" jonli yangilansin (throttled)
+}, 10_000);
+
 function shutdown(): void {
+  clearInterval(historyTimer);
+  recordFromAgents(history, store.values());
   history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
   watcher.stop();
   hookServer.stop();

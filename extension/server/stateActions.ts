@@ -155,8 +155,14 @@ export function setActive(store: AgentStateStore, agent: AgentState): void {
   }
   if (agent.isWaiting) {
     agent.isWaiting = false;
+    agent.activeSince = Date.now(); // host tomonidagi faol vaqt (tarix uchun)
     store.broadcast({ type: "agentStatus", id: agent.id, status: "active" });
   }
+}
+
+/** Host o'lchagan jami faol vaqt (ms) — joriy faol oraliq ham qo'shiladi. */
+export function activeMsOf(agent: AgentState, now = Date.now()): number {
+  return (agent.activeMs ?? 0) + (agent.activeSince != null ? Math.max(0, now - agent.activeSince) : 0);
 }
 
 export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingInput: boolean): void {
@@ -176,6 +182,10 @@ export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingI
   agent.currentToolName = undefined;
   agent.permissionActive = false;
   agent.isWaiting = true;
+  if (agent.activeSince != null) {
+    agent.activeMs = activeMsOf(agent);
+    agent.activeSince = undefined;
+  }
   store.broadcast({ type: "agentToolsClear", id: agent.id });
   store.broadcast({ type: "agentStatus", id: agent.id, status: "waiting", awaitingInput });
 }

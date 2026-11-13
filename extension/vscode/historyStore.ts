@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { activeMsOf } from "../server/stateActions.js";
+import type { AgentState } from "../server/types.js";
 
 // ── Tarix saqlashi (host) ────────────────────────────────────
 // Kunlik / loyiha bo'yicha xarajat+token+tool tarixini `~/.agent-office/history.json`
@@ -28,6 +30,30 @@ function localDay(d = new Date()): string {
 }
 function daysBetween(a: string, b: string): number {
   return Math.abs((Date.parse(b + "T00:00:00") - Date.parse(a + "T00:00:00")) / 86400000);
+}
+
+/** HOST holatidan tarix yozadi (har ~10s). Avval faqat webview yuborgan
+ *  statistikadan yozilardi → panel ochilmagan bo'lsa tarix UMUMAN yozilmasdi.
+ *  Endi yagona manba — host (xarajat host'da hisoblanadi, core/pricing.ts):
+ *  ikki manba bo'lsa delta'lar ikki marta qo'shilishi mumkin edi. Webview'dan
+ *  kelgan tool/faol-vaqt keshlari (snap*) faqat pastki chegara sifatida. */
+export function recordFromAgents(history: HistoryStore, agents: AgentState[], now = Date.now()): void {
+  for (const a of agents) {
+    if (a.priming || !a.sessionId) continue; // tarix hali o'qilmoqda / barqaror kalit yo'q
+    const tools = Object.values(a.toolCats).reduce((s, n) => s + n, 0);
+    history.record(
+      a.sessionId,
+      a.folderName,
+      {
+        cost: a.costUsd,
+        inTok: a.inputTokens,
+        outTok: a.outputTokens,
+        tools: Math.max(tools, a.snapToolCalls ?? 0),
+        ms: Math.max(activeMsOf(a, now), a.snapActiveMs ?? 0),
+      },
+      a.model,
+    );
+  }
 }
 
 /** Eski kunlar/sessiyalarni olib tashlaydi (KEEP_DAYS / SESSION_TTL_DAYS). */
@@ -88,6 +114,8 @@ export class HistoryStore {
       const s = (d[project] ||= emptyStat());
       s.cost += dcost; s.inTok += din; s.outTok += dout; s.tools += dtools; s.ms += dms;
     }
+    // O'zgarish yo'q (bir xil jami, model ham) — diskka keraksiz yozmaymiz.
+    if (prev && !dcost && !din && !dout && !dtools && !dms && (model ?? prev.model) === prev.model && prev.project === project) return;
     const firstSeen = prev?.firstSeen ?? Date.now();
     // Model — kelmasa oldingisini saqlaymiz (statlar modeldan oldin kelishi mumkin).
     const abs: SessionAbs = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms, model: model ?? prev?.model };

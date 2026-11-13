@@ -15,7 +15,7 @@ import { agentSnapshotMessages } from "../server/stateActions.js";
 import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
-import { HistoryStore } from "./historyStore.js";
+import { HistoryStore, recordFromAgents } from "./historyStore.js";
 import { decideHookInstall, findOnPath, hasOurHooks, type HookConsent, installHooks, installStableHookScript, uninstallHooks } from "./hookInstaller.js";
 import { buildWebviewHtml } from "./webviewHtml.js";
 
@@ -96,6 +96,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     });
     // "Tiqilib qolgan" tekshiruvi — arzon (30s'da bir marta, faqat sanoq).
     this.stuckTimer = setInterval(() => this.checkStuck(), 30_000);
+    this.historyTimer = setInterval(() => this.recordHistory(), 10_000);
   }
 
   // ── E'tibor: kim, qachondan beri kutmoqda ──
@@ -452,16 +453,22 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   // ── Tarix — davriy statistikani (webview'dan) sessiya ID bo'yicha yozamiz. ──
   // Cost webview'da hisoblangan; host faqat delta olib kunlik tarixga qo'shadi.
   private recordStats(stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[]): void {
-    this.history.load();
     for (const s of stats) {
       const agent = this.store.get(s.id);
       // Session statlarini keshlaymiz — reconnect snapshot'da qaytariladi
-      // (reload'da tool soni / navbat / faol vaqt 0dan boshlanmasin).
+      // (reload'da tool soni / navbat / faol vaqt 0dan boshlanmasin). TARIX bu
+      // yerda YOZILMAYDI — uni host o'zi yozadi (recordHistory), panel yopiq
+      // bo'lsa ham; ikki manba delta'larni ikki marta qo'shardi.
       if (agent) { agent.snapToolCalls = s.tools; agent.snapTurns = s.turns; agent.snapActiveMs = s.ms; }
-      if (!agent?.sessionId) continue; // barqaror kalit yo'q — tarixga yozmaymiz
-      this.history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
     }
-    // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled).
+  }
+
+  /** Host holatidan kunlik tarixni yozadi (har 10s; panel ochiq-yopiqligidan qat'i nazar). */
+  private historyTimer?: ReturnType<typeof setInterval>;
+  private recordHistory(): void {
+    this.history.load();
+    recordFromAgents(this.history, this.store.values());
+    // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled; view yo'q bo'lsa no-op).
     this.sendHistory();
   }
 
@@ -745,6 +752,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     if (this.gitTimer) clearInterval(this.gitTimer);
     if (this.stuckTimer) clearInterval(this.stuckTimer);
+    if (this.historyTimer) clearInterval(this.historyTimer);
+    this.recordHistory(); // so'nggi holat ham tarixga tushsin (flush'dan oldin)
     this.folderWatch?.dispose();
     this.history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
     this.statusBar.dispose();
