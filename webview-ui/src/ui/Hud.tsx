@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type BudgetLevel, budgetState } from "../budget";
 import { shortModel } from "../format";
 import { THEMES, useLayout } from "../layoutStore";
@@ -20,7 +20,7 @@ import Tour, { useTour } from "./Tour";
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
 
 // Chip-bar holat filtri guruhi — e'tibor talab qiladiganlar (bloklangan/ruxsat/
-// tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda kerakliларини topish uchun.
+// tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda keraklilarini topish uchun.
 type StatusFilter = "all" | "attn" | "active" | "idle";
 function bucketOf(a: AgentView): "attn" | "active" | "idle" {
   if (a.blocked || a.permission || a.stuck) return "attn";
@@ -82,6 +82,11 @@ export default function Hud() {
   const [menu, setMenu] = useState(false);
   const [feed, setFeed] = useState(false);
   const [dash, setDash] = useState(false);
+  // VS Code buyruqlar palitrasidan "Open Analytics" (har so'rovda hisoblagich oshadi).
+  const dashRequest = useOffice((s) => s.dashRequest);
+  useEffect(() => {
+    if (dashRequest > 0) setDash(true);
+  }, [dashRequest]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Chip-bar filtri uchun guruh sanoqlari + ko'rsatiladigan id'lar.
   const filterInfo = useMemo(() => {
@@ -98,6 +103,37 @@ export default function Hud() {
   const [bypass, setBypass] = useState(false);
   const [, force] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Markaziy agent-bar tor ekranda chap/o'ng toolbarlar USTIGA chiqib, tugmalarni
+  // yopib qo'yardi. Gorizontal to'qnashuvni o'lchaymiz — bo'lsa, bar toolbarlar
+  // OSTIGA tushadi (keng ekranda ko'rinish o'zgarmaydi). Gorizontal geometriya
+  // `top`ga bog'liq emas — tebranish (oscillation) bo'lmaydi.
+  const leftBarRef = useRef<HTMLDivElement>(null);
+  const centerBarRef = useRef<HTMLDivElement>(null);
+  const camBtnRef = useRef<HTMLDivElement>(null);
+  const editBtnRef = useRef<HTMLDivElement>(null);
+  const [dropBar, setDropBar] = useState(false);
+  useLayoutEffect(() => {
+    const check = () => {
+      const c = centerBarRef.current?.getBoundingClientRect();
+      if (!c || c.width === 0) return setDropBar(false);
+      const l = leftBarRef.current?.getBoundingClientRect();
+      const rights = [camBtnRef, editBtnRef, menuRef]
+        .map((r) => r.current?.getBoundingClientRect())
+        .filter((r): r is DOMRect => !!r && r.width > 0);
+      const rightEdge = rights.length ? Math.min(...rights.map((r) => r.left)) : Infinity;
+      const GAP = 8;
+      setDropBar((!!l && c.left < l.right + GAP) || c.right > rightEdge - GAP);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    for (const r of [leftBarRef, centerBarRef, camBtnRef, editBtnRef, menuRef]) if (r.current) ro.observe(r.current);
+    window.addEventListener("resize", check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+    // Elementlar paydo/yo'q bo'ladigan holatlar; o'lcham o'zgarishini ResizeObserver kuzatadi.
+  }, [order.length, textMode, cameraMode, filterInfo.shown.length]);
 
   // Menyu tashqarisiga bosilsa yoki Esc — yopamiz (osilib qolmasin).
   useEffect(() => {
@@ -123,7 +159,7 @@ export default function Hud() {
   // ── Umumiy xarajat + budjet holati ──
   const totalCost = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
   const budget = budgetState(totalCost, budgetUsd);
-  // Daraja OSHGANDA bir marta tasmaga yozamiz (har renderда emas). Boshlang'ich
+  // Daraja OSHGANDA bir marta tasmaga yozamiz (har renderda emas). Boshlang'ich
   // qiymat — joriy daraja: sahifa allaqachon oshib ketgan holatda ochilsa,
   // eski ogohlantirish qayta chiqmaydi.
   const prevLevel = useRef<BudgetLevel>(budget.level);
@@ -136,7 +172,7 @@ export default function Hud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat daraja o'zgarishiga reaksiya
   }, [budget.level]);
 
-  // Jonli vaqt (1s): faol agent tanlanганда "faol vaqt", YOKI feed ochiq bo'lганда
+  // Jonli vaqt (1s): faol agent tanlanganda "faol vaqt", YOKI feed ochiq bo'lganda
   // "N oldin" muhrlari yangilansin (aks holda ular keyingi hodisagacha qotardi).
   useEffect(() => {
     const activeAgent = !!sel && sel.activeSince != null;
@@ -145,7 +181,7 @@ export default function Hud() {
     return () => clearInterval(t);
   }, [feed, sel?.id, sel?.activeSince]);
 
-  // Klaviatura: ←/→ agentlar orasида o'tish, Esc — tanlovni bekor qilish.
+  // Klaviatura: ←/→ agentlar orasida o'tish, Esc — tanlovni bekor qilish.
   // Matn kiritish (input/textarea)da ishlamaydi.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -188,7 +224,10 @@ export default function Hud() {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
+    // zIndex — HUD (paneller, dashboard, tour) 3D yorliqlardan DOIM yuqorida. drei
+    // <Html> yorliqlari o'z z-index'ini oladi (barchasi ≤100 qilib cheklangan);
+    // avval cheklanmaganlari 16 777 271 bilan dashboard ustiga chiqib qolardi.
+    <div style={{ position: "absolute", inset: 0, zIndex: 200, pointerEvents: "none", fontFamily: "system-ui, sans-serif", color: "#e8ecf2" }}>
       {/* Klaviatura fokusi — barcha interaktiv elementlarda ko'rinadigan halqa. */}
       <style>{`
         button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-visible { outline: 2px solid #5e9bff; outline-offset: 2px; border-radius: 6px; }
@@ -196,13 +235,13 @@ export default function Hud() {
         button:active { transform: translateY(1px); }
       `}</style>
       {/* Yuqori panel */}
-      <div style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
+      <div ref={leftBarRef} style={{ position: "absolute", top: 12, left: 14, display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>🏢 Agent Office</div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {order.length} {t("hud.agents")}
         </div>
         {/* Umumiy taxminiy xarajat — budjet belgilangan bo'lsa, rang darajani bildiradi.
-            Sozlamada yashirilsa ko'rinmaydi (ekran ulashishда qulay) — lekin budjet
+            Sozlamada yashirilsa ko'rinmaydi (ekran ulashishda qulay) — lekin budjet
             ogohlantirishi baribir tasmaga tushadi. */}
         {showCost && totalCost > 0 && (
           <div
@@ -327,8 +366,8 @@ export default function Hud() {
 
       {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) + holat filtri */}
       {order.length > 0 && (
-        <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: "62vw", pointerEvents: "auto" }}>
-          {/* Holat filtri — faqat ko'p agent bo'lganda (kerakliларини topish oson). */}
+        <div ref={centerBarRef} style={{ position: "absolute", top: dropBar ? 54 : 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: dropBar ? "calc(100% - 28px)" : "62vw", pointerEvents: "auto" }}>
+          {/* Holat filtri — faqat ko'p agent bo'lganda (keraklilarini topish oson). */}
           {order.length >= 4 && (
             <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 20, background: "rgba(20,24,32,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>
               {([
@@ -391,7 +430,7 @@ export default function Hud() {
 
       {/* Kamera rejimi toggle — matn rejimida 3D yo'q, kamera ham yo'q */}
       {!textMode && (
-      <div style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
+      <div ref={camBtnRef} style={{ position: "absolute", top: 12, right: 108, pointerEvents: "auto" }}>
         <button
           onClick={() => setCameraMode(cameraMode === "iso" ? "fpv" : "iso")}
           aria-label={cameraMode === "iso" ? t("cam.insideTip") : t("cam.topTip")}
@@ -410,7 +449,7 @@ export default function Hud() {
 
       {/* Tahrirlash (Layout editor) toggle — faqat iso rejimda */}
       {!textMode && cameraMode === "iso" && (
-        <div style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
+        <div ref={editBtnRef} style={{ position: "absolute", top: 12, right: 200, pointerEvents: "auto" }}>
           <button
             onClick={() => setEditMode(!editMode)}
             aria-label={t("edit.tip")}
@@ -630,7 +669,7 @@ export default function Hud() {
             </div>
           )}
           {/* Kelib chiqishi — +Agent bilan ochilgan (ichki) vs avto-topilgan (tashqi).
-              Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentда boshqacha ishlaydi. */}
+              Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentda boshqacha ishlaydi. */}
           <div style={{ marginTop: 5 }}>
             <span
               title={sel.isExternal ? t("origin.externalTip") : t("origin.internalTip")}
@@ -671,7 +710,7 @@ export default function Hud() {
 
           {/* Git holati — branch · ahead/behind · staged/unstaged. Satr-darajadagi
               +/- YO'Q (git diff = child_process, xavfsizlik siyosati taqiqlaydi);
-              faqat Git API'дagi fayl-darajасидagi hisoblar. */}
+              faqat Git API'dagi fayl-darajasidagi hisoblar. */}
           {(() => {
             const g = gitRepos[sel.folderName];
             if (!g?.branch) return null;

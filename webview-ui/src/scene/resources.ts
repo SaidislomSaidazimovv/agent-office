@@ -10,8 +10,8 @@ import * as THREE from "three";
 /** Birlik kub (1×1×1) — mesh.scale bilan istalgan o'lchamga. Barcha qutilar shu. */
 export const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
 
-/** Contact-shadow tekislik + yumshoq radial material (agent ostidа yerga bog'lash
- *  soyasi). Material LAZY yaratiladi (canvas faqat brauzerда, birinchi chaqiruvда). */
+/** Contact-shadow tekislik + yumshoq radial material (agent ostida yerga bog'lash
+ *  soyasi). Material LAZY yaratiladi (canvas faqat brauzerda, birinchi chaqiruvda). */
 export const SHADOW_PLANE = new THREE.PlaneGeometry(1, 1);
 let _shadowMat: THREE.MeshBasicMaterial | null = null;
 export function contactShadowMat(): THREE.MeshBasicMaterial {

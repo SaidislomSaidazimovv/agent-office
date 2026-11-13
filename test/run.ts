@@ -5,23 +5,29 @@ import * as path from "node:path";
 import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
-import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
+import { areHooksInstalled, decideHookInstall, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
-import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
-import { HistoryStore } from "../extension/vscode/historyStore.js";
+import { pickServerForCwd, type ServerEntry, within } from "../extension/core/hookRouting.js";
+import { HistoryStore, recordFromAgents } from "../extension/vscode/historyStore.js";
+import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
+import { slimHookPayload } from "../extension/core/hookPayload.js";
+import { HOST_LANGS, ht, isHostLang, langFromLocale } from "../extension/core/hostI18n.js";
+import { trustedTranscriptPath } from "../extension/core/paths.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
-import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
+import { isStaleExternal, MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, STALE_IDLE_MS, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
+import { getSessionDir } from "../extension/core/paths.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
 import { agentEfficiency, costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { buildReportHtml } from "../webview-ui/src/reportHtml.js";
-import { cacheStats } from "../webview-ui/src/pricing.js";
+import { cacheStats, estimateCost } from "../webview-ui/src/pricing.js";
+import { messageCost } from "../extension/core/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals, rollupCost } from "../webview-ui/src/history.js";
-import { buildInsights, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
+import { compareSessions, dailyCost, dayStatFor, filterDaysByProject, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, sessionKey } from "../webview-ui/src/history.js";
+import { buildInsights, costSpike, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
@@ -86,6 +92,120 @@ test("context tokens = input + cache_read + cache_creation", () => {
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "hi" }], usage: { input_tokens: 2, cache_read_input_tokens: 100000, cache_creation_input_tokens: 500, output_tokens: 50 } } }));
   assert.equal(agent.inputTokens, 100502);
   assert.equal(agent.outputTokens, 50);
+});
+
+test("bir xil message.id'li qatorlar (har content-block alohida) usage'ni BIR MARTA hisoblaydi", () => {
+  // Haqiqiy Claude Code transkripti: bitta API javobi thinking/text/tool_use
+  // bloklari uchun 3 qatorga bo'linadi, har birida AYNAN bir xil usage.
+  const { store, agent } = setup();
+  const usage = { input_tokens: 10, cache_read_input_tokens: 1000, cache_creation_input_tokens: 200, output_tokens: 300 };
+  const line = (block: unknown) => JSON.stringify({ type: "assistant", requestId: "req_1", message: { id: "msg_A", model: "claude-opus-4-8", content: [block], usage } });
+  processTranscriptLine(store, agent, line({ type: "thinking", thinking: "..." }));
+  processTranscriptLine(store, agent, line({ type: "text", text: "ok" }));
+  processTranscriptLine(store, agent, line({ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }));
+  assert.equal(agent.outputTokens, 300, "output bir marta");
+  assert.equal(agent.billedInput, 10);
+  assert.equal(agent.billedCacheRead, 1000);
+  assert.equal(agent.billedCacheWrite, 200);
+  assert.ok(agent.activeToolIds.has("t1"), "tool bloki baribir qayta ishlanadi");
+  // Keyingi (boshqa id'li) xabar — qo'shiladi.
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { id: "msg_B", content: [{ type: "text", text: "x" }], usage: { input_tokens: 1, output_tokens: 5 } } }));
+  assert.equal(agent.outputTokens, 305);
+  assert.equal(agent.billedInput, 11);
+});
+
+test("narx: rasmiy jadval (2026-11-13) — har toifa, eski/sanali id'lar, kesh o'qish ko'paytuvchisi modelga bog'liq", () => {
+  const M = 1_000_000;
+  const near = (a: number, b: number, msg: string) => assert.ok(Math.abs(a - b) < 1e-9, `${msg}: ${a} != ${b}`);
+  // Opus 5.5: $4 / $5 (5m) / $8 (1h) / $0.20 (o'qish) / $20.
+  near(messageCost("claude-opus-5-5", { input_tokens: M }), 4, "opus-5-5 input");
+  near(messageCost("claude-opus-5-5", { cache_creation_input_tokens: M }), 5, "5m yozish (bo'linish yo'q → 5m)");
+  near(messageCost("claude-opus-5-5", { cache_creation_input_tokens: M, cache_creation: { ephemeral_1h_input_tokens: M } }), 8, "1h yozish");
+  near(messageCost("claude-opus-5-5", { cache_read_input_tokens: M }), 0.2, "opus-5-5 o'qish 0.05×");
+  near(messageCost("claude-opus-5-5", { output_tokens: M }), 20, "opus-5-5 output");
+  // Kesh o'qish ko'paytuvchilari (sahifadagi ustun bilan bir xil).
+  near(messageCost("claude-fable-5-2", { cache_read_input_tokens: M }), 0.2, "fable-5-2 0.025×");
+  near(messageCost("claude-fable-5-1", { cache_read_input_tokens: M }), 0.25, "fable-5-1");
+  near(messageCost("claude-fable-5", { cache_read_input_tokens: M }), 1, "fable-5 0.1×");
+  near(messageCost("claude-sonnet-5-5", { cache_read_input_tokens: M }), 0.1, "sonnet-5-5");
+  near(messageCost("claude-sonnet-5", { cache_read_input_tokens: M }), 0.2, "sonnet-5");
+  near(messageCost("claude-opus-4-8[1m]", { input_tokens: M, cache_read_input_tokens: M }), 5.5, "opus-4-8 [1m]");
+  // Eski va sanali id'lar.
+  near(messageCost("claude-opus-4-5-20251101", { input_tokens: M }), 5, "opus-4-5 sanali");
+  near(messageCost("claude-opus-4-1-20250805", { input_tokens: M, output_tokens: M }), 90, "opus-4-1 $15/$75");
+  near(messageCost("claude-opus-4-20250514", { input_tokens: M }), 15, "opus-4 sanali");
+  near(messageCost("claude-sonnet-4-5-20250929", { input_tokens: M, output_tokens: M }), 18, "sonnet-4-5 $3/$15");
+  near(messageCost("claude-haiku-4-5-20251001", { input_tokens: M, output_tokens: M }), 6, "haiku-4-5 $1/$5");
+  // Fast mode — kesh ko'paytuvchisi fast narx USTIGA; fast'i yo'q modelda e'tiborsiz.
+  near(messageCost("claude-opus-5-5", { input_tokens: M, cache_read_input_tokens: M, speed: "fast" }), 8.4, "opus-5-5 fast");
+  near(messageCost("claude-fable-5-2", { output_tokens: M, speed: "fast" }), 80, "fable-5-2 fast output");
+  near(messageCost("claude-sonnet-5-5", { input_tokens: M, speed: "fast" }), 2, "fast'i yo'q model — standart");
+  // Haiku 5.5: prompt (input+o'qish+yozish) 100k dan oshsa — har so'rov yuqori narxda.
+  near(messageCost("claude-haiku-5-5", { input_tokens: 50_000, cache_read_input_tokens: 40_000, output_tokens: 1000 }), (50_000 * 0.1 + 40_000 * 0.01 + 1000 * 0.5) / M, "haiku-5-5 ≤100k");
+  near(messageCost("claude-haiku-5-5", { input_tokens: 90_000, cache_read_input_tokens: 20_000, output_tokens: 1000 }), (90_000 * 0.5 + 20_000 * 0.05 + 1000 * 2.5) / M, "haiku-5-5 >100k");
+  // US-inference ×1.1, web search $10/1000.
+  near(messageCost("claude-opus-5-5", { input_tokens: M, inference_geo: "us" }), 4.4, "inference_geo us");
+  near(messageCost("claude-opus-5-5", { server_tool_use: { web_search_requests: 3 } }), 0.03, "web search");
+  // Webview zaxira taxmini AYNAN shu jadvaldan foydalanadi (bitta manba).
+  near(estimateCost("claude-opus-5-5", { input: 0, cacheWrite: 0, cacheRead: M, output: 0 }), 0.2, "webview zaxira = host jadvali");
+});
+
+test("host xarajati javob bo'yicha hisoblanadi (har javob o'z modeli) va agentTokenUsage'da yuboriladi", () => {
+  const { store, agent, ev } = setup();
+  const msg = (id: string, model: string, usage: Record<string, unknown>) =>
+    JSON.stringify({ type: "assistant", message: { id, model, content: [{ type: "text", text: "x" }], usage } });
+  processTranscriptLine(store, agent, msg("a", "claude-opus-5-5", { input_tokens: 1_000_000 }));
+  processTranscriptLine(store, agent, msg("a", "claude-opus-5-5", { input_tokens: 1_000_000 })); // dublikat qator
+  processTranscriptLine(store, agent, msg("b", "claude-haiku-4-5", { output_tokens: 1_000_000 }));
+  assert.ok(Math.abs(agent.costUsd - 9) < 1e-9, `4 (opus) + 5 (haiku) = 9, ${agent.costUsd}`);
+  const last = [...ev].reverse().find((e) => e.type === "agentTokenUsage") as { costUsd?: number };
+  assert.ok(Math.abs((last.costUsd ?? 0) - 9) < 1e-9, "costUsd broadcast qilinadi");
+});
+
+test("sub-agent transkriptlari (<sessiya>/subagents/*.jsonl) xarajatga qo'shiladi — dedupe, o'z modeli, jonli", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-sub-"));
+  const main = path.join(dir, "sess1.jsonl");
+  const subDir = path.join(dir, "sess1", "subagents");
+  fs.mkdirSync(subDir, { recursive: true });
+  const line = (id: string, model: string, usage: Record<string, number>) =>
+    JSON.stringify({ type: "assistant", isSidechain: true, message: { id, model, content: [{ type: "text", text: "x" }], usage } });
+  fs.writeFileSync(main, line("m1", "claude-opus-5-5", { input_tokens: 1_000_000 }) + "\n"); // $4
+  const subA = path.join(subDir, "agent-a.jsonl");
+  const s1 = line("s1", "claude-haiku-4-5", { output_tokens: 1_000_000 }); // $5
+  fs.writeFileSync(subA, `${s1}\n${s1}\n`); // dublikat qator
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const agent = createAgentState(1, main, "p", { sessionId: "sess1" });
+  watcher.primeAndAdd(agent, () => store.add(agent));
+  assert.ok(Math.abs(agent.costUsd - 9) < 1e-9, `asosiy $4 + sub-agent $5 = $9, ${agent.costUsd}`);
+  assert.ok(Math.abs((agent.subagentCostUsd ?? 0) - 5) < 1e-9);
+  assert.equal(agent.outputTokens, 0, "sub-agent tokenlari asosiy kontekst/output'ga aralashmaydi");
+  // Jonli: yangi sub-agent fayli paydo bo'ladi → tick xarajatni oshiradi va yuboradi.
+  const ev: { type: string; costUsd?: number }[] = [];
+  store.on("broadcast", (m: { type: string; costUsd?: number }) => ev.push(m));
+  fs.writeFileSync(path.join(subDir, "agent-b.jsonl"), line("s2", "claude-sonnet-5-5", { input_tokens: 1_000_000 }) + "\n"); // $2
+  (watcher as unknown as { tick(): void }).tick();
+  assert.ok(Math.abs(agent.costUsd - 11) < 1e-9, `+ $2 = $11, ${agent.costUsd}`);
+  assert.ok(ev.some((e) => e.type === "agentTokenUsage" && Math.abs((e.costUsd ?? 0) - 11) < 1e-9), "yangilanish yuborildi");
+  // Qayta o'qish (/clear·/resume yo'li) — ikki barobar emas.
+  watcher.primeFromStart(agent);
+  assert.ok(Math.abs(agent.costUsd - 11) < 1e-9, `qayta o'qishda ham $11, ${agent.costUsd}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("primeFromStart qayta o'qishda dedupe 0dan boshlanadi (xarajat yo'qolmaydi)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-dedupe-"));
+  const file = path.join(dir, "s.jsonl");
+  const l = JSON.stringify({ type: "assistant", message: { id: "msg_A", content: [{ type: "text", text: "x" }], usage: { input_tokens: 7, output_tokens: 9 } } });
+  fs.writeFileSync(file, `${l}\n${l}\n`);
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const agent = createAgentState(1, file, "proj", { sessionId: "s" });
+  watcher.primeFromStart(agent);
+  assert.equal(agent.outputTokens, 9);
+  watcher.primeFromStart(agent); // /clear·/resume·truncate yo'li
+  assert.equal(agent.outputTokens, 9, "ikkinchi o'qishda ham to'g'ri (0 emas, 18 emas)");
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test("default context window is 200k; token usage broadcasts it", () => {
@@ -164,6 +284,24 @@ test("api_error → blocked; yangi user so'rovi → tozalanadi", () => {
   assert.equal(agent.blocked, false, "yangi navbat xatoni tozalashi kerak");
 });
 
+console.log("Webview HTML (CSP):");
+
+test("webview HTML: qat'iy CSP <head> boshida, tashqi tarmoq yo'q, skriptlar nonce'li", () => {
+  const src = '<!doctype html><html><head><meta charset="UTF-8" /><style>a{}</style><script type="module" crossorigin src="./assets/index.js"></script><link rel="modulepreload" crossorigin href="./assets/three.js"></head><body></body></html>';
+  const out = buildWebviewHtml(src, { toUri: (f) => `https://res.test/${f}`, cspSource: "https://res.test", nonce: "N1", assetBase: "https://res.test/" });
+  const headStart = out.indexOf("<head>") + "<head>".length;
+  assert.ok(out.startsWith('<meta http-equiv="Content-Security-Policy"', headStart), "CSP birinchi element");
+  assert.ok(out.includes('src="https://res.test/assets/index.js"'), "asset URL webview URI'ga aylandi");
+  assert.ok(out.includes('href="https://res.test/assets/three.js"'));
+  const scripts = out.match(/<script\b[^>]*>/g) || [];
+  assert.equal(scripts.length, 2);
+  assert.ok(scripts.every((t) => t.includes('nonce="N1"')), "har skript nonce'li");
+  const csp = webviewCsp("https://res.test", "N1");
+  assert.ok(csp.startsWith("default-src 'none'"));
+  assert.ok(!/\*|https?:\/\/(?!res\.test)/.test(csp.replace(/'[^']*'/g, "")), "faqat o'z manbamiz — wildcard/tashqi host yo'q");
+  assert.ok(!csp.includes("unsafe-eval") && !/script-src[^;]*unsafe-inline/.test(csp), "skriptda unsafe-inline/eval yo'q");
+});
+
 console.log("Hook handler:");
 test("PreToolUse → active + toolStart; Stop → waiting; hookDelivered set", () => {
   const { store, agent, ev } = setup();
@@ -186,6 +324,86 @@ test("Notification 'waiting for input' → awaiting (permission EMAS)", () => {
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude is waiting for your input" });
   assert.ok(ev.some((e) => e.type === "agentStatus" && (e as { awaitingInput?: boolean }).awaitingInput === true), "awaiting bo'lishi kerak");
   assert.ok(!ev.some((e) => e.type === "agentToolPermission"), "permission YASALMASLIGI kerak");
+});
+
+test("tool_use_id: bir xil imzoli parallel toollar ANIQ id bo'yicha yopiladi", () => {
+  const { store, agent } = setup();
+  const pre = (id: string) => handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "npm test" }, tool_use_id: id });
+  pre("toolu_A");
+  pre("toolu_B");
+  assert.deepEqual([...agent.activeToolIds].sort(), ["hook-toolu_A", "hook-toolu_B"]);
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "npm test" }, tool_use_id: "toolu_B" });
+  assert.deepEqual([...agent.activeToolIds], ["hook-toolu_A"], "faqat B yopildi");
+});
+
+test("PostToolUseFailure → bloklandi (error sababi bilan); is_interrupt → bloklanMAYDI", () => {
+  const { store, agent } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "npm i" }, tool_use_id: "t1" });
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm i" }, tool_use_id: "t1", error: "Exit code 1\nError: Cannot find module 'express'" });
+  assert.equal(agent.blocked, true);
+  assert.ok(agent.blockedReason?.includes("Cannot find module"), "sabab error maydonidan");
+  assert.equal(agent.activeToolIds.size, 0, "xato bergan tool osilib qolmaydi");
+  const b = setup();
+  handleHookEvent(b.store, b.agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "sleep 9" }, tool_use_id: "t2" });
+  handleHookEvent(b.store, b.agent, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "sleep 9" }, tool_use_id: "t2", error: "Interrupted", is_interrupt: true });
+  assert.equal(b.agent.blocked, false, "foydalanuvchi to'xtatgani — xato emas");
+  assert.equal(b.agent.activeToolIds.size, 0);
+});
+
+test("Notification notification_type: permission_prompt / idle_prompt; noma'lum tur e'tiborsiz", () => {
+  const a = setup();
+  handleHookEvent(a.store, a.agent, { hook_event_name: "Notification", notification_type: "permission_prompt", message: "Claude needs your permission" });
+  assert.ok(a.ev.some((e) => e.type === "agentToolPermission"));
+  const b = setup();
+  handleHookEvent(b.store, b.agent, { hook_event_name: "Notification", notification_type: "idle_prompt", message: "Claude is waiting for your input" });
+  assert.ok(b.ev.some((e) => e.type === "agentStatus" && e.awaitingInput === true));
+  const c = setup();
+  // Turi berilgan, lekin bizga noma'lum — matnida "permission" bo'lsa ham holat yasamaymiz.
+  handleHookEvent(c.store, c.agent, { hook_event_name: "Notification", notification_type: "auth_success", message: "permission granted" });
+  assert.ok(!c.ev.some((e) => e.type === "agentToolPermission" || (e.type === "agentStatus" && e.status === "waiting")));
+});
+
+test("SubagentStop: parallel sub-agentlar qolgan; yagona bo'lsa yopiladi", () => {
+  const { store, agent } = setup();
+  const task = (id: string, d: string) => handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Task", tool_input: { description: d, prompt: "p" }, tool_use_id: id });
+  task("s1", "A");
+  task("s2", "B");
+  handleHookEvent(store, agent, { hook_event_name: "SubagentStop", agent_id: "agent-x" });
+  assert.equal(agent.subagentToolIds.size, 2, "qaysi biri tugagani noma'lum — ikkalasi ham qoladi");
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Task", tool_input: { description: "A", prompt: "p" }, tool_use_id: "s1" });
+  assert.deepEqual([...agent.subagentToolIds.keys()], ["hook-s2"], "Task PostToolUse aniq yopadi");
+  handleHookEvent(store, agent, { hook_event_name: "SubagentStop", agent_id: "agent-y" });
+  assert.equal(agent.subagentToolIds.size, 0, "yagona qolgan — yopiladi");
+});
+
+test("hook payload ixchamlashtiriladi: natija/so'rov/javob matni tashlanadi, uzun satrlar qisqaradi", () => {
+  const big = "x".repeat(50_000);
+  const raw = {
+    session_id: "s", cwd: "/p", hook_event_name: "PostToolUse", tool_name: "Write", tool_use_id: "t",
+    tool_input: { file_path: "/p/a.ts", content: big }, tool_response: { content: big },
+    prompt: "secret prompt", last_assistant_message: "reply text", transcript_path: "/h/.claude/projects/p/s.jsonl",
+  };
+  const out = slimHookPayload(raw);
+  assert.equal(out.tool_response, undefined);
+  assert.equal(out.prompt, undefined);
+  assert.equal(out.last_assistant_message, undefined);
+  assert.equal(out.transcript_path, raw.transcript_path);
+  const ti = out.tool_input as { file_path: string; content: string };
+  assert.equal(ti.file_path, "/p/a.ts");
+  assert.ok(ti.content.length < 2100 && ti.content.endsWith("…[50000]"));
+  assert.ok(JSON.stringify(out).length < 3000);
+  assert.deepEqual(slimHookPayload(raw), out, "deterministik (Pre/Post imzosi mos)");
+});
+
+test("trustedTranscriptPath: faqat ~/.claude/projects ichidagi mutlaq .jsonl", () => {
+  const root = path.join(os.homedir(), ".claude", "projects");
+  const ok = path.join(root, "proj", "abc.jsonl");
+  assert.equal(trustedTranscriptPath(ok), path.resolve(ok));
+  assert.equal(trustedTranscriptPath(path.join(os.homedir(), "evil.jsonl")), undefined, "ildizdan tashqarida");
+  assert.equal(trustedTranscriptPath(path.join(root, "..", "x.jsonl")), undefined, "../ bilan chiqib ketish");
+  assert.equal(trustedTranscriptPath(path.join(root, "proj", "abc.txt")), undefined);
+  assert.equal(trustedTranscriptPath("relative/abc.jsonl"), undefined);
+  assert.equal(trustedTranscriptPath(42), undefined);
 });
 
 test("noma'lum Notification → soxta permission YASAMAYDI", () => {
@@ -266,7 +484,7 @@ const WS = "F:\\zzz-bind-ws-unlikely-path";
 function mgrSetup() {
   resetState(WS);
   const store = new AgentStateStore();
-  const watcher = { primeFromStart() {}, emitSnapshot() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+  const watcher = { primeFromStart() {}, emitSnapshot() {}, primeAndAdd(_a: unknown, add: () => void) { add(); }, reprime() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
   const mgr = new AgentManager(store, watcher, () => {});
   mgr.start();
   return { store, mgr };
@@ -359,6 +577,64 @@ test("uninstall faqat bizning hookni oladi, boshqasini saqlaydi", () => {
   const s = JSON.parse(fs.readFileSync(f, "utf8"));
   assert.ok(!areHooksInstalled(SCRIPT, f), "bizning hook o'chirilishi kerak");
   assert.ok(s.hooks.Stop.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === "node /boshqa/hook.js")), "boshqa hook saqlanishi kerak");
+});
+
+test("barqaror hook-skript: nusxalanadi, takror chaqiruv o'zgartirmaydi; eski versiya yo'li ko'chiriladi", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-stable-"));
+  const src = path.join(dir, "ext-0.1.6", "dist", "hooks", "claude-hook.js");
+  fs.mkdirSync(path.dirname(src), { recursive: true });
+  fs.writeFileSync(src, "// v1");
+  const dest = path.join(dir, "home", ".agent-office", "hooks", "claude-hook.js");
+  assert.equal(installStableHookScript(src, dest), dest);
+  assert.equal(fs.readFileSync(dest, "utf8"), "// v1");
+  const m1 = fs.statSync(dest).mtimeMs;
+  assert.equal(installStableHookScript(src, dest), dest, "o'zgarmagan — qayta yozmaydi");
+  assert.equal(fs.statSync(dest).mtimeMs, m1);
+  fs.writeFileSync(src, "// v2");
+  installStableHookScript(src, dest);
+  assert.equal(fs.readFileSync(dest, "utf8"), "// v2", "yangi versiya nusxalanadi");
+  assert.equal(installStableHookScript(path.join(dir, "yoq.js"), dest), undefined, "manba yo'q → undefined (zaxira)");
+  // Eski (versiyali) yo'l bilan o'rnatilgan → barqaror yo'lga ko'chadi, dublikatsiz.
+  const f = path.join(dir, "settings.json");
+  installHooks(src, f);
+  assert.equal(hasOurHooks(f), true);
+  installHooks(dest, f);
+  const cmds = Object.values(JSON.parse(fs.readFileSync(f, "utf8")).hooks as Record<string, { hooks: { command: string }[] }[]>).flat().flatMap((g) => g.hooks.map((h) => h.command));
+  assert.ok(cmds.every((c) => c.includes(dest)), "faqat barqaror yo'l qoladi");
+  uninstallHooks("", f);
+  assert.equal(hasOurHooks(f), false);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("hook qarori: mavjud foydalanuvchi o'zgarishsiz; yangisidan rozilik; rad/Uninstall hurmat qilinadi; node yo'q → yozilmaydi", () => {
+  // Mavjud o'rnatish (hozirgi foydalanuvchilar) — hech narsa so'ralmaydi, yangilanadi.
+  assert.equal(decideHookInstall({ alreadyInstalled: true, consent: undefined, nodeFound: true }), "install");
+  assert.equal(decideHookInstall({ alreadyInstalled: true, consent: undefined, nodeFound: false }), "install", "ishlab turgan o'rnatishni buzmaymiz");
+  // Yangi o'rnatish — so'raymiz.
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: undefined, nodeFound: true }), "ask");
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "granted", nodeFound: true }), "install");
+  // Rad etilgan / Uninstall bosilgan — qayta yozmaymiz.
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "declined", nodeFound: true }), "skip-declined");
+  // node yo'q — so'ramaymiz ham, yozmaymiz ham (har tool'da hook xatosi bo'lardi).
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: undefined, nodeFound: false }), "skip-no-node");
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "granted", nodeFound: false }), "skip-no-node");
+});
+
+test("findOnPath: PATH'dagi node topiladi (fs, child_process yo'q); yo'q bo'lsa undefined", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-path-"));
+  const bin = path.join(dir, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "node"), "");
+  fs.writeFileSync(path.join(bin, "node.exe"), "");
+  // Ajratgich platformaga bog'liq (win32 ";" — drayv harfidagi ":" bilan to'qnashmaydi).
+  if (process.platform === "win32") {
+    assert.equal(findOnPath("node", { Path: `C:\\yoq;${bin}`, PATHEXT: ".COM;.EXE" }, "win32"), path.join(bin, "node.exe"));
+  } else {
+    assert.equal(findOnPath("node", { PATH: `/yoq:${bin}` }, "linux"), path.join(bin, "node"));
+  }
+  assert.equal(findOnPath("node", { PATH: "/yoq" }, "linux"), undefined);
+  assert.equal(findOnPath("node", {}, "linux"), undefined);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 console.log("Launch: 'claude' PATH-fail zombi tozalanadi:");
@@ -524,14 +800,14 @@ test("toolDone: sanoq 0ga tushsa yorliq tozalanadi (osilib qolmaydi)", () => {
   s.toolDone(400);
   assert.equal(useOffice.getState().agents[400].toolLabel, undefined, "sanoq 0da yorliq tozalanishi kerak");
 });
-test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganда tozalanadi", () => {
+test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganda tozalanadi", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 410, folderName: "bg" });
   s.setTool(410, "Bash", "Bash npm run dev", true); // fonda ishga tushdi
   assert.equal(useOffice.getState().agents[410].background, true, "fon bayrog'i yonishi kerak");
   s.toolDone(410); // fon tool CHAQIRUVI tugadi — bayroq o'chmasin
   assert.equal(useOffice.getState().agents[410].background, true, "toolDone bayroqni o'chirmasligi kerak");
-  s.setTool(410, "Edit", "Edit x.ts"); // oldinги (foreground) ish — ushlab qoladi
+  s.setTool(410, "Edit", "Edit x.ts"); // oldingi (foreground) ish — ushlab qoladi
   assert.equal(useOffice.getState().agents[410].background, true, "foreground tool bayroqni ushlab qolishi kerak");
   s.setActive(410, false); // agent bo'shadi — burst tugadi
   assert.equal(useOffice.getState().agents[410].background, false, "bo'shaganda tozalanishi kerak");
@@ -618,13 +894,13 @@ test("budgetState: limit yo'q → o'chiq; 80% → warn; 100% → over", () => {
   assert.ok(Math.abs(b.left - 0.75) < 1e-9, "qolgani 0.75");
   assert.equal(budgetState(3, 1).left, 0, "oshib ketsa qolgani 0 (manfiy emas)");
 });
-test("budgetCrossing: chegaradan o'tishда BIR marta fire, gisterezis bilan qayta tiklanadi", () => {
+test("budgetCrossing: chegaradan o'tishda BIR marta fire, gisterezis bilan qayta tiklanadi", () => {
   assert.deepEqual(budgetCrossing(0.5, 1, false), { fire: false, notified: false }, "budjet ostida — xabar yo'q");
-  assert.deepEqual(budgetCrossing(1, 1, false), { fire: true, notified: true }, "o'tishда fire=true");
-  assert.deepEqual(budgetCrossing(1.5, 1, true), { fire: false, notified: true }, "hali oshgan, avval xabar berilган — qayta fire yo'q");
-  // budjet ko'tarilди (sarf endi <95% limit) → qayta tiklanadi
-  assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarilди → reset");
-  assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishда yana fire");
+  assert.deepEqual(budgetCrossing(1, 1, false), { fire: true, notified: true }, "o'tishda fire=true");
+  assert.deepEqual(budgetCrossing(1.5, 1, true), { fire: false, notified: true }, "hali oshgan, avval xabar berilgan — qayta fire yo'q");
+  // budjet ko'tarildi (sarf endi <95% limit) → qayta tiklanadi
+  assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarildi → reset");
+  assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishda yana fire");
   assert.deepEqual(budgetCrossing(5, 0, false), { fire: false, notified: false }, "budjet o'chiq (0) → hech qachon fire");
 });
 test("forecast: costVelocity — so'nggi oynada $/daqiqa; kam namuna → 0", () => {
@@ -759,7 +1035,7 @@ test("editedFile: tahrir toolidan fayl; boshqa tool → null", () => {
   assert.equal(editedFile("Read store.ts"), null, "o'qish tahrir emas");
   assert.equal(editedFile("Bash npm test"), null);
 });
-test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv", () => {
+test("buildInsights: bir repoda bir faylni 2 agent tahrirlasa → to'qnashuv", () => {
   const withHist = (id: number, folder: string, labels: string[]) => ({
     ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })),
   });
@@ -774,7 +1050,7 @@ test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv",
   assert.equal(conflict!.vars!.n, 2);
   assert.deepEqual(conflict!.agentIds!.sort(), [1, 2]);
 });
-test("fileConflicts: bir repoда bir faylni 2 agent → to'qnashuv; boshqa repo → yo'q", () => {
+test("fileConflicts: bir repoda bir faylni 2 agent → to'qnashuv; boshqa repo → yo'q", () => {
   const wh = (id: number, folder: string, labels: string[]) => ({ ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })) });
   const cs = fileConflicts([
     wh(1, "repo", ["Edit store.ts"]),
@@ -787,7 +1063,7 @@ test("fileConflicts: bir repoда bir faylni 2 agent → to'qnashuv; boshqa repo
   assert.equal(cs[0].folderName, "repo");
   assert.deepEqual(cs[0].ids.sort(), [1, 2]);
 });
-test("buildInsights: boshqa REPOда bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
+test("buildInsights: boshqa REPOda bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
   const ins = buildInsights([
     { ...baseAgent(1, "repoA"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
     { ...baseAgent(2, "repoB"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
@@ -910,6 +1186,11 @@ test("hookRouting: pickServerForCwd — cwd bo'yicha eng aniq (uzun) papkani tan
   assert.equal(pickServerForCwd([A, B], "/home/u/proj")?.port, 1, "aynan A papkasi");
   assert.equal(pickServerForCwd([A, B], "/tmp/elsewhere"), null, "mos yo'q → null");
   assert.equal(pickServerForCwd([], "/home/u/proj"), null, "server yo'q → null");
+  // within — ish-papka tekshiruvi (OfficeViewProvider.isInWorkspace + CLI inProjects ham shuni ishlatadi).
+  assert.equal(within("/home/u/proj/sub", "/home/u/proj"), true);
+  assert.equal(within("/home/u/project2", "/home/u/proj"), false, "prefiks-o'xshash boshqa papka EMAS");
+  assert.equal(within("/home/u/proj/", "/home/u/proj"), true, "oxirgi ajratgich");
+  if (process.platform === "win32") assert.equal(within("c:/Users/x/proj/a", "C:\\Users\\x\\proj"), true, "aralash ajratgich + harf");
   // Aralash ajratgich (Windows): folder "\\", cwd "/" — baribir mos kelishi kerak.
   const W: ServerEntry = { port: 9, token: "w", pid: 9, folders: ["C:\\Users\\x\\proj"] };
   assert.equal(pickServerForCwd([W], "C:/Users/x/proj/sub")?.port, 9, "forward cwd + backslash folder mos");
@@ -985,6 +1266,64 @@ test("HistoryStore: atomik yozuv + qayta yuklash — kun/sessiya/model saqlanadi
     assert.equal(Object.values(h2.getDays()[0].projects)[0].cost, 2, "kunlik cost qayta yuklanadi");
   });
 });
+test("HistoryStore: ikki oyna bitta faylga yozadi — bir-birini O'CHIRMAYDI, bir sessiya IKKI MARTA hisoblanmaydi", () => {
+  withScratchHome(() => {
+    const A = new HistoryStore();
+    const B = new HistoryStore();
+    A.load();
+    B.load(); // ikkalasi ham bo'sh holatda yuklandi (avval: oxirgi yozgan g'olib)
+    A.record("sA", "repoA", { cost: 1, inTok: 10, outTok: 1, tools: 1, ms: 100 });
+    B.record("sB", "repoB", { cost: 2, inTok: 20, outTok: 2, tools: 2, ms: 200 });
+    A.flush();
+    B.flush();
+    const C = new HistoryStore();
+    C.load();
+    const projects = C.getDays()[0].projects;
+    assert.equal(projects.repoA?.cost, 1, "A oynasining yozuvi saqlandi");
+    assert.equal(projects.repoB?.cost, 2, "B oynasining yozuvi saqlandi");
+    assert.equal(C.getSessions().length, 2);
+    // Bitta sessiyani ikkala oyna kuzatsa (bir xil papka 2 oynada) — jami bir marta.
+    A.record("sShared", "repoA", { cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+    B.record("sShared", "repoA", { cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+    A.flush();
+    B.flush();
+    const D = new HistoryStore();
+    D.load();
+    assert.equal(D.getDays()[0].projects.repoA.cost, 6, "1 + 5 (10 EMAS)");
+  });
+});
+
+test("tarix HOST holatidan yoziladi (webview'siz): xarajat/tool; o'qilayotgan agent o'tkaziladi; o'zgarishsiz — yozuv yo'q", () => {
+  withScratchHome((home) => {
+    const h = new HistoryStore();
+    h.load();
+    const a = createAgentState(1, "/x/s1.jsonl", "repo", { sessionId: "s1" });
+    a.costUsd = 2.5;
+    a.outputTokens = 100;
+    a.toolCats = { edit: 3, read: 2 };
+    a.model = "claude-opus-5-5";
+    const busy = createAgentState(2, "/x/s2.jsonl", "repo", { sessionId: "s2" });
+    busy.priming = true; // tarix hali o'qilmoqda — qisman qiymat yozilmasin
+    busy.costUsd = 9;
+    recordFromAgents(h, [a, busy]);
+    const day = h.getDays()[0].projects.repo;
+    assert.equal(day.cost, 2.5);
+    assert.equal(day.tools, 5, "tool soni = host toolCats yig'indisi");
+    assert.equal(h.getSessions().length, 1, "priming agent yozilmadi");
+    assert.equal(h.getSessions()[0].model, "claude-opus-5-5");
+    h.flush();
+    const file = path.join(home, ".agent-office", "history.json");
+    const m1 = fs.statSync(file).mtimeMs;
+    recordFromAgents(h, [a]); // hech narsa o'zgarmadi
+    h.flush();
+    assert.equal(fs.statSync(file).mtimeMs, m1, "o'zgarishsiz — fayl qayta yozilmadi");
+    a.costUsd = 4;
+    recordFromAgents(h, [a]);
+    assert.equal(h.getDays()[0].projects.repo.cost, 4, "delta: 2.5 + 1.5");
+    h.flush();
+  });
+});
+
 test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi", () => {
   const sessions = [
     { project: "a", at: 1, cost: 2, inTok: 100, outTok: 50, tools: 3, ms: 0, model: "claude-opus-4-8" },
@@ -1193,7 +1532,7 @@ test("transcript: xato natija → bloklandi + SABAB uzatiladi; toza natija → t
   const blocked = ev.find((m) => m.type === "agentBlocked") as (Msg & { blocked?: boolean; reason?: string }) | undefined;
   assert.ok(blocked?.blocked, "bloklangan bo'lishi kerak");
   assert.equal(blocked!.reason, "npm ERR! missing script: buld", "sabab aynan xato matni");
-  assert.equal(agent.blockedReason, "npm ERR! missing script: buld", "holatда saqlanadi (replay uchun)");
+  assert.equal(agent.blockedReason, "npm ERR! missing script: buld", "holatda saqlanadi (replay uchun)");
 
   ev.length = 0;
   processTranscriptLine(store, agent, JSON.stringify({
@@ -1278,7 +1617,7 @@ test("matchAgents: vazifa (task) matni bo'yicha ham topiladi", () => {
   ];
   assert.deepEqual(matchAgents(list, "auth").map((a) => a.id), [1], "vazifa matni bo'yicha");
   assert.deepEqual(matchAgents(list, "billing").map((a) => a.id), [2], "vazifa matni bo'yicha (2)");
-  // Papka nomi vazifadan ustun (folder 'api' — task 'auth'дан kuchli emas, lekin
+  // Papka nomi vazifadan ustun (folder 'api' — task 'auth'dan kuchli emas, lekin
   // 'api' so'rovda faqat 2ni topadi)
   assert.deepEqual(matchAgents(list, "api").map((a) => a.id), [2], "papka nomi baribir ishlaydi");
 });
@@ -1363,7 +1702,7 @@ test("hech bir xona ichki nuqtasi mebel ichida emas (agent titramaydi)", () => {
 
 // ── Nav grafi butunligi ──────────────────────────────────────
 // Regressiya qalqoni: bir paytlar "glassA_d" ham startsWith("g") ga tushib,
-// eshik O'ZIGA ulanib qolgan edi → 3 shisha xona grafдан uzilib, agent ichkariga
+// eshik O'ZIGA ulanib qolgan edi → 3 shisha xona grafdan uzilib, agent ichkariga
 // kirib chiqolmay qolardi. Quyidagi 3 test shuni qaytadan sodir bo'lishiga
 // yo'l qo'ymaydi.
 
@@ -1438,5 +1777,197 @@ test("presence: band (busy) agent uchrashuvga tanlanmaydi", () => {
   assert.equal(seekMeeting(1, -5, -3, 0), null, "yagona sherik band bo'lsa uchrashuv yo'q");
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed ? 1 : 0);
+// ── Async testlar (ketma-ket, sinxronlardan keyin) ──
+const asyncTests: { name: string; fn: () => Promise<void> }[] = [];
+function testAsync(name: string, fn: () => Promise<void>): void {
+  asyncTests.push({ name, fn });
+}
+
+testAsync("katta transcript bo'laklab o'qiladi: darrov qaytadi, boshqa agent jonli, oxirida to'g'ri snapshot", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-bigprime-"));
+  const file = path.join(dir, "big.jsonl");
+  const pad = "z".repeat(4000);
+  const lines: string[] = [];
+  for (let i = 0; i < 1300; i++) {
+    // Har xabar 2 qatorga bo'lingan (dedupe ham tekshiriladi) + katta matn.
+    const l = JSON.stringify({ type: "assistant", message: { id: `m${i}`, content: [{ type: "text", text: pad }], usage: { input_tokens: 1, output_tokens: 2 } } });
+    lines.push(l, l);
+  }
+  fs.writeFileSync(file, lines.join("\n") + "\n");
+  assert.ok(fs.statSync(file).size > 4 * 1024 * 1024, "sinov fayli > 4MB");
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const other = createAgentState(store.allocateId(), path.join(dir, "o.jsonl"), "o", { sessionId: "o" });
+  store.add(other);
+  const ev: { type: string; id?: number }[] = [];
+  store.on("broadcast", (m: { type: string; id?: number }) => ev.push(m));
+  const big = createAgentState(store.allocateId(), file, "p", { sessionId: "big" });
+  let added = false;
+  watcher.primeAndAdd(big, () => {
+    store.add(big);
+    added = true;
+  });
+  assert.ok(added && store.has(big.id), "agent darrov qo'shildi (personaj ko'rinadi)");
+  assert.equal(big.priming, true, "hali o'qilmoqda — sinxron bloklamadi");
+  store.broadcast({ type: "agentStatus", id: other.id, status: "active" });
+  assert.ok(ev.some((e) => e.id === other.id), "boshqa agent broadcast'i o'tadi");
+  const bigDuring = ev.filter((e) => e.id === big.id).length;
+  while (big.priming) await new Promise((r) => setImmediate(r));
+  assert.equal(bigDuring, 0, "o'qish davomida shu agentning tarixi flood qilinmadi");
+  assert.equal(big.outputTokens, 2600, "1300 xabar × 2 (dedupe — 5200 EMAS)");
+  assert.ok(ev.some((e) => e.id === big.id && e.type === "agentTokenUsage"), "yakuniy snapshot yuborildi");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("host i18n: 8 til, o'rniga qo'yish, VS Code locale xaritasi, placeholder'lar har tilda bir xil", () => {
+  assert.equal(ht("en", "notify.stuck", { min: 3 }), "has been waiting for permission for 3 min 🙋");
+  assert.equal(ht("uz", "budget.over", { spent: "$2.00", limit: "$1.00" }), "💸 Byudjetdan oshdi: ~$2.00 / $1.00 (faqat ogohlantirish)");
+  assert.equal(langFromLocale("zh-cn"), "zh");
+  assert.equal(langFromLocale("en-us"), "en");
+  assert.equal(langFromLocale("ru"), "ru");
+  assert.equal(langFromLocale("de"), "en", "qo'llanmaydigan til → ingliz");
+  assert.equal(langFromLocale(undefined), "en");
+  assert.equal(isHostLang("uz"), true);
+  assert.equal(isHostLang("xx"), false);
+  // Har kalitning placeholder'lari ({min}, {spent}…) barcha tillarda bir xil.
+  for (const key of ["notify.stuck", "budget.over"] as const) {
+    const want = (ht("en", key).match(/\{\w+\}/g) ?? []).sort().join(",");
+    for (const l of HOST_LANGS) assert.equal((ht(l, key).match(/\{\w+\}/g) ?? []).sort().join(","), want, `${key}/${l}`);
+  }
+});
+
+test("manifest i18n: package.json'dagi har %kalit% package.nls.json'da bor, har til to'liq", () => {
+  const root = __dirname; // test bundle (.test-out.cjs) repo ildizida ishlaydi
+  const pkgRaw = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const refs = (pkgRaw.match(/"%([a-zA-Z.]+)%"/g) ?? []).map((s) => s.slice(2, -2));
+  assert.ok(refs.length >= 10, "buyruqlar + sozlamalar lokalizatsiya qilingan");
+  const base = JSON.parse(fs.readFileSync(path.join(root, "package.nls.json"), "utf8")) as Record<string, string>;
+  for (const r of refs) assert.ok(base[r], `package.nls.json'da yo'q: ${r}`);
+  const files = fs.readdirSync(root).filter((f) => /^package\.nls\.[a-z-]+\.json$/.test(f));
+  assert.ok(files.length >= 6, "tarjimalar mavjud");
+  for (const f of files) {
+    const tr = JSON.parse(fs.readFileSync(path.join(root, f), "utf8")) as Record<string, string>;
+    assert.deepEqual(Object.keys(tr).sort(), Object.keys(base).sort(), `${f} kalitlari to'liq`);
+    for (const [k, v] of Object.entries(tr)) assert.ok(typeof v === "string" && v.trim(), `${f}:${k} bo'sh`);
+  }
+});
+
+test("tarix: loyiha bo'yicha filtr (drill-down) va ikki sessiyani solishtirish", () => {
+  const st = (cost: number) => ({ cost, inTok: 10, outTok: 5, tools: 2, ms: 1000 });
+  const days = [
+    { date: "2026-11-01", projects: { a: st(1), b: st(2) } },
+    { date: "2026-11-02", projects: { b: st(3) } },
+    { date: "2026-11-03", projects: { a: st(4) } },
+  ];
+  const fa = filterDaysByProject(days, "a");
+  assert.deepEqual(fa.map((d) => d.date), ["2026-11-01", "2026-11-03"], "faqat shu loyiha bor kunlar");
+  assert.ok(fa.every((d) => Object.keys(d.projects).join() === "a"), "boshqa loyihalar olib tashlandi");
+  assert.equal(grandTotal(fa).cost, 5, "jami faqat 'a'");
+  assert.equal(days[0].projects.b.cost, 2, "asl ma'lumot o'zgarmaydi");
+  const A = { project: "a", at: 1, cost: 2, inTok: 100, outTok: 50, tools: 4, ms: 60_000, model: "claude-opus-5-5" };
+  const B = { project: "b", at: 2, cost: 3, inTok: 300, outTok: 0, tools: 0, ms: 30_000 };
+  const rows = compareSessions(A, B);
+  const by = Object.fromEntries(rows.map((r) => [r.metric, r]));
+  assert.equal(by.cost.deltaPct, 50, "+50%");
+  assert.equal(by.tokens.a, 150);
+  assert.equal(by.time.deltaPct, -50);
+  assert.equal(by.costPerTool.a, 0.5);
+  assert.equal(by.costPerTool.b, 0, "tool yo'q → 0 (bo'luvchi yo'q)");
+  assert.equal(compareSessions({ ...A, cost: 0 }, B)[0].deltaPct, null, "asos 0 → foiz ma'nosiz");
+  assert.notEqual(sessionKey(A), sessionKey(B));
+});
+
+test("costSpike: so'nggi 2 daq odatiy 20 daqdan ≥3× tez → sakrash; bir tekis sarf / qisqa tarix / mayda summa → yo'q", () => {
+  const mk = (pts: [number, number][]) => pts.map(([min, cost]) => ({ t: min * 60_000, cost, inTok: 0, outTok: 0, active: 1 }));
+  // 0..20 daq: $0.05/daq (jami $1), 20..22 daq: $0.5/daq (+$1) → 10×.
+  const steady: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) steady.push([m, m * 0.05]);
+  const spiky = mk([...steady, [21, 1.5], [22, 2]]);
+  const s = costSpike(spiky);
+  assert.ok(s && Math.abs(s.rate - 0.5) < 1e-9 && Math.abs(s.ratio - 10) < 1e-9, JSON.stringify(s));
+  const ins = buildInsights([], spiky, 22 * 60_000);
+  assert.ok(ins.some((i) => i.id === "cost-spike" && i.level === "warn"), "warn insight");
+  assert.ok(!ins.some((i) => i.id === "cost-rate"), "costFast takrorlanmaydi");
+  // Bir tekis tez sarf — sakrash EMAS (odatiy ritm).
+  const flat: [number, number][] = [];
+  for (let m = 0; m <= 22; m++) flat.push([m, m * 0.5]);
+  assert.equal(costSpike(mk(flat)), null, "bir tekis");
+  // Tarix qisqa (odatiy oyna to'liq emas) — baholamaymiz.
+  assert.equal(costSpike(mk([[0, 0], [5, 0.1], [7, 2]])), null, "qisqa tarix");
+  // Mayda summa — shovqin.
+  const tiny: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) tiny.push([m, m * 0.001]);
+  assert.equal(costSpike(mk([...tiny, [22, 0.02 + 0.1]])), null, "≥$0.10/daq dan kam");
+  // Avval sarf yo'q edi, endi boshlandi → info.
+  const idle: [number, number][] = [];
+  for (let m = 0; m <= 20; m++) idle.push([m, 0]);
+  const fresh = mk([...idle, [22, 1]]);
+  const f = buildInsights([], fresh, 22 * 60_000).find((i) => i.id === "cost-spike");
+  assert.ok(f && f.level === "info" && f.key === "insight.costSpikeNew");
+});
+
+test("isStaleExternal: faqat bog'lanmagan + kutayotgan + band emas + 30 daqiqa faoliyatsiz", () => {
+  const now = 10 * STALE_IDLE_MS;
+  const base = { isExternal: true, boundToOpenTerminal: false, isWaiting: true, busy: false, fileMtimeMs: now - STALE_IDLE_MS, now };
+  assert.equal(isStaleExternal(base), true);
+  assert.equal(isStaleExternal({ ...base, fileMtimeMs: now - STALE_IDLE_MS + 1000 }), false, "yaqinda faol");
+  assert.equal(isStaleExternal({ ...base, boundToOpenTerminal: true }), false, "ochiq terminal — u yopilganda olinadi");
+  assert.equal(isStaleExternal({ ...base, isWaiting: false }), false, "ishlayapti");
+  assert.equal(isStaleExternal({ ...base, busy: true }), false, "ruxsat kutyapti / tool ochiq");
+  assert.equal(isStaleExternal({ ...base, isExternal: false }), false, "+Agent terminali");
+});
+
+testAsync("eskirgan tashqi agent olinadi, fayl o'zgarmaguncha QAYTA qo'shilmaydi, o'zgarsa qaytadi", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "ao-stale-"));
+  const prevU = process.env.USERPROFILE;
+  const prevH = process.env.HOME;
+  process.env.USERPROFILE = home;
+  process.env.HOME = home;
+  try {
+    const proj = path.join(home, "proj");
+    fs.mkdirSync(proj);
+    resetState(proj);
+    const store = new AgentStateStore();
+    const watcher = { primeFromStart() {}, emitSnapshot() {}, primeAndAdd(_a: unknown, add: () => void) { add(); }, reprime() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+    const mgr = new AgentManager(store, watcher, () => {});
+    mgr.start();
+    const m = mgr as unknown as { startupTime: number; removeStale(): Promise<void>; scanForNew(): Promise<void>; dispose(): void };
+    m.startupTime = Date.now() - 2 * STALE_IDLE_MS; // ochilganiga 1 soat bo'lgan
+    const dir = getSessionDir(proj);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "sess-old.jsonl");
+    fs.writeFileSync(file, "{}\n");
+    const old = new Date(Date.now() - STALE_IDLE_MS - 60_000);
+    fs.utimesSync(file, old, old);
+    const a = mgr.ensureSessionAgent("sess-old", proj);
+    assert.ok(store.has(a.id) && a.isExternal);
+    await m.removeStale();
+    assert.equal(store.has(a.id), false, "30+ daqiqa faoliyatsiz — olindi");
+    await m.scanForNew();
+    assert.equal(store.size, 0, "fayl o'zgarmagan — qayta qo'shilmadi (aylanish yo'q)");
+    fs.appendFileSync(file, "{}\n"); // sessiya davom etdi
+    await m.scanForNew();
+    assert.equal(store.size, 1, "yangi faoliyat — agent qaytdi");
+    m.dispose();
+  } finally {
+    if (prevU === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = prevU;
+    if (prevH === undefined) delete process.env.HOME; else process.env.HOME = prevH;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+void (async () => {
+  if (asyncTests.length) console.log("Async testlar:");
+  for (const t of asyncTests) {
+    try {
+      await t.fn();
+      passed++;
+      console.log("  ✓", t.name);
+    } catch (e) {
+      failed++;
+      console.log("  ✗", t.name, "\n     ", (e as Error).message);
+    }
+  }
+  console.log(`\n${passed} passed, ${failed} failed`);
+  process.exit(failed ? 1 : 0);
+})();

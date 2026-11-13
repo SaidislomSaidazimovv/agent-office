@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -14,8 +15,11 @@ import { agentSnapshotMessages } from "../server/stateActions.js";
 import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
-import { HistoryStore } from "./historyStore.js";
-import { installHooks } from "./hookInstaller.js";
+import { HistoryStore, recordFromAgents } from "./historyStore.js";
+import { decideHookInstall, findOnPath, hasOurHooks, type HookConsent, installHooks, installStableHookScript, uninstallHooks } from "./hookInstaller.js";
+import { buildWebviewHtml } from "./webviewHtml.js";
+import { type HostKey, type HostLang, ht, isHostLang, langFromLocale } from "../core/hostI18n.js";
+import { within } from "../core/hookRouting.js";
 
 export const VIEW_ID = "agent-office.panelView";
 const MAX_PENDING = 1000;
@@ -40,16 +44,31 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
-  private statusBar = new OfficeStatusBar();
+  private statusBar = new OfficeStatusBar((k) => this.t(k));
   private history = new HistoryStore();
   readonly log = vscode.window.createOutputChannel("Agent Office");
+
+  // ── Til (toast / status bar) — panelda tanlangan til; bo'lmasa VS Code tili ──
+  private static readonly LANG_KEY = "agent-office.lang";
+  private lang: HostLang = "en";
+  /** Host matni tanlangan tilda. */
+  t(key: HostKey, vars?: Record<string, string | number>): string {
+    return ht(this.lang, key, vars);
+  }
 
   private logMsg(m: string): void {
     const t = new Date().toISOString().slice(11, 19);
     this.log.appendLine(`[${t}] ${m}`);
   }
 
-  constructor(private readonly extensionUri: vscode.Uri, private readonly version: string) {
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly version: string,
+    /** Kengaytma globalState — hook roziligi kabi mashina-darajasidagi qarorlar. */
+    private readonly state?: vscode.Memento,
+  ) {
+    const saved = state?.get<string>(OfficeViewProvider.LANG_KEY);
+    this.lang = isHostLang(saved) ? saved : langFromLocale(vscode.env.language);
     // Yangi agent → personaj yaratish
     this.store.on("agentAdded", (agent: AgentState) => {
       this.logMsg(`+ agent #${agent.id}  folder=${agent.folderName}  role=${agent.role ?? "-"}  session=${agent.sessionId?.slice(0, 8) ?? "-"}  external=${agent.isExternal}`);
@@ -89,6 +108,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     });
     // "Tiqilib qolgan" tekshiruvi — arzon (30s'da bir marta, faqat sanoq).
     this.stuckTimer = setInterval(() => this.checkStuck(), 30_000);
+    this.historyTimer = setInterval(() => this.recordHistory(), 10_000);
   }
 
   // ── E'tibor: kim, qachondan beri kutmoqda ──
@@ -125,8 +145,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       // Eskalatsiya — panel ochiq bo'lsa ham (3 daqiqa e'tiborsiz qolgan).
       if (vscode.workspace.getConfiguration("agent-office").get<boolean>("notifications", true)) {
         void vscode.window
-          .showWarningMessage(`Agent Office — ${a.folderName}: ${Math.round(STUCK_MS / 60000)} daqiqadan beri ruxsat kutmoqda 🙋`, "Ko'rsatish")
-          .then((pick) => { if (pick === "Ko'rsatish") this.manager.focusAgent(id); });
+          .showWarningMessage(`Agent Office — ${a.customName || a.folderName}: ${this.t("notify.stuck", { min: Math.round(STUCK_MS / 60000) })}`, this.t("notify.show"))
+          .then((pick) => { if (pick === this.t("notify.show")) this.manager.focusAgent(id); });
       }
     }
     this.refreshStatusBar();
@@ -153,11 +173,16 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     let id: number, text: string;
     if (msg.type === "agentToolPermission") {
       id = msg.id;
-      text = "ruxsat so'radi 🔔";
+      text = this.t("notify.permission");
     } else if (msg.type === "agentBlocked" && msg.blocked) {
+      // Tool xatolari juda ko'p uchraydi (topilmagan fayl, yiqilgan test) va
+      // Claude ko'pincha o'zi tuzatadi — har biriga toast shovqin edi. Endi
+      // faqat foydalanuvchi yoqsa (agent-office.notifyOnErrors); ofisda baribir
+      // qizil holat + sabab ko'rinadi.
+      if (!vscode.workspace.getConfiguration("agent-office").get<boolean>("notifyOnErrors", false)) return;
       id = msg.id;
       // Sababi bo'lsa — bildirishnomada ham ko'rsatamiz (terminalni ochmasdan bilinadi).
-      text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : "bloklandi (xato) ⛔";
+      text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : this.t("notify.blocked");
     } else {
       return;
     }
@@ -171,8 +196,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.lastNotify.set(id, now);
     const a0 = this.store.get(id);
     const name = a0?.customName || a0?.folderName || `Agent #${id}`;
-    void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, "Ko'rsatish").then((pick) => {
-      if (pick === "Ko'rsatish") this.manager.focusAgent(id);
+    const show = this.t("notify.show");
+    void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, show).then((pick) => {
+      if (pick === show) this.manager.focusAgent(id);
     });
   }
 
@@ -210,30 +236,182 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
           this.setHookActive(false);
           return;
         }
-        const hookScript = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
-        const ok = installHooks(hookScript);
-        this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
-        this.setHookActive(true);
+        this.logMsg(`Hook server: 127.0.0.1:${handle.port}`);
+        void this.applyHookDecision();
       });
       // Ish-papkalar o'zgarsa (folder qo'shildi/olib tashlandi) — servers/<pid>.json
       // dagi papkalar ro'yxatini yangilaymiz, aks holda yangi papkaning hooklari
       // shu oynaga yo'naltirilmasdi.
       this.folderWatch = vscode.workspace.onDidChangeWorkspaceFolders(() => this.hookServer.refreshFolders());
-
-      const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
-      if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
-        this.autoSpawnTimer = setTimeout(() => {
-          this.autoSpawnTimer = undefined;
-          if (this.store.size === 0) {
-            this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
-            this.manager.launchAgent();
-          }
-        }, 2000);
-      }
     } else {
       this.logMsg("Hook rejimi o'chirilgan (agent-office.hooksEnabled=false) — faqat JSONL.");
       this.setHookActive(false);
     }
+
+    // autoSpawnAgent hook rejimidan MUSTAQIL (avval faqat hooksEnabled=true
+    // bo'lganda ishlardi — hook'larni o'chirgan foydalanuvchida jim e'tiborsiz qolardi).
+    const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
+    if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
+      this.autoSpawnTimer = setTimeout(() => {
+        this.autoSpawnTimer = undefined;
+        if (this.store.size === 0) {
+          this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
+          this.manager.launchAgent();
+        }
+      }, 2000);
+    }
+  }
+
+  // ── Hook o'rnatish roziligi ──
+  // ~/.claude/settings.json — foydalanuvchining GLOBAL Claude sozlamasi. Unga
+  // so'ramasdan yozmaymiz: yangi o'rnatishda bir marta rozilik so'raladi.
+  // Mavjud foydalanuvchi (hook allaqachon bor) uchun hech narsa o'zgarmaydi.
+  private static readonly CONSENT_KEY = "agent-office.hookConsent";
+  private consent(): HookConsent {
+    return this.state?.get<HookConsent>(OfficeViewProvider.CONSENT_KEY);
+  }
+  private async setConsent(c: HookConsent): Promise<void> {
+    await this.state?.update(OfficeViewProvider.CONSENT_KEY, c);
+  }
+
+  private async applyHookDecision(): Promise<void> {
+    const decision = decideHookInstall({
+      alreadyInstalled: hasOurHooks(),
+      consent: this.consent(),
+      nodeFound: !!findOnPath("node"),
+    });
+    this.logMsg(`Hook qarori: ${decision}`);
+    if (decision === "skip-no-node") {
+      this.logMsg("⚠ 'node' PATH'da topilmadi — hook'lar o'rnatilmadi (aks holda Claude har tool'da hook xatosi ko'rsatardi). Faqat JSONL kuzatuvi.");
+      this.setHookActive(false);
+      return;
+    }
+    if (decision === "skip-declined") {
+      this.setHookActive(false);
+      return;
+    }
+    if (decision === "ask") {
+      this.setHookActive(false);
+      const allow = this.t("hooks.allow");
+      const pick = await vscode.window.showInformationMessage(
+        this.t("hooks.ask"),
+        allow,
+        this.t("hooks.notNow"),
+      );
+      if (pick === undefined) return; // yopildi — keyingi safar yana so'raymiz
+      await this.setConsent(pick === allow ? "granted" : "declined");
+      if (pick !== allow) return;
+    }
+    const ok = installHooks(this.hookScriptPath());
+    this.logMsg(`~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗ (fayl o'qilmadi — tegilmadi)"}`);
+    this.setHookActive(ok);
+  }
+
+  /** "Install hooks" buyrug'i — aniq rozilik. */
+  async installHooksCommand(): Promise<boolean> {
+    await this.setConsent("granted");
+    if (!findOnPath("node")) this.logMsg("⚠ 'node' PATH'da topilmadi — Claude hook'ni ishga tushira olmasligi mumkin.");
+    const ok = installHooks(this.hookScriptPath());
+    if (ok) this.setHookActive(true);
+    return ok;
+  }
+
+  /** "Uninstall hooks" buyrug'i — rad etish SAQLANADI, shuning uchun keyingi
+   *  ishga tushishda hook'lar qayta yozilmaydi (avval darrov qaytib kelardi). */
+  async uninstallHooksCommand(): Promise<void> {
+    await this.setConsent("declined");
+    uninstallHooks("");
+    this.setHookActive(false);
+  }
+
+  // ── Buyruqlar palitrasi (S7-4): agentni topish, pin, analitika, eksport ──
+  private hasPinned = false;
+  /** Panel tayyor bo'lmaganda berilgan UI buyruqlari — tayyor bo'lgach yuboriladi
+   *  (snapshot buferi `pending` ready'da tashlanadi, shuning uchun alohida). */
+  private pendingUi: ServerMessage[] = [];
+  private sendUi(msg: ServerMessage): void {
+    if (this.ready && this.view) {
+      this.post(msg);
+      return;
+    }
+    this.pendingUi.push(msg);
+    if (this.pendingUi.length > 5) this.pendingUi.shift();
+  }
+  private revealPanel(): void {
+    void vscode.commands.executeCommand("agent-office.panelView.focus");
+  }
+
+  /** Agent tanlash ro'yxati (nom · holat · xarajat) — xost holatidan. */
+  private async pickAgent(extra: vscode.QuickPickItem[] = []): Promise<{ id?: number; extra?: vscode.QuickPickItem } | undefined> {
+    const agents = this.store.values();
+    if (agents.length === 0 && extra.length === 0) {
+      void vscode.window.showInformationMessage(this.t("qp.noAgents"));
+      return undefined;
+    }
+    type Item = vscode.QuickPickItem & { id?: number };
+    const items: Item[] = agents.map((a) => {
+      const state = a.blocked ? this.t("sb.blocked") : a.permissionActive ? (this.stuck.has(a.id) ? this.t("sb.stuck") : this.t("sb.waiting")) : this.t("sb.working");
+      return {
+        id: a.id,
+        label: a.customName || a.folderName,
+        description: a.customName ? a.folderName : undefined,
+        detail: `${state}${a.costUsd > 0 ? ` · ~$${a.costUsd.toFixed(2)}` : ""}${a.task ? ` · ${a.task}` : ""}`,
+      };
+    });
+    const pick = await vscode.window.showQuickPick<Item>([...extra, ...items], { placeHolder: this.t("qp.pickAgent"), matchOnDescription: true, matchOnDetail: true });
+    if (!pick) return undefined;
+    return pick.id !== undefined ? { id: pick.id } : { extra: pick };
+  }
+
+  /** "Focus Agent…" — terminalini ochadi va ofisda tanlaydi. */
+  async focusAgentCommand(): Promise<void> {
+    const r = await this.pickAgent();
+    if (r?.id === undefined || !this.store.has(r.id)) return;
+    this.manager.focusAgent(r.id);
+    this.sendUi({ type: "agentSelected", id: r.id });
+  }
+
+  /** "Pin Agent…" — status barga qadash (yoki olib tashlash). */
+  async pinAgentCommand(): Promise<void> {
+    const unpin: vscode.QuickPickItem = { label: `$(close) ${this.t("qp.unpin")}` };
+    const r = await this.pickAgent(this.hasPinned ? [unpin] : []);
+    if (!r) return;
+    if (r.extra) {
+      this.sendUi({ type: "uiCommand", command: "unpin" });
+    } else if (r.id !== undefined && this.store.has(r.id)) {
+      this.sendUi({ type: "uiCommand", command: "pin", id: r.id });
+    }
+    if (!this.view) this.revealPanel(); // pin holati panelda — u yaratilsin
+  }
+
+  /** "Open Analytics" — panelni ochib dashboard'ni ko'rsatadi. */
+  openDashboardCommand(): void {
+    this.revealPanel();
+    this.sendUi({ type: "uiCommand", command: "openDashboard" });
+  }
+
+  /** "Export Session Report…" — hisobotni panel yasaydi (o'lchangan holatdan), saqlash oynasi. */
+  async exportReportCommand(): Promise<void> {
+    type Item = vscode.QuickPickItem & { cmd: "exportHtml" | "exportMarkdown" };
+    const pick = await vscode.window.showQuickPick<Item>(
+      [
+        { label: "$(globe) HTML", description: this.t("qp.exportHtml"), cmd: "exportHtml" },
+        { label: "$(markdown) Markdown", description: this.t("qp.exportMd"), cmd: "exportMarkdown" },
+      ],
+      { placeHolder: this.t("qp.exportPick") },
+    );
+    if (!pick) return;
+    if (!this.view) this.revealPanel();
+    this.sendUi({ type: "uiCommand", command: pick.cmd });
+  }
+
+  /** settings.json'ga yoziladigan hook-skript yo'li — BARQAROR nusxa
+   *  (~/.agent-office/hooks), versiyali kengaytma papkasi emas: yangilanish yoki
+   *  o'chirishdan keyin ham buyruq o'lik yo'lga qaramaydi. Nusxalab bo'lmasa —
+   *  kengaytmadagi asl fayl (avvalgi xatti-harakat). */
+  hookScriptPath(): string {
+    const dist = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
+    return installStableHookScript(dist) ?? dist;
   }
 
   /** Hook holatini saqlab webview'ga yuboradi (ko'rsatkich uchun). */
@@ -267,19 +445,18 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
           return;
         }
       }
-      agent = this.manager.ensureSessionAgent(sessionId, cwd);
+      agent = this.manager.ensureSessionAgent(sessionId, cwd, typeof raw.transcript_path === "string" ? raw.transcript_path : undefined);
     }
     handleHookEvent(this.store, agent, raw);
   }
 
   private isInWorkspace(cwd: string): boolean {
-    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
-    const norm = (p: string) => p.replace(/[\\/]+$/, "").toLowerCase();
-    const c = norm(cwd);
-    return folders.some((f) => {
-      const nf = norm(f);
-      return c === nf || c.startsWith(nf + "/") || c.startsWith(nf + "\\");
-    });
+    // hookRouting.within — hook yo'naltirish bilan BIR XIL qoida: ajratgichlar
+    // ("/" va "\") bir xillashtiriladi, katta-kichik harf faqat Windows'da
+    // farqsiz. Avval bu yerda o'z normallashtirishi bor edi: aralash
+    // ajratgichli cwd (masalan "F:/proj/sub" va "F:\proj") mos kelmasdi, Linux'da
+    // esa harf farqi e'tiborsiz qolardi (boshqa papka loyiha deb qabul qilinardi).
+    return (vscode.workspace.workspaceFolders ?? []).some((f) => within(cwd, f.uri.fsPath));
   }
 
   private sendOrBuffer(msg: ServerMessage): void {
@@ -349,13 +526,21 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "budgetAlert":
         this.notifyBudget(msg.spent, msg.limit);
         break;
+      case "setLang":
+        if (isHostLang(msg.lang) && msg.lang !== this.lang) {
+          this.lang = msg.lang;
+          void this.state?.update(OfficeViewProvider.LANG_KEY, msg.lang);
+          this.refreshStatusBar();
+        }
+        break;
       case "pinnedAgent":
         this.statusBar.setPinned(msg.label, msg.cost);
+        this.hasPinned = !!msg.label;
         break;
     }
   }
 
-  // ── Budjetdan oshish bildirishnomasi (webview chegaradan O'TISHда yuboradi) ──
+  // ── Budjetdan oshish bildirishnomasi (webview chegaradan O'TISHda yuboradi) ──
   // FAQAT ogohlantirish — hech narsa to'xtatilmaydi. `notifications` sozlamasiga
   // bo'ysunadi; qo'shimcha host throttle ko'p-panel dublikatlaridan himoya qiladi.
   private lastBudgetNotify = 0;
@@ -367,25 +552,31 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.lastBudgetNotify = now;
     const fmt = (n: number) => `$${n.toFixed(2)}`;
     void vscode.window
-      .showWarningMessage(`Agent Office — 💸 Byudjetdan oshdi: ~${fmt(spent)} / ${fmt(limit)} (faqat ogohlantirish)`, "Panelni ochish")
+      .showWarningMessage(`Agent Office — ${this.t("budget.over", { spent: fmt(spent), limit: fmt(limit) })}`, this.t("budget.open"))
       .then((pick) => {
-        if (pick === "Panelni ochish") void vscode.commands.executeCommand("agent-office.showPanel");
+        if (pick === this.t("budget.open")) void vscode.commands.executeCommand("agent-office.showPanel");
       });
   }
 
   // ── Tarix — davriy statistikani (webview'dan) sessiya ID bo'yicha yozamiz. ──
   // Cost webview'da hisoblangan; host faqat delta olib kunlik tarixga qo'shadi.
   private recordStats(stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[]): void {
-    this.history.load();
     for (const s of stats) {
       const agent = this.store.get(s.id);
       // Session statlarini keshlaymiz — reconnect snapshot'da qaytariladi
-      // (reload'da tool soni / navbat / faol vaqt 0dan boshlanmasin).
+      // (reload'da tool soni / navbat / faol vaqt 0dan boshlanmasin). TARIX bu
+      // yerda YOZILMAYDI — uni host o'zi yozadi (recordHistory), panel yopiq
+      // bo'lsa ham; ikki manba delta'larni ikki marta qo'shardi.
       if (agent) { agent.snapToolCalls = s.tools; agent.snapTurns = s.turns; agent.snapActiveMs = s.ms; }
-      if (!agent?.sessionId) continue; // barqaror kalit yo'q — tarixga yozmaymiz
-      this.history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
     }
-    // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled).
+  }
+
+  /** Host holatidan kunlik tarixni yozadi (har 10s; panel ochiq-yopiqligidan qat'i nazar). */
+  private historyTimer?: ReturnType<typeof setInterval>;
+  private recordHistory(): void {
+    this.history.load();
+    recordFromAgents(this.history, this.store.values());
+    // Tarix paneli ochiq bo'lsa "Bugun" jonli yangilansin (throttled; view yo'q bo'lsa no-op).
     this.sendHistory();
   }
 
@@ -643,6 +834,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     for (const id of this.stuck) this.post({ type: "agentStuck", id, stuck: true });
     // Snapshot joriy holatni to'liq tasvirlaydi — eski buferni tashlaymiz.
     this.pending = [];
+    // Palitra buyruqlari (panel ochilmasdan oldin berilgan) — endi yuboramiz.
+    for (const m of this.pendingUi.splice(0)) this.post(m);
   }
 
   private getWebviewContent(webview: vscode.Webview): string {
@@ -653,26 +846,24 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       html = fs.readFileSync(indexPath, "utf8");
     } catch {
       return `<html><body style="font-family:sans-serif;padding:20px;color:#ddd;background:#111">
-        <h3>Agent Office</h3><p>Webview qurilmagan. <code>npm run build</code> ni ishga tushiring.</p></body></html>`;
+        <h3>Agent Office</h3><p>${this.t("webview.notBuilt")}</p></body></html>`;
     }
-    // Nisbiy asset URL'larini webview URI'lariga aylantiramiz
-    html = html.replace(/(href|src)="\.?\/([^"]+)"/g, (_m, attr, file) => {
-      const uri = webview.asWebviewUri(vscode.Uri.joinPath(distPath, file));
-      return `${attr}="${uri}"`;
-    });
-    // Runtime asset bazasi (GLB/tekstura three.js yuklashi uchun) — webview URI
+    // Asset URL'lari + qat'iy CSP + nonce'li runtime asset bazasi (webviewHtml.ts).
     const baseUri = webview.asWebviewUri(distPath).toString().replace(/\/$/, "");
-    html = html.replace(
-      /<head>/i,
-      `<head><script>window.__ASSET_BASE__ = ${JSON.stringify(baseUri + "/")};</script>`,
-    );
-    return html;
+    return buildWebviewHtml(html, {
+      toUri: (file) => webview.asWebviewUri(vscode.Uri.joinPath(distPath, file)).toString(),
+      cspSource: webview.cspSource,
+      nonce: crypto.randomBytes(16).toString("base64"),
+      assetBase: baseUri + "/",
+    });
   }
 
   dispose(): void {
     if (this.autoSpawnTimer) clearTimeout(this.autoSpawnTimer);
     if (this.gitTimer) clearInterval(this.gitTimer);
     if (this.stuckTimer) clearInterval(this.stuckTimer);
+    if (this.historyTimer) clearInterval(this.historyTimer);
+    this.recordHistory(); // so'nggi holat ham tarixga tushsin (flush'dan oldin)
     this.folderWatch?.dispose();
     this.history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
     this.statusBar.dispose();

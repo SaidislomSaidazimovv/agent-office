@@ -38,7 +38,7 @@ const STAR_M = stdMat("#3a3f47", { roughness: 0.4, metalness: 0.6 });
 const SCREEN_G = new THREE.PlaneGeometry(0.64, 0.36);
 const GLOW_G = new THREE.PlaneGeometry(0.98, 0.66);
 
-// ── Rol stol odati — har rolning belgili buyumi (stolда, o'ng-orqa burchakда) ──
+// ── Rol stol odati — har rolning belgili buyumi (stolda, o'ng-orqa burchakda) ──
 // Backend — debug o'rdagi 🦆 · Tadqiqot — kitob uyumi · Hujjatlar — qog'oz+kitob
 // Ma'lumot — mini grafik (bar) · QA — checklist planshet · Frontend — rang palitrasi.
 const DUCK_M = stdMat("#f2c94c", { roughness: 0.6 });
@@ -104,7 +104,7 @@ function DeskProp({ roleKey }: { roleKey: string }) {
 // "kod satrlari". WebGL tuvaliga matn drei <Text> orqali chizilmaydi — u troika
 // CDN shriftini yuklaydi (CSP bloklaydi). Shuning uchun 2D CANVAS'ga chizib,
 // CanvasTexture qilamiz (o'zicha, ichki shrift, tekstura — performant). Ma'lumot
-// O'LCHANGAN (toolLabel); yorliq o'zgarganда qayta chiziladi.
+// O'LCHANGAN (toolLabel); yorliq o'zgarganda qayta chiziladi.
 function fitText(ctx: CanvasRenderingContext2D, s: string, maxW: number): string {
   if (ctx.measureText(s).width <= maxW) return s;
   let t = s;
@@ -160,7 +160,7 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
   const select = useOffice((s) => s.select);
   const occupied = !!agent;
   const color = agent ? STATUS_COLOR[agent.status] : "#3a4150";
-  // Ekran porlashi kechаsi kuchayadi (qorong'uда monitorlar ko'proq ajralib turadi).
+  // Ekran porlashi kechasi kuchayadi (qorong'uda monitorlar ko'proq ajralib turadi).
   const lampsOn = useDaylight((s) => s.params.lamps);
   const glowOpacity = lampsOn ? 0.4 : 0.2;
   const clutter = agent ? clutterLevel(agent.toolCalls) : 0;
@@ -182,7 +182,7 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
         <B p={[0, 0.26, 0]} s={[0.7, 0.42, 0.03]} m={MON_M} />
         {agent ? (
           <>
-            {/* Ekranда joriy tool/fayl (canvas-tekstura) */}
+            {/* Ekranda joriy tool/fayl (canvas-tekstura) */}
             <MonitorScreen label={agent.toolLabel} color={color} />
             {/* ekran porlashi — holat rangida yumshoq halo */}
             <mesh position={[0, 0.26, -0.025]} geometry={GLOW_G} material={basicMat(color, { transparent: true, opacity: glowOpacity, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false })} />
@@ -198,9 +198,9 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
 
       {/* Klaviatura — doim (stolning bir qismi) */}
       <B p={[0, DESK_TOP + 0.04, 0.14]} s={[0.5, 0.02, 0.16]} m={KEY_M} />
-      {/* Rol stol odati — faqat band stolда (kimningdir buyumi) */}
+      {/* Rol stol odati — faqat band stolda (kimningdir buyumi) */}
       {agent && <DeskProp roleKey={roleKeyFor(agent.role, agent.seatIndex)} />}
-      {/* Krujka — faqat band stolда (kimningdir shaxsiy buyumi) */}
+      {/* Krujka — faqat band stolda (kimningdir shaxsiy buyumi) */}
       {occupied && <mesh position={[0.55, DESK_TOP + 0.08, 0.05]} castShadow geometry={cyl(0.05, 0.045, 0.1, 12)} material={MUG_M} />}
 
       {/* ── Tartibsizlik — ISH BELGISI, bezak emas (manba: toolCalls) ──

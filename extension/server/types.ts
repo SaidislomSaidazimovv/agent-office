@@ -78,6 +78,8 @@ export interface AgentState {
   billedInput: number;
   billedCacheWrite: number;
   billedCacheRead: number;
+  /** Sessiya xarajati ($) — har javob alohida narxlanadi (core/pricing.ts). */
+  costUsd: number;
   /** Sessiya modeli (transcript `message.model`dan). */
   model?: string;
   /** Shu model uchun kontekst oynasi (200k yoki 1M). */
@@ -91,6 +93,24 @@ export interface AgentState {
    *  har tool_use'da HAQIQIY nomi bilan oshadi (tarixiy + jonli). Snapshot'da
    *  webview'ga yuboriladi (dashboard "tool taqsimoti" uchun — o'lchangan). */
   toolCats: Record<string, number>;
+  /** Hisoblangan assistant xabar ID'lari (message.id). Claude Code bitta API
+   *  javobini HAR content-block uchun alohida JSONL qatoriga yozadi va har
+   *  qatorda AYNAN bir xil `usage` takrorlanadi — ID bo'yicha bir marta
+   *  hisoblamasak xarajat 2-3 barobar oshib ketadi. Takrorlar yonma-yon keladi,
+   *  shuning uchun faqat so'nggi ID'lar saqlanadi (cheklangan). */
+  seenMsgIds: Set<string>;
+  /** Sub-agent transkriptlari kursori (fayl nomi → o'qilgan joy + dedupe). */
+  subFiles?: Map<string, { offset: number; buf: string; dec?: import("node:string_decoder").StringDecoder; seen: Set<string> }>;
+  /** Host o'lchagan faol vaqt (ms) va joriy faol oraliq boshi — tarix webview'siz
+   *  ham yozilishi uchun. */
+  activeMs?: number;
+  activeSince?: number;
+  /** costUsd ichidagi sub-agentlar ulushi ($). */
+  subagentCostUsd?: number;
+  /** Katta transcript tarixi hozir async o'qilmoqda (tick o'tkazib yuboradi). */
+  priming?: boolean;
+  /** Prime avlodi — yangi prime boshlansa eskisi to'xtaydi. */
+  primeGen?: number;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;
@@ -130,6 +150,8 @@ export function createAgentState(
     billedInput: 0,
     billedCacheWrite: 0,
     billedCacheRead: 0,
+    costUsd: 0,
     contextWindow: MAX_CONTEXT_TOKENS,
+    seenMsgIds: new Set(),
   };
 }

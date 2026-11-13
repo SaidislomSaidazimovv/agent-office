@@ -67,6 +67,45 @@ export function fileConflicts(agents: AgentView[]): FileConflict[] {
   return out;
 }
 
+// ── Xarajat SAKRASHI (anomaliya) — nisbiy: so'nggi tezlik o'zining odatiy
+// tezligidan bir necha barobar yuqori. Mutlaq chegara (costFast) arzon sessiyada
+// hech qachon ishlamaydi, qimmatida esa doim yonib turadi; nisbiy signal har
+// sessiyaning O'Z ritmiga moslashadi. Faqat namunalardan (o'lchangan).
+export const SPIKE_RECENT_MS = 2 * 60_000; // "hozir" oynasi
+export const SPIKE_BASE_MS = 20 * 60_000; // undan oldingi "odatiy" oyna
+export const SPIKE_RATIO = 3; // hozir ≥ odatiy × 3
+export const SPIKE_MIN_RATE = 0.1; // $/daq — juda kichik summalarda shovqin bo'lmasin
+
+/** Kumulyativ narx namunalarida `t` paytidagi (yoki undan oldingi eng yaqin) qiymat. */
+function costAt(samples: CostSample[], t: number): CostSample | null {
+  let best: CostSample | null = null;
+  for (const s of samples) {
+    if (s.t <= t) best = s;
+    else break;
+  }
+  return best;
+}
+
+/** Sakrash bo'lsa {rate ($/daq), ratio} qaytaradi, aks holda null. Odatiy oyna
+ *  to'liq (≥ SPIKE_BASE_MS tarix) bo'lishi shart — sessiya boshidagi tabiiy
+ *  tezlanishni "sakrash" deb ko'rsatmaymiz. Odatiy tezlik 0 bo'lsa (avval
+ *  sarf yo'q edi) — nisbat cheksiz emas, faqat minimal tezlik bilan baholanadi. */
+export function costSpike(samples: CostSample[]): { rate: number; ratio: number } | null {
+  if (samples.length < 3) return null;
+  const last = samples[samples.length - 1];
+  const recentStart = costAt(samples, last.t - SPIKE_RECENT_MS);
+  const baseStart = costAt(samples, last.t - SPIKE_RECENT_MS - SPIKE_BASE_MS);
+  if (!recentStart || !baseStart || recentStart === last || baseStart === recentStart) return null;
+  const recentMin = (last.t - recentStart.t) / 60_000;
+  const baseMin = (recentStart.t - baseStart.t) / 60_000;
+  if (recentMin <= 0 || baseMin < (SPIKE_BASE_MS / 60_000) * 0.9) return null;
+  const rate = Math.max(0, (last.cost - recentStart.cost) / recentMin);
+  const baseRate = Math.max(0, (recentStart.cost - baseStart.cost) / baseMin);
+  if (rate < SPIKE_MIN_RATE) return null;
+  if (baseRate > 0 && rate < baseRate * SPIKE_RATIO) return null;
+  return { rate, ratio: baseRate > 0 ? rate / baseRate : Infinity };
+}
+
 export function buildInsights(agents: AgentView[], samples: CostSample[], now: number): Insight[] {
   const out: Insight[] = [];
   const active = agents.filter((a) => a.status !== "idle");
@@ -118,8 +157,23 @@ export function buildInsights(agents: AgentView[], samples: CostSample[], now: n
     const mins = (last.t - base.t) / 60000;
     if (mins > 0.2) {
       const rate = (last.cost - base.cost) / mins;
-      if (rate >= 0.25) out.push({ id: "cost-rate", level: "info", icon: "📈", key: "insight.costFast", vars: { rate } });
+      // Sakrash insight'i bo'lsa — u aniqroq (nisbiy), takrorlamaymiz.
+      if (rate >= 0.25 && !costSpike(samples)) out.push({ id: "cost-rate", level: "info", icon: "📈", key: "insight.costFast", vars: { rate } });
     }
+  }
+
+  // 5b) XARAJAT SAKRASHI — so'nggi 2 daqiqa odatiy 20 daqiqadan ≥3× tez.
+  const spike = costSpike(samples);
+  if (spike) {
+    out.push({
+      id: "cost-spike",
+      // Odatiy tezlik bor edi va ≥3× oshdi — ogohlantirish; avval sarf yo'q edi
+      // (ish endi boshlandi) — faqat ma'lumot.
+      level: Number.isFinite(spike.ratio) ? "warn" : "info",
+      icon: "💥",
+      key: Number.isFinite(spike.ratio) ? "insight.costSpike" : "insight.costSpikeNew",
+      vars: { rate: spike.rate, x: Number.isFinite(spike.ratio) ? Math.round(spike.ratio * 10) / 10 : 0 },
+    });
   }
 
   // 6) ENG BAND agent

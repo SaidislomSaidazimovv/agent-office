@@ -8,6 +8,7 @@ export type ServerMessage =
   | { type: "agentCreated"; id: number; folderName?: string; isExternal?: boolean; role?: string; task?: string }
   | { type: "agentClosed"; id: number }
   | { type: "agentSelected"; id: number }
+  | { type: "uiCommand"; command: "openDashboard" | "exportHtml" | "exportMarkdown" | "pin" | "unpin"; id?: number }
   | { type: "existingAgents"; agents: number[]; folderNames: Record<string, string>; roles: Record<string, string>; externals?: number[] }
   | { type: "agentStatus"; id: number; status: AgentActivityStatus; awaitingInput?: boolean }
   | { type: "agentToolStart"; id: number; toolId: string; status: string; toolName?: string; permissionActive?: boolean; runInBackground?: boolean }
@@ -25,7 +26,7 @@ export type ServerMessage =
   | { type: "subagentToolStart"; id: number; parentToolId: string; toolId: string; status: string; label?: string; kind?: string }
   | { type: "subagentToolDone"; id: number; parentToolId: string; toolId: string }
   | { type: "subagentClear"; id: number; parentToolId: string }
-  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number; model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }
+  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number; model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number; costUsd?: number }
   | { type: "gitStatus"; repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[] }
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }
@@ -54,4 +55,5 @@ export type ClientMessage =
   | { type: "setRole"; id: number; role: string }
   | { type: "sessionStats"; stats: { id: number; project: string; cost: number; inTok: number; outTok: number; tools: number; turns: number; ms: number; model?: string }[] }
   | { type: "budgetAlert"; spent: number; limit: number }
-  | { type: "pinnedAgent"; label: string | null; cost: number };
+  | { type: "pinnedAgent"; label: string | null; cost: number }
+  | { type: "setLang"; lang: string };

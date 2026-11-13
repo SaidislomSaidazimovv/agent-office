@@ -7,10 +7,10 @@ import { useOffice } from "../store";
 import { UNIT_BOX } from "./resources";
 import { seatFor } from "./roles";
 
-// ── Fayl to'qnashuvini ofisда KO'RSATISH ─────────────────────
-// Insights matnда aytadi ("2 agent «store.ts»ni tahrirlamoqda"); bu esa 3D'da
-// ko'rsatadi: to'qnashuvdagi agentlar ostида amber halqa, ularni bog'lovchi
-// chiziq va o'rtaда fayl nomi. Ma'lumot O'LCHANGAN (insights.fileConflicts),
+// ── Fayl to'qnashuvini ofisda KO'RSATISH ─────────────────────
+// Insights matnda aytadi ("2 agent «store.ts»ni tahrirlamoqda"); bu esa 3D'da
+// ko'rsatadi: to'qnashuvdagi agentlar ostida amber halqa, ularni bog'lovchi
+// chiziq va o'rtada fayl nomi. Ma'lumot O'LCHANGAN (insights.fileConflicts),
 // hech narsa to'qib chiqarilmaydi. Faqat izometrik ko'rinishda (poldan o'qiladi).
 
 const CONFLICT = "#ff9f0a";
@@ -56,8 +56,8 @@ export default function ConflictLinks() {
                 })()}
               </group>
             ))}
-            {/* Fayl nomi — o'rtaда, tepaда */}
-            <Html position={[cx, 1.95, cz]} center style={{ pointerEvents: "none" }}>
+            {/* Fayl nomi — o'rtada, tepada */}
+            <Html position={[cx, 1.95, cz]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
               <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(255,159,10,0.95)", color: "#241800", fontFamily: "system-ui", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.45)" }}>⚠️ {c.file}</div>
             </Html>
           </group>

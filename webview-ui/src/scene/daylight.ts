@@ -70,13 +70,13 @@ interface DaylightState {
   refresh(): void;
 }
 
-/** Kun/tun holati (zustand). `refresh()` real soatдан qayta hisoblaydi —
+/** Kun/tun holati (zustand). `refresh()` real soatdan qayta hisoblaydi —
  *  soat sekin o'zgargani uchun kamdan-kam re-render. */
 export const useDaylight = create<DaylightState>()(
   persist(
     (set, get) => ({
       enabled: true,
-      // Boshlang'ich yorug'lik — JORIY vaqtдан (avval qat'iy DAY edi → yuklanганда
+      // Boshlang'ich yorug'lik — JORIY vaqtdan (avval qat'iy DAY edi → yuklanganda
       // ~30s kunduzgi yorug'lik ko'rinardi, keyin refresh() to'g'rilar edi).
       params: currentParams(),
       toggle() {
@@ -89,8 +89,8 @@ export const useDaylight = create<DaylightState>()(
     }),
     {
       name: "agent-office.daylight",
-      // FAQAT yoqilган/o'chirilган holatни saqlaymiz — day/night o'chirilса reload'да
-      // qayta yoqilmasin. `params` esa real vaqtдан QAYTA hisoblanadi (eski saqlanmaydi).
+      // FAQAT yoqilgan/o'chirilgan holatni saqlaymiz — day/night o'chirilsa reload'da
+      // qayta yoqilmasin. `params` esa real vaqtdan QAYTA hisoblanadi (eski saqlanmaydi).
       partialize: (s) => ({ enabled: s.enabled }),
       merge: (persisted, current) => {
         const enabled = (persisted as { enabled?: boolean } | null)?.enabled ?? true;

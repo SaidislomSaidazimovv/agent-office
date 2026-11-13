@@ -1,0 +1,16 @@
+{
+  "cmd.showPanel": "Agent Office: パネルを表示",
+  "cmd.installHooks": "Agent Office: Claude フックをインストール",
+  "cmd.uninstallHooks": "Agent Office: Claude フックをアンインストール",
+  "cmd.showDiagnostics": "Agent Office: 診断を表示",
+  "cfg.autoShowPanel": "VS Code の起動時に Agent Office パネルを自動で開きます。",
+  "cfg.autoSpawnAgent": "起動時にエージェントが動いていなければ、自動で 1 つ起動します。",
+  "cfg.hooksEnabled": "より速く確実なライブ検出のために Claude Code のフックを使います（~/.claude/settings.json にフックを追加する前に確認します）。オフの場合はトランスクリプト（JSONL）の監視のみ。",
+  "cfg.notifications": "パネルが非表示のとき、エージェントが許可を求めた（または 3 分以上待っている）場合に VS Code の通知を表示します。",
+  "cfg.notifyOnErrors": "ツール呼び出しが失敗するたびにも通知します（既定はオフ: 失敗はよく起き、たいてい自動で回復します。オフィスでは常に理由付きで赤く表示されます）。",
+  "cfg.statusBar": "オフィスパネルが閉じていても、ステータスバーにエージェント数と対応が必要なものを表示します。",
+  "cmd.focusAgent": "Agent Office: エージェントにフォーカス…",
+  "cmd.pinAgent": "Agent Office: エージェントをステータスバーに固定…",
+  "cmd.openDashboard": "Agent Office: 分析を開く",
+  "cmd.exportReport": "Agent Office: セッションレポートをエクスポート…"
+}

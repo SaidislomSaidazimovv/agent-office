@@ -9,6 +9,14 @@ import type { ServerMessage } from "../core/messages.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import type { AgentState } from "./types.js";
 
+/** Joriy token/xarajat holati (bitta xabar) — snapshot va sub-agent yangilanishi. */
+export function tokenUsageMessage(a: AgentState): ServerMessage {
+  return {
+    type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
+    model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead, costUsd: a.costUsd,
+  };
+}
+
 /** Agentning JORIY holatini tasvirlaydigan xabarlar (snapshot). Webview qayta
  *  yuklanganda VA yangi agent adopt qilinganda bir xil ishlatiladi — shunda
  *  butun tarixni qayta broadcast qilish shart emas. */
@@ -20,10 +28,10 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     // MODEL + BILLED tokenlarni ham yuboramiz — aks holda webview qayta ochilganda
     // xarajat (billed'dan hisoblanadi) faqat output qismini ko'rsatib, input+kesh
     // qismini yo'qotardi (idle agentda butunlay noto'g'ri qolardi).
-    msgs.push({
-      type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
-      model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead,
-    });
+    msgs.push(tokenUsageMessage(a));
+  } else if (a.costUsd > 0) {
+    // Faqat sub-agentlar sarf qilgan bo'lsa ham xarajat ko'rinsin.
+    msgs.push(tokenUsageMessage(a));
   }
   // Har REAL faol tool uchun bitta start — webview sanog'i server bilan aniq mos
   // keladi va tugaganda to'g'ri tozalanadi (sun'iy "restore" id'siz — u hech
@@ -39,9 +47,12 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     msgs.push({ type: "subagentToolStart", id: a.id, parentToolId: tid, toolId: tid, status: "Task", label: info.label, kind: info.kind });
   }
   if (a.customName) msgs.push({ type: "agentRenamed", id: a.id, name: a.customName });
+  // Rol (tarixdan aniqlangan yoki qo'lda) — katta transcript async o'qilganda
+  // agentCreated roldan OLDIN ketadi, shuning uchun snapshot ham yuboradi.
+  if (a.role) msgs.push({ type: "agentRoleDetected", id: a.id, role: a.role });
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
   if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true, reason: a.blockedReason });
-  // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishда yoki
+  // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishda yoki
   // launch-seed (+Agent --dangerously-skip-permissions) holatida ham ko'rinsin.
   if (a.permissionMode && a.permissionMode !== "default") msgs.push({ type: "agentPermissionMode", id: a.id, mode: a.permissionMode });
   // Session statlari — ENG OXIRIDA (yuqoridagi agentToolStart replay'lari
@@ -144,8 +155,14 @@ export function setActive(store: AgentStateStore, agent: AgentState): void {
   }
   if (agent.isWaiting) {
     agent.isWaiting = false;
+    agent.activeSince = Date.now(); // host tomonidagi faol vaqt (tarix uchun)
     store.broadcast({ type: "agentStatus", id: agent.id, status: "active" });
   }
+}
+
+/** Host o'lchagan jami faol vaqt (ms) — joriy faol oraliq ham qo'shiladi. */
+export function activeMsOf(agent: AgentState, now = Date.now()): number {
+  return (agent.activeMs ?? 0) + (agent.activeSince != null ? Math.max(0, now - agent.activeSince) : 0);
 }
 
 export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingInput: boolean): void {
@@ -165,6 +182,10 @@ export function markWaiting(store: AgentStateStore, agent: AgentState, awaitingI
   agent.currentToolName = undefined;
   agent.permissionActive = false;
   agent.isWaiting = true;
+  if (agent.activeSince != null) {
+    agent.activeMs = activeMsOf(agent);
+    agent.activeSince = undefined;
+  }
   store.broadcast({ type: "agentToolsClear", id: agent.id });
   store.broadcast({ type: "agentStatus", id: agent.id, status: "waiting", awaitingInput });
 }

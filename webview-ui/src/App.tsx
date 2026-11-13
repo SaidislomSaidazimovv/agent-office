@@ -29,7 +29,7 @@ import { useExtensionMessages } from "./useExtensionMessages";
 
 // Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
 // harakatlanadi, shuning uchun 15Hz soya ko'zga ilinmaydi — lekin har freym
-// butun sahnani soya-o'tishда qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
+// butun sahnani soya-o'tishda qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
 function ShadowThrottle({ every }: { every: number }) {
   const gl = useThree((s) => s.gl);
   const f = useRef(0);
@@ -129,7 +129,7 @@ function CostSampler() {
           model: a!.model,
         }));
       if (stats.length > 0) send({ type: "sessionStats", stats });
-      // Budjetdan oshish — chegaradan O'TISHда bir marta host'ga xabar (u toast
+      // Budjetdan oshish — chegaradan O'TISHda bir marta host'ga xabar (u toast
       // ko'rsatadi, notifications sozlamasiga bo'ysunadi). FAQAT ogohlantirish.
       const spent = stats.reduce((sum, x) => sum + x.cost, 0);
       const limit = useSettings.getState().budgetUsd;
@@ -170,7 +170,7 @@ function Gallery() {
             <group rotation={[0, Math.PI, 0]}>
               <PixelPerson skin={preset} status="idle" pose="stand" />
             </group>
-            <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }}>
+            <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
               <div style={{ fontFamily: "system-ui", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{preset.label}</div>
             </Html>
           </group>
@@ -194,7 +194,7 @@ export default function App() {
 
   // Collision: 10 ta ASOSIY stol endi DOIM turadi (band bo'lmasa ham) — shuning
   // uchun ular doim to'siq. Overflow (10+) agentlarning stollari esa faqat band
-  // bo'lganда qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatда tekshirilgan.)
+  // bo'lganda qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatda tekshirilgan.)
   const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
   useEffect(() => {
     const base = Array.from({ length: SEAT_COUNT }, (_, i) => i);

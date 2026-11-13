@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // Webview → dist/webview. Nisbiy asset yo'llari (base "./") — VS Code webview
-// URI'larига ViewProvider tomonidan qayta yoziladi (barcha src/href generik
+// URI'lariga ViewProvider tomonidan qayta yoziladi (barcha src/href generik
 // almashtiriladi, shu jumladan modulepreload va bo'lingan chunk teglari ham).
 // Chunklar ES-import bilan bir-birini yuklaydi — har biri entry'ning webview
 // URI'siga NISBATAN yechiladi, shuning uchun webview'da to'g'ri ishlaydi.
@@ -14,7 +14,7 @@ export default defineConfig({
     emptyOutDir: true,
     assetsInlineLimit: 0,
     // 3D stack (three + @react-three + drei) ~920KB (siqib bo'lmaydi) — alohida
-    // chunkда; ilova kodi kichik chunkда qoladi. Limitni stack hajmidan sal
+    // chunkda; ilova kodi kichik chunkda qoladi. Limitni stack hajmidan sal
     // yuqori qo'yamiz (three/drei yangilanishida soxta ogohlantirish chiqmasin).
     chunkSizeWarningLimit: 950,
     rollupOptions: {
@@ -22,7 +22,7 @@ export default defineConfig({
         entryFileNames: "assets/[name].js",
         chunkFileNames: "assets/[name].js",
         assetFileNames: "assets/[name][extname]",
-        // Vendorni mantiqiy chunklarга ajratamiz: 3D stack (kamdan-kam o'zgaradi →
+        // Vendorni mantiqiy chunklarga ajratamiz: 3D stack (kamdan-kam o'zgaradi →
         // brauzer/CLI relizlar aro keshlaydi) ilova kodidan alohida yuklanadi.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;

@@ -1,0 +1,16 @@
+{
+  "cmd.showPanel": "Agent Office: 显示面板",
+  "cmd.installHooks": "Agent Office: 安装 Claude 钩子",
+  "cmd.uninstallHooks": "Agent Office: 卸载 Claude 钩子",
+  "cmd.showDiagnostics": "Agent Office: 显示诊断信息",
+  "cfg.autoShowPanel": "VS Code 启动时自动打开 Agent Office 面板。",
+  "cfg.autoSpawnAgent": "启动时如果没有运行中的智能体，自动启动一个。",
+  "cfg.hooksEnabled": "使用 Claude Code 钩子实现更快、更可靠的实时检测（向 ~/.claude/settings.json 添加钩子前会先询问）。关闭时仅监视转录（JSONL）。",
+  "cfg.notifications": "面板隐藏时，若有智能体请求权限（或已等待 3 分钟以上），显示 VS Code 通知。",
+  "cfg.notifyOnErrors": "每次工具调用失败时也显示通知（默认关闭：此类失败很常见且通常会自行纠正；办公室仍会将该智能体标红并显示原因）。",
+  "cfg.statusBar": "即使办公室面板已关闭，也在状态栏显示智能体数量以及需要你关注的智能体。",
+  "cmd.focusAgent": "Agent Office: 定位到智能体…",
+  "cmd.pinAgent": "Agent Office: 将智能体固定到状态栏…",
+  "cmd.openDashboard": "Agent Office: 打开分析",
+  "cmd.exportReport": "Agent Office: 导出会话报告…"
+}

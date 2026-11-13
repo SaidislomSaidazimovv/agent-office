@@ -15,6 +15,10 @@ import * as path from "node:path";
 const EVENTS = [
   "PreToolUse",
   "PostToolUse",
+  // Tool XATO bilan tugaganda PostToolUse EMAS, shu event keladi (rasmiy hujjat).
+  // Busiz hook rejimida "bloklandi" holati hech qachon ko'rinmas va xato bergan
+  // tool indikatori navbat oxirigacha osilib qolardi.
+  "PostToolUseFailure",
   "Stop",
   "Notification",
   "SessionStart",
@@ -119,6 +123,82 @@ export function installHooks(hookScriptPath: string, settingsFile: string = defa
   } catch {
     return false;
   }
+}
+
+/** settings.json'da BIZNING hook (istalgan versiya yo'li) bormi — mavjud
+ *  foydalanuvchini aniqlash uchun (rozilik so'rash faqat yangi o'rnatishda). */
+export function hasOurHooks(settingsFile: string = defaultSettingsPath()): boolean {
+  const { settings, readable } = readSettings(settingsFile);
+  if (!readable || !settings.hooks) return false;
+  return Object.values(settings.hooks).some((groups) =>
+    (groups || []).some((g) => (g.hooks || []).some((h) => isOurHook(h.command))),
+  );
+}
+
+/** Barqaror hook-skript joyi: ~/.agent-office/hooks/claude-hook.js. Kengaytma
+ *  papkasi versiya bilan o'zgaradi (…/thomasarisu.agent-office-0.1.6/…) va
+ *  yangilanish yoki o'chirishdan keyin yo'qoladi — settings.json'dagi buyruq
+ *  esa o'sha o'lik yo'lga qarab qolar va Claude HAR tool'da "hook error"
+ *  ko'rsatardi. Barqaror nusxa hech qachon yo'qolmaydi (server bo'lmasa jim
+ *  exit 0 qiladi). */
+export function stableHookScriptPath(): string {
+  return path.join(os.homedir(), ".agent-office", "hooks", "claude-hook.js");
+}
+
+/** Kengaytmadagi skriptni barqaror joyga atomik nusxalaydi (faqat farq qilsa).
+ *  Muvaffaqiyatli bo'lsa barqaror yo'lni, aks holda undefined qaytaradi. */
+export function installStableHookScript(srcPath: string, dest: string = stableHookScriptPath()): string | undefined {
+  try {
+    const src = fs.readFileSync(srcPath);
+    try {
+      if (fs.readFileSync(dest).equals(src)) return dest; // allaqachon joriy
+    } catch {
+      /* hali yo'q */
+    }
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const tmp = `${dest}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, src);
+    fs.renameSync(tmp, dest);
+    return dest;
+  } catch {
+    return undefined;
+  }
+}
+
+/** PATH'da bajariladigan fayl bormi (child_process'siz — faqat fs). Claude
+ *  hook'ni `node "…"` bilan ishga tushiradi; node bo'lmasa (masalan Claude
+ *  native o'rnatilgan) har tool'da hook xatosi chiqardi. */
+export function findOnPath(cmd: string, env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | undefined {
+  const raw = env.PATH ?? env.Path ?? "";
+  const dirs = raw.split(platform === "win32" ? ";" : ":").filter(Boolean);
+  const exts = platform === "win32" ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean) : [""];
+  for (const d of dirs) {
+    for (const e of exts) {
+      const p = path.join(d.replace(/^"|"$/g, ""), cmd + e.toLowerCase());
+      try {
+        if (fs.statSync(p).isFile()) return p;
+      } catch {
+        /* yo'q */
+      }
+    }
+  }
+  return undefined;
+}
+
+export type HookConsent = "granted" | "declined" | undefined;
+export type HookDecision = "install" | "ask" | "skip-declined" | "skip-no-node";
+
+/** Ishga tushishda hook'lar bilan nima qilish (sof — test qilinadi):
+ *  • allaqachon o'rnatilgan (mavjud foydalanuvchi) → yangilaymiz (yo'l
+ *    ko'chirish), hech narsa so'ramaymiz — xatti-harakati o'zgarmaydi;
+ *  • foydalanuvchi rad etgan / "Uninstall" bosgan → TEGMAYMIZ (qayta yozmaymiz);
+ *  • `node` PATH'da yo'q → yozmaymiz (aks holda har tool'da hook xatosi);
+ *  • rozilik berilgan → o'rnatamiz; hali so'ralmagan → so'raymiz. */
+export function decideHookInstall(o: { alreadyInstalled: boolean; consent: HookConsent; nodeFound: boolean }): HookDecision {
+  if (o.alreadyInstalled) return "install";
+  if (o.consent === "declined") return "skip-declined";
+  if (!o.nodeFound) return "skip-no-node";
+  return o.consent === "granted" ? "install" : "ask";
 }
 
 export function uninstallHooks(_hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {

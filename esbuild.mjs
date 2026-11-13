@@ -1,4 +1,7 @@
 import esbuild from "esbuild";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 // Extension host (Node/CJS) bundle → dist/extension.js
 const watch = process.argv.includes("--watch");
@@ -30,12 +33,22 @@ const hookCtx = await esbuild.context({
   banner: { js: "#!/usr/bin/env node" },
 });
 
-// 3) Standalone CLI → dist/cli.js (`npx agent-office`, brauzerda kuzatish)
+// 3) Standalone CLI → dist/cli.js (`node dist/cli.js`, brauzerda kuzatish; npm'da E'LON QILINMAGAN —
+//    npm'dagi "agent-office" nomi boshqa muallifga tegishli)
 const cliCtx = await esbuild.context({
   ...common,
   entryPoints: ["extension/cli/main.ts"],
   outfile: "dist/cli.js",
   banner: { js: "#!/usr/bin/env node" },
+  // Versiya — yagona manba package.json (qo'lda takrorlanmaydi).
+  define: { __AO_VERSION__: JSON.stringify(pkg.version) },
+});
+
+// 4) `vscode:uninstall` skripti → dist/uninstall.js (o'chirishda hooklarni tozalaydi)
+const uninstallCtx = await esbuild.context({
+  ...common,
+  entryPoints: ["extension/vscode/uninstall.ts"],
+  outfile: "dist/uninstall.js",
 });
 
 if (watch) {
@@ -47,7 +60,9 @@ if (watch) {
   await extCtx.rebuild();
   await hookCtx.rebuild();
   await cliCtx.rebuild();
+  await uninstallCtx.rebuild();
   await extCtx.dispose();
   await hookCtx.dispose();
   await cliCtx.dispose();
+  await uninstallCtx.dispose();
 }

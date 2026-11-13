@@ -6,10 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 The office learns to look ahead, speaks eight languages, and can hand you a
-report you can share.
+report you can share — and its cost numbers are now the real ones.
 
 ### Added
 
+- **Richer history.** The history panel breaks cost down by model, switches the
+  trend between days, weeks and months, and exports the daily history as CSV.
+- **Budget notification.** A one-time VS Code warning when the session crosses
+  your budget (warning only — the office never stops an agent).
+- **Reliable detection in every window.** Each VS Code window (and the CLI) now
+  runs its own loopback hook server, and Claude's hook routes each event to the
+  window whose folder contains the session — a second window no longer falls
+  back to transcript-only detection.
+- **Per-agent activity sparkline** in the inspector, **pin an agent** to the
+  status bar with its live cost, and screen-reader labels for the agent bar,
+  chips and inspector.
+- **The standalone CLI keeps history too**, in the same `~/.agent-office` file.
+- **Drill into a project and compare sessions.** Click a project in the history
+  panel and every chart and total switches to that project; pick any two
+  recent sessions to see them side by side (cost, tokens, tool calls, active
+  time, cost per tool call) with the change in %.
+- **Cost-spike insight.** A warning when spend in the last two minutes runs at
+  least 3× the session's pace over the previous 20 minutes.
+- **Command palette.** *Focus Agent…*, *Pin Agent to Status Bar…*, *Open
+  Analytics* and *Export Session Report…* (HTML or Markdown).
 - **Cost forecast.** From the live spend rate ($/hr) the dashboard projects how
   long until you reach your budget, so a runaway session shows up before it
   lands on the bill.
@@ -23,12 +43,77 @@ report you can share.
   and CSS, no external references, fully escaped) you can open or send on.
 - **Eight languages.** The UI now ships in English (default), Uzbek, Russian,
   Turkish, Japanese, Chinese, Korean, and French, with build-time checks that
-  every string is translated.
+  every string is translated. VS Code notifications and the status bar follow
+  the language you pick in the panel, and command titles and settings are
+  localized for VS Code's own display language.
+- **`agent-office.notifyOnErrors`** (off by default) — opt back in to a toast
+  for every failed tool call.
 
 ### Changed
 
+- **Hooks ask first.** On a new install the office asks once before adding
+  hooks to your global `~/.claude/settings.json`; existing installs are
+  unchanged. "Uninstall Claude Hooks" is now remembered instead of being undone
+  on the next start, hooks are not written if `node` is not on your PATH, and
+  uninstalling the extension removes its hook entries (your other settings and
+  your `~/.agent-office` data are kept). The hook script now lives at a stable
+  path, `~/.agent-office/hooks/claude-hook.js`, so an update or uninstall can no
+  longer leave Claude pointing at a missing file.
+- **Fewer toasts.** Failed tool calls no longer raise a notification each time
+  (they are frequent and usually self-corrected); the office still shows the
+  agent in red with the reason. Permission requests are unchanged.
+- **History is recorded by the extension itself**, even if the panel was never
+  opened, and several windows writing it at once no longer overwrite each
+  other.
+- External agents with no activity for 30 minutes (and no open terminal) leave
+  the office; they come back with their name and role when the session
+  continues.
 - Upgraded the 3D stack to React 19, React Three Fiber 9, drei 10, and
   three 0.185; the React bundle is smaller than before.
+- Release builds are minified.
+
+### Fixed
+
+- **Cost was overstated about 2–3×.** Claude Code writes one transcript line
+  per content block of a response, each repeating the same usage; every copy
+  was counted. Each response is now counted once. Costs also use the current
+  official prices per response — model-specific cache-read rates, 1-hour cache
+  writes, fast mode, Haiku 5.5's long-prompt tier — and include sub-agents'
+  own transcripts, which were missing. Checked against Claude Code's own cost
+  record on a real session: $21.19 vs $21.02. Days already in your history
+  keep the amounts recorded before this fix. Known limit, now stated in the
+  cost tooltips: background requests Claude Code does not write to the
+  transcript (e.g. away summaries, retried requests) can't be counted, so
+  short sessions may read a little low (8–12% in our checks).
+- Opening a session with a very large transcript (hundreds of MB) no longer
+  freezes VS Code for seconds — it is read in the background.
+- Hook mode: failed tools now show as blocked (`PostToolUseFailure` was never
+  registered), tools are matched by `tool_use_id`, one sub-agent finishing no
+  longer removes its parallel siblings, very large tool outputs no longer leave
+  a tool stuck, and the transcript path reported by Claude is used.
+- `autoSpawnAgent` works with hooks disabled; workspace matching treats `/`
+  and `\` alike on Windows and respects case on Linux.
+- The browser viewer reconnects after the CLI restarts, and a malformed URL no
+  longer crashes the CLI.
+- Agent labels and bubbles no longer draw over the dashboard and other
+  panels; the history/story/report views no longer shrink to a sliver when no
+  agent is running; and in a narrow panel the agent bar moves below the
+  toolbars instead of covering their buttons.
+
+### Security
+
+- **Standalone viewer:** the CLI's WebSocket accepted connections from any
+  website open in your browser, which could read session details. It now
+  accepts only its own page (Origin and Host checked; DNS-rebinding requests
+  are refused).
+- **Docs:** the README suggested `npx agent-office`, but that npm name belongs
+  to an unrelated project. The viewer is run from a source build
+  (`node dist/cli.js`); it is not published to npm.
+- The panel now enforces a strict Content-Security-Policy, so it cannot load
+  anything from the network.
+- The hook script forwards only the fields the office needs — no tool output,
+  prompt or reply text — and the files holding the hook server's token are
+  owner-only (0600).
 
 ## [0.1.6] — 2026-08-30
 

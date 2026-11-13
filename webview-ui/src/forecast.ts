@@ -6,13 +6,13 @@
 import type { CostSample } from "./store";
 
 /** So'nggi `windowMs` oynasidagi xarajat tezligi ($/daqiqa). Namuna yetarli
- *  bo'lmasa yoki vaqt farqi nol bo'lsa 0. Cost kumulyativ — tezlik hech qачон
+ *  bo'lmasa yoki vaqt farqi nol bo'lsa 0. Cost kumulyativ — tezlik hech qachon
  *  manfiy emas. */
 export function costVelocity(samples: CostSample[], windowMs = 300000): number {
   if (samples.length < 2) return 0;
   const last = samples[samples.length - 1];
   const cutoff = last.t - windowMs;
-  // Oyna ичидаги ENG ERTA namuna (yoki oyna undan uzun bo'lsa — eng birinchisi).
+  // Oyna ichidagi ENG ERTA namuna (yoki oyna undan uzun bo'lsa — eng birinchisi).
   let first = samples[0];
   for (let i = 0; i < samples.length; i++) {
     if (samples[i].t >= cutoff) { first = samples[i]; break; }

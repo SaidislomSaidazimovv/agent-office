@@ -51,23 +51,43 @@
     "commands": [
       {
         "command": "agent-office.showPanel",
-        "title": "Agent Office: Show Panel",
+        "title": "%cmd.showPanel%",
         "icon": "$(window)"
       },
       {
         "command": "agent-office.installHooks",
-        "title": "Agent Office: Claude Hook'larini o'rnatish",
+        "title": "%cmd.installHooks%",
         "icon": "$(plug)"
       },
       {
         "command": "agent-office.uninstallHooks",
-        "title": "Agent Office: Claude Hook'larini olib tashlash",
+        "title": "%cmd.uninstallHooks%",
         "icon": "$(debug-disconnect)"
       },
       {
         "command": "agent-office.showDiagnostics",
-        "title": "Agent Office: Diagnostikani ko'rsatish",
+        "title": "%cmd.showDiagnostics%",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "agent-office.focusAgent",
+        "title": "%cmd.focusAgent%",
+        "icon": "$(person)"
+      },
+      {
+        "command": "agent-office.pinAgent",
+        "title": "%cmd.pinAgent%",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "agent-office.openDashboard",
+        "title": "%cmd.openDashboard%",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "agent-office.exportReport",
+        "title": "%cmd.exportReport%",
+        "icon": "$(export)"
       }
     ],
     "menus": {
@@ -108,32 +128,38 @@
         "agent-office.autoShowPanel": {
           "type": "boolean",
           "default": false,
-          "description": "VS Code ochilganda Agent Office panelini avtomatik ochish."
+          "description": "%cfg.autoShowPanel%"
         },
         "agent-office.autoSpawnAgent": {
           "type": "boolean",
           "default": false,
-          "description": "VS Code ochilganda, agar hech qanday agent ishlamayotgan bo'lsa, avtomatik bittasini ishga tushirish."
+          "description": "%cfg.autoSpawnAgent%"
         },
         "agent-office.hooksEnabled": {
           "type": "boolean",
           "default": true,
-          "description": "Claude Code Hooks orqali ishonchli aniqlash (~/.claude/settings.json'ga hook qo'shadi). O'chirilsa faqat JSONL kuzatuvi ishlaydi."
+          "description": "%cfg.hooksEnabled%"
         },
         "agent-office.notifications": {
           "type": "boolean",
           "default": true,
-          "description": "Agent ruxsat so'raganda yoki bloklanganda (xato) VS Code bildirishnomasini ko'rsatish."
+          "description": "%cfg.notifications%"
+        },
+        "agent-office.notifyOnErrors": {
+          "type": "boolean",
+          "default": false,
+          "description": "%cfg.notifyOnErrors%"
         },
         "agent-office.statusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Status barда agentlar sonini va e'tibor kutayotganlarini ko'rsatish (ofis paneli yopiq bo'lsa ham)."
+          "description": "%cfg.statusBar%"
         }
       }
     }
   },
   "scripts": {
+    "vscode:uninstall": "node ./dist/uninstall.js",
     "check-types": "tsc -p tsconfig.json",
     "build:extension": "node esbuild.mjs",
     "build:webview": "npm --prefix webview-ui run build",
@@ -142,7 +168,7 @@
     "watch:extension": "node esbuild.mjs --watch",
     "cli": "node dist/cli.js",
     "install:all": "npm install && npm --prefix webview-ui install",
-    "package": "npm run build && vsce package --no-dependencies"
+    "package": "npm run check-types && node esbuild.mjs --production && npm run build:webview && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

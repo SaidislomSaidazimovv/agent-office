@@ -13,3 +13,12 @@ tsconfig.json
 active_*.md
 **/*.map
 **/*.ts
+# Ichki / lokal fayllar (npm .gitignore'ni emas, shu faylni ishlatadi)
+CLAUDE.md
+TESTING.md
+_shot*.cjs
+.test-out.cjs
+.nvmrc
+.multi-agent/
+.env
+.env.*

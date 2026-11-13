@@ -9,6 +9,7 @@ export type ServerMessage =
   | AgentCreated
   | AgentClosed
   | AgentSelected
+  | UiCommand
   | ExistingAgents
   | AgentStatus
   | AgentToolStart
@@ -35,6 +36,14 @@ export type ServerMessage =
   | LayoutLoaded;
 
 // ── Webview → extension ──────────────────────────────────────
+/** VS Code buyruqlar palitrasidan panelga buyruq (dashboard, eksport, pin). */
+export interface UiCommand {
+  type: "uiCommand";
+  command: "openDashboard" | "exportHtml" | "exportMarkdown" | "pin" | "unpin";
+  /** pin uchun — agent id. */
+  id?: number;
+}
+
 export type ClientMessage =
   | WebviewReady
   | LaunchAgent
@@ -48,7 +57,14 @@ export type ClientMessage =
   | SetRole
   | SessionStats
   | BudgetAlert
-  | PinnedAgent;
+  | PinnedAgent
+  | SetLang;
+
+/** Panelda tanlangan til — host toastlari/status bar shu tilda bo'ladi. */
+export interface SetLang {
+  type: "setLang";
+  lang: string;
+}
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */
@@ -84,7 +100,7 @@ export interface SaveMedia {
 }
 
 /** Budjetdan oshdi (webview → host) — host VS Code bildirishnomasini ko'rsatadi
- *  (`agent-office.notifications` sozlamasiga bo'ysunadi). Webview har o'tishда
+ *  (`agent-office.notifications` sozlamasiga bo'ysunadi). Webview har o'tishda
  *  BIR marta yuboradi (spam yo'q). FAQAT ogohlantirish — hech narsa to'xtatilmaydi. */
 export interface BudgetAlert {
   type: "budgetAlert";
@@ -94,7 +110,7 @@ export interface BudgetAlert {
   limit: number;
 }
 
-/** Status-barда qadalgan (pin) agent — webview host'ga uning yorlig'i + JORIY
+/** Status-barda qadalgan (pin) agent — webview host'ga uning yorlig'i + JORIY
  *  xarajatini yuboradi (host status-bar'da ko'rsatadi, panel yopiq bo'lsa ham).
  *  Xarajat webview'da hisoblanadi (yagona manba) — host faqat ko'rsatadi.
  *  label=null → pin yechildi (status-bar item yashiriladi). */
@@ -263,6 +279,10 @@ export interface AgentTokenUsage {
   billedInput?: number;
   billedCacheWrite?: number;
   billedCacheRead?: number;
+  /** Host hisoblagan sessiya xarajati ($) — har API javobi o'z modeli, kesh
+   *  muddati (5m/1h), fast mode va uzun-prompt narxi bilan (core/pricing.ts).
+   *  Bo'lmasa (eski host) webview o'zi taxmin qiladi. */
+  costUsd?: number;
 }
 export interface GitStatus {
   type: "gitStatus";

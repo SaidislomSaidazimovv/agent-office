@@ -1,6 +1,6 @@
 // ── E'tibor talab qiladigan agentlar ─────────────────────────
 // Sof mantiq (vscode'siz) → test qilinadi. Ikki savolga javob beradi:
-//   1) Status barда nima yozilsin (nechta agent, nechtasi sizni kutmoqda)?
+//   1) Status barda nima yozilsin (nechta agent, nechtasi sizni kutmoqda)?
 //   2) Qaysi agent JUDA uzoq kutib qoldi (siz e'tibor bermay qo'ygansiz)?
 
 /** Shuncha vaqt ruxsat kutilsa — "tiqilib qolgan" deb hisoblanadi. */
@@ -49,6 +49,25 @@ export function sanitizeName(raw: unknown): string {
   if (typeof raw !== "string") return "";
   const s = raw.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
   return s.length > MAX_NAME_LEN ? s.slice(0, MAX_NAME_LEN) : s;
+}
+
+/** Shuncha vaqt hech qanday faoliyat bo'lmasa, terminalga bog'lanmagan tashqi
+ *  agent ofisdan olib tashlanadi (sessiya qaytsa — avtomatik qayta paydo bo'ladi). */
+export const STALE_IDLE_MS = 30 * 60_000;
+
+/** Tashqi agent "eskirgan"mi: VS Code terminaliga bog'lanmagan (yopilishini
+ *  bilib bo'lmaydi), hozir kutish holatida, transkript fayli STALE_IDLE_MS dan
+ *  beri o'zgarmagan va hech qanday faol tool/ruxsat yo'q. Avval bunday agentlar
+ *  (masalan tashqi terminalda yopilgan Claude, SessionEnd'siz) abadiy qolardi. */
+export function isStaleExternal(o: {
+  isExternal: boolean;
+  boundToOpenTerminal: boolean;
+  isWaiting: boolean;
+  busy: boolean;
+  fileMtimeMs: number;
+  now: number;
+}): boolean {
+  return o.isExternal && !o.boundToOpenTerminal && o.isWaiting && !o.busy && o.now - o.fileMtimeMs >= STALE_IDLE_MS;
 }
 
 /** STUCK_MS dan uzoq kutayotgan, ammo hali "tiqilgan" deb belgilanmagan agentlar. */

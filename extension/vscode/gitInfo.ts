@@ -22,7 +22,7 @@ export interface GitInfo {
 }
 
 // Satr-darajadagi +/- diff `git diff` (child_process) talab qiladi — XAVFSIZLIK
-// siyosati bo'yicha taqiqlangan. Shuning uchun faqat API'да mavjud FAYL-darajасидagi
+// siyosati bo'yicha taqiqlangan. Shuning uchun faqat API'da mavjud FAYL-darajasidagi
 // hisoblar (staged/unstaged) + HEAD.ahead/behind ishlatiladi.
 interface GitRepoState { HEAD?: { name?: string; ahead?: number; behind?: number }; workingTreeChanges?: unknown[]; indexChanges?: unknown[] }
 interface GitRepo { rootUri: vscode.Uri; state: GitRepoState }

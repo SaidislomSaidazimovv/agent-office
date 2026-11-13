@@ -1,6 +1,6 @@
 name: Release
 
-# Bir versiya tegи (masalan v0.1.0) push qilinganда .vsix yasalib
+# Bir versiya tegi (masalan v0.1.0) push qilinganda .vsix yasalib
 # GitHub Release'ga biriktiriladi.
 on:
   push:

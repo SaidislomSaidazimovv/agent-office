@@ -16,7 +16,7 @@ function shade(hex: string, amt: number): string {
   return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
 }
 
-// Kun/tun yorug'ligi — parametrlar useDaylight store'dan, real soatдан ~30s'da
+// Kun/tun yorug'ligi — parametrlar useDaylight store'dan, real soatdan ~30s'da
 // yangilanadi (soat sekin o'zgargani uchun snap sezilmaydi). Fon rangi ham shundan.
 function Daylight() {
   const params = useDaylight((s) => s.params);
@@ -74,7 +74,7 @@ function applyWall(m: THREE.MeshStandardMaterial | null, openCoord: number): voi
   m.opacity = op;
   const tr = op < 0.985;
   if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } // toggle → recompile
-  m.depthWrite = op > 0.6; // qattiq bo'lsa chuqurlik yozadi (fon), shaffofда yo'q
+  m.depthWrite = op > 0.6; // qattiq bo'lsa chuqurlik yozadi (fon), shaffofda yo'q
 }
 
 export default function Room({ mode }: { mode: CameraMode }) {
@@ -98,7 +98,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
         const m = r.current;
         if (m) { m.opacity = 1; m.transparent = false; m.depthWrite = true; }
       }
-      // FPV'da ichkаridan yuqoriga qaralganда shift QATTIQ ko'rinsin.
+      // FPV'da ichkaridan yuqoriga qaralganda shift QATTIQ ko'rinsin.
       if (ceilM.current) { ceilM.current.opacity = 1; ceilM.current.transparent = false; ceilM.current.depthWrite = true; }
       return;
     }
@@ -107,9 +107,9 @@ export default function Room({ mode }: { mode: CameraMode }) {
     // ko'rinadi va lampalar shiftga o'rnashadi, lekin ichi baribir ko'rinadi.
     if (ceilM.current) { ceilM.current.opacity = CEIL_GHOST; ceilM.current.transparent = true; ceilM.current.depthWrite = false; }
     const cx = camera.position.x, cz = camera.position.z;
-    // Devor FAQAT kamera uning TASHQARISIGA (±D/2 / ±W/2) o'tганда shaffof
-    // bo'ladi (tashqi yuzi ko'ringanда). Aks holda ichki yuzi ko'rinadi → qattiq
-    // fon. Chegara 0'da EMAS, devor pozitsiyasida — shu bois face-on ko'rinishда
+    // Devor FAQAT kamera uning TASHQARISIGA (±D/2 / ±W/2) o'tganda shaffof
+    // bo'ladi (tashqi yuzi ko'ringanda). Aks holda ichki yuzi ko'rinadi → qattiq
+    // fon. Chegara 0'da EMAS, devor pozitsiyasida — shu bois face-on ko'rinishda
     // uzoq devorlar to'g'ri qattiq qoladi.
     applyWall(backM.current, -(cz + D / 2)); // orqa (z=-D/2): kamera z<-D/2 → shaffof
     applyWall(frontM.current, cz - D / 2); // old  (z=+D/2): kamera z>+D/2 → shaffof

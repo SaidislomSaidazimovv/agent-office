@@ -150,12 +150,12 @@ export type CameraMode = "iso" | "fpv";
 export interface CostSample {
   /** Namuna olingan payt (ms). */
   t: number;
-  /** Jami taxminiy xarajat ($) — shu paytдa. */
+  /** Jami taxminiy xarajat ($) — shu paytda. */
   cost: number;
   /** Jami kirish / chiqish tokenlari. */
   inTok: number;
   outTok: number;
-  /** Shu paytдa faol agentlar soni. */
+  /** Shu paytda faol agentlar soni. */
   active: number;
 }
 /** ~1 soat (10s oralig'ida 360 namuna). Ring buffer — eskisi tushib ketadi. */
@@ -169,8 +169,11 @@ interface OfficeState {
   /** Xarajat/token vaqt qatori (10s'da bir namuna). */
   samples: CostSample[];
   selectedId: number | null;
-  /** Status-barда qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
+  /** Status-barda qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
   pinnedId: number | null;
+  /** VS Code palitrasidan "Open Analytics" — har so'rovda oshadi (Hud dashboard'ni ochadi). */
+  dashRequest: number;
+  requestDashboard(): void;
   movingId: number | null;
   seatCount: number;
   soundEnabled: boolean;
@@ -208,14 +211,14 @@ interface OfficeState {
   setStuck(id: number, on: boolean): void;
   addSubagent(id: number, key: string, info?: { label?: string; kind?: string }): void;
   clearSubagent(id: number, key: string): void;
-  setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
+  setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number; costUsd?: number }): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
   setGitRepos(repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[]): void;
   setHistory(days: HistoryDay[], archive: ArchiveSession[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
-  /** Agentni status-barга qadaydi/yechadi (bir xil id → yechadi). */
+  /** Agentni status-barga qadaydi/yechadi (bir xil id → yechadi). */
   pin(id: number | null): void;
   setMoving(id: number | null): void;
   reassignSeat(id: number, seatIndex: number): void;
@@ -261,6 +264,10 @@ export const useOffice = create<OfficeState>((set, get) => ({
   samples: [],
   selectedId: null,
   pinnedId: null,
+  dashRequest: 0,
+  requestDashboard() {
+    set((s) => ({ dashRequest: s.dashRequest + 1 }));
+  },
   movingId: null,
   seatCount: SEAT_COUNT,
   soundEnabled: true,
@@ -406,7 +413,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   setSessionStats(id, toolCalls, turns, activeMs) {
     const a = get().agents[id];
     if (!a) return;
-    // Reconnect snapshot'dan tiklash: JAMI qiymatlarни o'rnatamiz. activeMs —
+    // Reconnect snapshot'dan tiklash: JAMI qiymatlarni o'rnatamiz. activeMs —
     // keshlangan JAMI; joriy interval (activeSince) qaytadan boshlanadi, aks
     // holda activeMs + (now - activeSince) intervalni ikki marta hisoblardi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, toolCalls, turns, activeMs, activeSince: a.active ? Date.now() : null } } }));
@@ -543,7 +550,8 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const billed: BilledTokens = cost
       ? { input: cost.billedInput ?? 0, cacheWrite: cost.billedCacheWrite ?? 0, cacheRead: cost.billedCacheRead ?? 0, output }
       : a.billed;
-    const costUsd = cost ? estimateCost(model, billed) : a.costUsd;
+    // Host hisoblagan aniq xarajat (har javob o'z narxida); bo'lmasa — zaxira taxmin.
+    const costUsd = cost ? (typeof cost.costUsd === "number" ? cost.costUsd : estimateCost(model, billed)) : a.costUsd;
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow, model, costUsd, billed } } }));
   },
 

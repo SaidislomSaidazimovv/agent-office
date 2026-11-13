@@ -8,6 +8,7 @@ import {
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
+import { messageCost, type UsageLike } from "../core/pricing.js";
 import { toolCat } from "../core/toolcat.js";
 import { formatError, formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
@@ -24,6 +25,9 @@ interface ToolUseBlock {
   name?: string;
   input?: Record<string, unknown>;
 }
+
+/** Dedupe uchun saqlanadigan so'nggi message.id soni (takrorlar yonma-yon). */
+const SEEN_MSG_CAP = 512;
 
 function startWaitingTimer(store: AgentStateStore, agent: AgentState): void {
   if (agent.waitingTimer) clearTimeout(agent.waitingTimer);
@@ -70,6 +74,19 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
     | { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
     | undefined;
   if (!usage) return;
+  // DEDUPE: bir API javobi bir nechta qatorga bo'linadi (har content-block —
+  // thinking/text/tool_use — alohida qator), har birida AYNAN bir xil usage.
+  // Shu message.id allaqachon hisoblangan bo'lsa — qayta qo'shmaymiz.
+  const msgId = typeof message.id === "string" ? message.id : undefined;
+  if (msgId) {
+    if (agent.seenMsgIds.has(msgId)) return;
+    agent.seenMsgIds.add(msgId);
+    if (agent.seenMsgIds.size > SEEN_MSG_CAP) {
+      // Eng eskisini chiqaramiz (Set qo'shilish tartibini saqlaydi).
+      const oldest = agent.seenMsgIds.values().next().value;
+      if (oldest !== undefined) agent.seenMsgIds.delete(oldest);
+    }
+  }
   // Kontekst hajmi = kesh-lanmagan + kesh-o'qilgan + kesh-yaratilgan (aks holda
   // faqat delta ~0 chiqadi va health-bar noto'g'ri bo'ladi).
   const ctx = (usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0);
@@ -84,6 +101,9 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
   agent.billedInput += usage.input_tokens || 0;
   agent.billedCacheWrite += usage.cache_creation_input_tokens || 0;
   agent.billedCacheRead += usage.cache_read_input_tokens || 0;
+  // Xarajat — SHU javobning o'z modeli va usage tafsilotlari bilan (5m/1h kesh,
+  // fast mode, Haiku uzun-prompt, US-inference, web search) rasmiy narxda.
+  agent.costUsd += messageCost(model && model !== "<synthetic>" ? model : agent.model, usage as UsageLike);
   store.broadcast({
     type: "agentTokenUsage",
     id: agent.id,
@@ -94,6 +114,7 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
     billedInput: agent.billedInput,
     billedCacheWrite: agent.billedCacheWrite,
     billedCacheRead: agent.billedCacheRead,
+    costUsd: agent.costUsd,
   });
 }
 

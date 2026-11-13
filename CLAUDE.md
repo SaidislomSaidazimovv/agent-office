@@ -1,64 +1,62 @@
 <!--MAC-BLOCK:BEGIN-->
 
-## 🚨 Multi-Agent Coordination
+## 🚨 Coordination & git workflow
 
-This project runs **4** Claude Code terminals in parallel. Coordination is enforced by three artifacts at the repo root: `active_tasks.md` (kanban), `active_files.md` (file locks), and `.multi-agent/config.json` (settings). The kanban + lock files are gitignored (live state); the config is committed so team members get the same settings on clone.
+Day-to-day this project is worked on by **one developer with one Claude Code session**. The multi-agent tooling is still installed and its artifacts stay in use: `active_tasks.md` (kanban), `active_files.md` (file locks) — both gitignored live state — and `.multi-agent/config.json` (committed). If parallel terminals are started, the roles below apply.
 
-### Terminal roles
+### Terminal roles (when running in parallel)
 
 | Label | Role | Writes code? | Responsibilities |
 | ----- | ---- | ------------ | ---------------- |
-| `T1` | Developer | Yes | Implements tasks assigned to T1 |
+| `T1` | Developer | Yes | Implements tasks assigned to T1 (the default label for a solo session) |
 | `T2` | Developer | Yes | Implements tasks assigned to T2 |
 | `T3` | Developer | Yes | Implements tasks assigned to T3 |
-| `P` | Planner | No | Plans, dispatches, reviews diffs, approves commits |
+| `P` | Planner | No | Plans, dispatches, reviews diffs |
 
 If unsure which terminal you are at session start, run `/agent-intro` or ask the user.
 
-### File-lock protocol (mandatory before every edit)
-
-Before editing **any** file:
+### File-lock protocol (before every edit)
 
 1. Read `active_files.md`.
-2. If the target path is listed by another terminal and the timestamp is fresher than **15 minutes**, wait 30s and re-check. Loop until the lock disappears.
-3. If listed by another terminal but older than TTL: it's stale — per project policy (warn user before clearing).
-4. If not listed: append `- <path> → T<N> @ <ISO-timestamp>` (developers) or `- <path> → P @ <ISO-timestamp>` (planner) and proceed.
-5. Edit.
-6. Remove your line from `active_files.md` immediately when done.
+2. If the target path is listed by another terminal and the timestamp is fresher than **15 minutes**, wait 30s and re-check.
+3. If listed but older than the TTL it is stale — warn the user before clearing it.
+4. Otherwise append `- <path> → T<N> @ <ISO-timestamp>` (planner: `P`) and proceed.
+5. Edit, then remove your line immediately.
 
-Read-only operations (`Read`, `Grep`, `git status`, `git diff`) do NOT need a lock.
+Read-only operations (`Read`, `Grep`, `git status`, `git diff`) need no lock.
 
 ### Shared kanban (`active_tasks.md`)
 
-Four sections in order: 🟢 IN PROGRESS / TODO → 🟡 AWAITING REVIEW → 🟠 BLOCKED → ✅ DONE.
+Sections in order: 🟢 IN PROGRESS / TODO → 🟡 AWAITING REVIEW → 🟠 BLOCKED → ✅ DONE. Record finished work in DONE with the commit hashes.
 
-- **Planner** writes new tasks into TODO with full file lists, acceptance criteria, and an assignee (T1 / T2 / T3).
-- **Developer** picks up the task, locks files, implements, runs verification, moves the task to AWAITING REVIEW with a status note.
-- **STOP** at AWAITING REVIEW. Do NOT commit until the user relays planner approval.
-- After approval: pull-rebase → `git add` specific files → commit → push → move to DONE with commit hash.
+### Git workflow — feature branches off `main`, the user pushes
 
-### Approval gate
-
-**Enabled.** Developers must not run `git add` / `git commit` / `git push` until the Planner has reviewed the uncommitted diff and the user relays an explicit "approved" message. Developers signal readiness by moving the task to AWAITING REVIEW and saying so in chat. The Planner verifies via `git diff` + build + manual run, then approves or blocks. Exceptions: pure-docs / planning-file commits and explicit user-authorized hotfixes.
-
-### Git workflow — Variant B (single integration branch)
-
-Two-branch model. Daily commits go directly to the **`dev`** integration branch (no per-task feature branches — the Planner approval gate plays the code-review role). Promotion to production **`master`** happens via a release PR (`dev → master`) followed by a version tag. Before committing: `git fetch && git pull --rebase origin dev`, then `git add <specific-files>` (never `-A`), commit, and `git push origin dev`.
+- `main` is the only long-lived branch; it is what is released. There is **no `dev` or `master`** (a stale local `dev` may exist — ignore it).
+- Work happens on topic branches created from `main` (`fix/…`, `feat/…`, `chore/…`, `docs/…`). When one piece of work depends on another unpushed branch, branch from that branch (stacked) and say so.
+- **One small change = one commit**, Conventional Commits. Run the verification commands first and commit only if they pass. Stage specific files (never `git add -A`).
+- **Claude never pushes, merges, or opens PRs.** The user pushes branches and merges them. Never `git push` without the user's explicit permission in the current conversation.
+- **No release without the user's explicit go:** no version bump, no `CHANGELOG` date, no tag, no `.vsix`. Do **not** run `npm run package` before the version is bumped — it overwrites the previous release's `.vsix` of the same version. Collect notes under `## [Unreleased]` in `CHANGELOG.md`.
+- Real users run the Marketplace build: keep behaviour backward-compatible (existing `~/.agent-office/*` files, existing hook entries in `~/.claude/settings.json`).
 
 ### Project verification commands
 
-- **Typecheck / build:** `npm run build`
-- **Tests:** `npm run build`
+- **Typecheck:** `npm run check-types` (host) — the webview is type-checked by its build.
+- **Tests:** `npm test` (esbuild-bundled suite in `test/run.ts`).
+- **Build:** `npm run build` (type-check + esbuild host bundles + Vite webview).
 
-Run the build before moving any task to AWAITING REVIEW. (No dedicated test suite is configured yet — the Vite build is the verification gate.)
+Run all three before every commit.
+
+### Release checklist (only when the user says so)
+
+Bump `package.json` version → date the `[Unreleased]` section and add its link reference → run the security gate below → `npm run package` → commit → the user pushes and tags. Before tagging, smoke-test the `.vsix` in a real VS Code window (F5 / install from VSIX).
 
 ### Commit format
 
-**Conventional Commits** — `<type>(<scope>): <description>` where `<type>` is one of `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `perf`. Keep the subject imperative and under ~72 chars.
+**Conventional Commits** — `<type>(<scope>): <description>`, type ∈ `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`, `perf`, `build`, `ci`. Imperative subject, under ~72 chars.
 
 ### Reference
 
-Full coordination protocol: load the `multi-agent-coordination` skill or read its references directly (`lock-protocol.md`, `approval-gate.md`, `git-workflow-variants.md`, `troubleshooting.md`).
+Multi-agent protocol details: the `multi-agent-coordination` skill (`lock-protocol.md`, `approval-gate.md`, `git-workflow-variants.md`, `troubleshooting.md`).
 <!--MAC-BLOCK:END-->
 
 ## 🔒 Security policy (this repo is public — enforce strictly)
@@ -70,7 +68,9 @@ This extension is **observation-only and fully local**. Every change MUST preser
 3. **Loopback-bound servers.** Any HTTP/WebSocket/hook server MUST bind `127.0.0.1` explicitly (never `0.0.0.0` / no host argument). The standalone CLI and the hook server both bind loopback only.
 4. **No code execution of session/user data.** Parse asset packs, layouts, and transcripts with `JSON.parse` only — no `eval` / `new Function`. Do not spawn `child_process` on session data.
 5. **Safe writes to user files.** Writing `~/.claude/settings.json` or `~/.agent-office/*` must bail out (never overwrite) if the existing file can't be parsed, and must write atomically (temp + rename).
-6. **Keep private/build files out of Git.** `TESTING.md`, `*.tsbuildinfo`, `dist/`, `scratchpad/`, `_shot*.cjs`, `.vsix`, `active_*.md` are gitignored. `icon.png` stays tracked — it is required by `vsce package` and is already public on the Marketplace.
+6. **Browser-facing surfaces stay locked down.** The webview keeps its strict Content-Security-Policy (`extension/vscode/webviewHtml.ts`: no network, nonce'd scripts, no `unsafe-eval`). The standalone CLI's HTTP/WebSocket server accepts only its own Host and Origin (any website can reach `127.0.0.1`).
+7. **Forward the minimum.** The hook script sends only the whitelisted fields (`extension/core/hookPayload.ts`) — never tool output, prompts or replies — and files holding the hook token are written 0600.
+8. **Keep private/build files out of Git.** `TESTING.md`, `*.tsbuildinfo`, `dist/`, `scratchpad/`, `_shot*.cjs`, `.vsix`, `active_*.md` are gitignored. `icon.png` stays tracked — it is required by `vsce package` and is already public on the Marketplace.
 
 **Release security gate.** Before tagging a release, run and confirm CLEAN:
 ```bash

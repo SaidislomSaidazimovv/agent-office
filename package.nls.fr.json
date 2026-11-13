@@ -1,0 +1,16 @@
+{
+  "cmd.showPanel": "Agent Office : afficher le panneau",
+  "cmd.installHooks": "Agent Office : installer les hooks Claude",
+  "cmd.uninstallHooks": "Agent Office : désinstaller les hooks Claude",
+  "cmd.showDiagnostics": "Agent Office : afficher les diagnostics",
+  "cfg.autoShowPanel": "Ouvrir automatiquement le panneau Agent Office au démarrage de VS Code.",
+  "cfg.autoSpawnAgent": "Au démarrage, lancer automatiquement un agent si aucun n'est en cours.",
+  "cfg.hooksEnabled": "Utiliser les hooks Claude Code pour une détection en direct plus rapide et plus fiable (demande l'autorisation avant d'ajouter un hook à ~/.claude/settings.json). Désactivé : seule la lecture des transcriptions (JSONL) est utilisée.",
+  "cfg.notifications": "Afficher une notification VS Code quand un agent demande une autorisation (ou attend depuis plus de 3 minutes) pendant que le panneau est masqué.",
+  "cfg.notifyOnErrors": "Afficher aussi une notification à chaque échec d'appel d'outil (désactivé par défaut : ces échecs sont fréquents et généralement corrigés d'eux-mêmes ; le bureau affiche toujours l'agent en rouge avec la raison).",
+  "cfg.statusBar": "Afficher dans la barre d'état le nombre d'agents et ceux qui ont besoin de vous, même quand le panneau du bureau est fermé.",
+  "cmd.focusAgent": "Agent Office : aller à un agent…",
+  "cmd.pinAgent": "Agent Office : épingler un agent dans la barre d'état…",
+  "cmd.openDashboard": "Agent Office : ouvrir l'analyse",
+  "cmd.exportReport": "Agent Office : exporter le rapport de session…"
+}

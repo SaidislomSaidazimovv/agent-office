@@ -3,10 +3,11 @@ import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import { WebSocketServer } from "ws";
-import { sanitizeName } from "../core/attention.js";
+import { isStaleExternal, sanitizeName } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
-import { getSessionDir } from "../core/paths.js";
+import { within } from "../core/hookRouting.js";
+import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import { AgentStateStore } from "../server/agentStateStore.js";
 import { FileWatcher } from "../server/fileWatcher.js";
 import { handleHookEvent } from "../server/hookHandler.js";
@@ -14,14 +15,17 @@ import { HookServer } from "../server/hookServer.js";
 import { agentSnapshotMessages } from "../server/stateActions.js";
 import { createAgentState, type AgentState } from "../server/types.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
-import { HistoryStore } from "../vscode/historyStore.js";
+import { HistoryStore, recordFromAgents } from "../vscode/historyStore.js";
 
 // ── Standalone CLI — ofisni brauzerda kuzatish (VS Code shart emas) ──
 // `npx agent-office` → lokal server + WebSocket + brauzer SPA. Aniqlash
 // pipeline'i extension bilan bir xil (JSONL watcher + hook server). Kuzatuv-
 // only: terminal ochish/+Agent yo'q (u VS Code'ga xos).
 
-const VERSION = "0.1.6";
+// Versiya build vaqtida package.json'dan qo'yiladi (esbuild define) — avval qo'lda
+// yozilgan va bir marta eskirib qolgan edi (0.1.6 paytida 0.1.4 ko'rsatardi).
+declare const __AO_VERSION__: string | undefined;
+const VERSION = typeof __AO_VERSION__ === "string" ? __AO_VERSION__ : "dev";
 const HEAD_BYTES = 8192;
 
 // ── Argumentlar ──
@@ -118,9 +122,9 @@ function adopt(filePath: string, folderName: string): AgentState | null {
   if (savedName) agent.customName = savedName;
   const savedRole = roles()[sessionId];
   if (savedRole) { agent.role = savedRole; agent.roleManual = true; }
-  watcher.primeFromStart(agent);
-  store.add(agent); // → agentAdded → agentCreated (rol bilan)
-  watcher.emitSnapshot(agent); // customName bo'lsa agentRenamed ham broadcast qilinadi
+  // → agentAdded → agentCreated; snapshot (customName → agentRenamed). Katta
+  // transcript async o'qiladi (CLI ham qotmaydi).
+  watcher.primeAndAdd(agent, () => store.add(agent));
   return agent;
 }
 
@@ -137,11 +141,17 @@ function scan(): void {
       const filePath = path.join(dir, name);
       const sid = path.basename(name, ".jsonl");
       if (store.findByFile(filePath) || store.findBySession(sid)) continue;
+      let mtime: number;
       try {
-        if (fs.statSync(filePath).mtimeMs < startupTime) continue;
+        mtime = fs.statSync(filePath).mtimeMs;
       } catch {
         continue;
       }
+      if (mtime < startupTime) continue;
+      // Eskirgan deb olingan — faqat fayl yangidan o'zgarsa qaytadi.
+      const staleAt = staleRemoved.get(filePath);
+      if (staleAt !== undefined && mtime <= staleAt) continue;
+      staleRemoved.delete(filePath);
       adopt(filePath, folderName);
     }
   }
@@ -149,23 +159,44 @@ function scan(): void {
   for (const a of store.values()) {
     if (!fs.existsSync(a.filePath)) store.remove(a.id);
   }
+  // 30+ daqiqa faoliyatsiz agentlar (CLI'da terminal yo'q — yopilganini bilib
+  // bo'lmaydi) — ~30 soniyada bir tekshiramiz; sessiya davom etsa qaytadi.
+  if (scanCount++ % 30 === 0) {
+    const now = Date.now();
+    for (const a of store.values()) {
+      if (a.priming) continue;
+      let mtime: number;
+      try {
+        mtime = fs.statSync(a.filePath).mtimeMs;
+      } catch {
+        continue;
+      }
+      const busy = a.activeToolIds.size > 0 || a.subagentToolIds.size > 0 || a.permissionActive;
+      if (isStaleExternal({ isExternal: true, boundToOpenTerminal: false, isWaiting: a.isWaiting, busy, fileMtimeMs: mtime, now })) {
+        staleRemoved.set(a.filePath, mtime);
+        store.remove(a.id);
+      }
+    }
+  }
 }
+let scanCount = 0;
+const staleRemoved = new Map<string, number>();
 setInterval(scan, 1000);
 scan();
 
 // ── Hook server (ixtiyoriy — extension bilan bir xil detektsiya) ──
 let hookActive = false;
 function inProjects(cwd: string): boolean {
-  const norm = (p: string) => path.resolve(p).replace(/[\\/]+$/, "").toLowerCase();
-  const c = norm(cwd);
-  return paths.some((p) => c === norm(p) || c.startsWith(norm(p) + path.sep.toLowerCase()) || c.startsWith(norm(p) + "/"));
+  // Extension va hook yo'naltirish bilan bir xil qoida (hookRouting.within).
+  return paths.some((p) => within(cwd, p));
 }
 const hookServer = new HookServer((sessionId, raw) => {
   let agent = store.findBySession(sessionId);
   if (!agent) {
     const cwd = typeof raw.cwd === "string" ? raw.cwd : undefined;
     if (!cwd || !inProjects(cwd)) return;
-    agent = adopt(path.join(getSessionDir(cwd), `${sessionId}.jsonl`), path.basename(cwd)) ?? undefined;
+    const file = trustedTranscriptPath(raw.transcript_path) ?? path.join(getSessionDir(cwd), `${sessionId}.jsonl`);
+    agent = adopt(file, path.basename(cwd)) ?? undefined;
     if (agent) agent.sessionId = sessionId;
   }
   if (agent) handleHookEvent(store, agent, raw);
@@ -208,8 +239,39 @@ function saveLayout(items: unknown[], floorColor: string | null, wallColor: stri
 const WEB_ROOT = path.join(__dirname, "webview");
 const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
+// ── Brauzer himoyasi ──
+// Server faqat 127.0.0.1'da, lekin foydalanuvchi BRAUZERIDAGI istalgan sayt
+// localhost'ga murojaat qila oladi: WebSocket'ga CORS qo'llanmaydi (cross-site
+// WebSocket hijacking) va DNS-rebinding orqali begona domen 127.0.0.1'ga
+// yo'naltirilishi mumkin. Shuning uchun Host (HTTP+WS) va Origin (WS)
+// sarlavhalari FAQAT o'zimizning manzil bo'lishi shart.
+function allowedHosts(): Set<string> {
+  return new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
+}
+function hostOk(host: string | undefined): boolean {
+  return typeof host === "string" && allowedHosts().has(host.toLowerCase());
+}
+function originOk(origin: string | undefined): boolean {
+  if (typeof origin !== "string") return false;
+  const o = origin.toLowerCase();
+  return [...allowedHosts()].some((h) => o === `http://${h}`);
+}
+
 const server = http.createServer((req, res) => {
-  let rel = decodeURIComponent((req.url || "/").split("?")[0]);
+  if (!hostOk(req.headers.host)) {
+    res.writeHead(403);
+    res.end();
+    return;
+  }
+  let rel: string;
+  try {
+    rel = decodeURIComponent((req.url || "/").split("?")[0]);
+  } catch {
+    // Buzuq %-kodlash (masalan "/%E0%A4%A") — avval bu istisno butun CLI'ni yiqitardi.
+    res.writeHead(400);
+    res.end();
+    return;
+  }
   if (rel === "/") rel = "/index.html";
   const filePath = path.join(WEB_ROOT, path.normalize(rel));
   if (!filePath.startsWith(WEB_ROOT)) {
@@ -229,7 +291,13 @@ const server = http.createServer((req, res) => {
 });
 
 // ── WebSocket bridge ──
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  // Bitta xabar chegarasi (layout/statlar kichik) — katta payload bilan disk/xotira to'ldirilmasin.
+  maxPayload: 4 * 1024 * 1024,
+  // Faqat shu server bergan sahifa ulanishi mumkin (boshqa saytlar — yo'q).
+  verifyClient: (info: { origin: string; req: http.IncomingMessage }) => hostOk(info.req.headers.host) && originOk(info.origin),
+});
 const clients = new Set<import("ws").WebSocket>();
 
 function broadcastAll(msg: ServerMessage): void {
@@ -307,17 +375,15 @@ function handleClient(msg: ClientMessage, ws: import("ws").WebSocket): void {
     }
     case "sessionStats":
       // toolCalls/turns/activeMs ni keshlaymiz — brauzer qayta yuklanganda snapshot
-      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Cost
-      // esa delta bo'lib kunlik tarixga qo'shiladi (extension bilan bir xil mantiq).
+      // (agentSnapshotMessages) ularni qaytaradi (statlar 0dan boshlanmasin). Tarixni
+      // host o'zi yozadi (recordFromAgents taymeri) — brauzer ochilmagan bo'lsa ham.
       for (const s of msg.stats) {
         const agent = store.get(s.id);
         if (!agent) continue;
         agent.snapToolCalls = s.tools;
         agent.snapTurns = s.turns;
         agent.snapActiveMs = s.ms;
-        if (agent.sessionId) history.record(agent.sessionId, s.project, { cost: s.cost, inTok: s.inTok, outTok: s.outTok, tools: s.tools, ms: s.ms }, s.model);
       }
-      broadcastHistory(); // "Bugun" jonli yangilansin (throttled)
       break;
     // focusAgent / launchAgent / setSoundEnabled — CLI'da ma'nosiz (terminal yo'q)
   }
@@ -371,7 +437,15 @@ server.on("error", (e: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 
+// Kunlik tarix — host holatidan (extension bilan bir xil yagona manba).
+const historyTimer = setInterval(() => {
+  recordFromAgents(history, store.values());
+  broadcastHistory(); // "Bugun" jonli yangilansin (throttled)
+}, 10_000);
+
 function shutdown(): void {
+  clearInterval(historyTimer);
+  recordFromAgents(history, store.values());
   history.flush(); // kutilayotgan tarix yozuvini saqlaymiz
   watcher.stop();
   hookServer.stop();

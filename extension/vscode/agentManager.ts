@@ -4,7 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { CLAUDE_TERMINAL_NAME_PREFIX, MAX_CONTEXT_TOKENS, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
-import { getSessionDir } from "../core/paths.js";
+import { isStaleExternal, STALE_IDLE_MS } from "../core/attention.js";
+import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
 import { extractFirstTask } from "../server/transcriptParser.js";
@@ -144,6 +145,11 @@ export class AgentManager {
           // /clear|/resume'dan keyin tashlab ketilgan eski fayl — qayta adopt qilmaymiz
           if (this.retired.has(f.filePath)) continue;
           if (f.mtime < this.startupTime) continue; // ochilishdan oldingi — kutamiz
+          // Eskirgan deb olingan — faqat fayl YANGIDAN o'zgarsa qaytadi (aks holda
+          // keyingi skanda darrov qayta qo'shilib, aylanib qolardi).
+          const staleAt = this.staleRemoved.get(f.filePath);
+          if (staleAt !== undefined && f.mtime <= staleAt) continue;
+          this.staleRemoved.delete(f.filePath);
           // /clear yoki /resume detektsiyasi (hook yo'q bo'lsa) — dublikatsiz reassign
           if (this.tryReassignNewFile(dir, ws, f.filePath)) continue;
           this.adopt(f.filePath, folderName, true);
@@ -166,14 +172,48 @@ export class AgentManager {
           this.store.remove(agent.id);
         }
       }
+      // Eskirgan (30+ daqiqa faoliyatsiz, terminalga bog'lanmagan) tashqi agentlar —
+      // har ~30 skanda bir marta (stat arzon, lekin har soniya shart emas).
+      if (this.scanCount++ % 30 === 0) await this.removeStale();
     } finally {
       this.scanning = false;
     }
   }
 
+  private scanCount = 0;
+  /** Eskirgan deb olib tashlangan fayllar → o'sha paytdagi mtime. */
+  private staleRemoved = new Map<string, number>();
+  private async removeStale(): Promise<void> {
+    const open = new Set(vscode.window.terminals);
+    const now = Date.now();
+    for (const a of this.store.values()) {
+      if (!a.isExternal || a.priming) continue;
+      const t = this.terminals.get(a.id);
+      let mtime: number;
+      try {
+        mtime = (await fs.promises.stat(a.filePath)).mtimeMs;
+      } catch {
+        continue; // fayl yo'q — yuqoridagi tozalash hal qiladi
+      }
+      const stale = isStaleExternal({
+        isExternal: a.isExternal,
+        boundToOpenTerminal: !!t && open.has(t),
+        isWaiting: a.isWaiting,
+        busy: a.activeToolIds.size > 0 || a.subagentToolIds.size > 0 || a.permissionActive,
+        fileMtimeMs: mtime,
+        now,
+      });
+      if (stale && this.store.has(a.id)) {
+        this.log(`- #${a.id} ${Math.round(STALE_IDLE_MS / 60000)} daqiqa faoliyatsiz (terminalga bog'lanmagan) — ofisdan olindi; sessiya davom etsa qaytadi.`);
+        this.staleRemoved.set(a.filePath, mtime);
+        this.detach(a.id);
+      }
+    }
+  }
+
   /** Sessiya papkasidagi HALI KUZATILMAGAN `.jsonl` fayllar (yo'l + mtime).
    *  Allaqachon kuzatilayotgan yoki retired fayllarga stat SHART EMAS — mtime ular
-   *  uchun ishlatilmaydi, shu bilan har skanда yuzlab keraksiz stat oldini olamiz.
+   *  uchun ishlatilmaydi, shu bilan har skanda yuzlab keraksiz stat oldini olamiz.
    *  Async + parallel (`Promise.all`) — asosiy oqim bloklanmaydi. */
   private async listJsonl(dir: string): Promise<{ filePath: string; mtime: number }[]> {
     let entries: string[];
@@ -205,9 +245,8 @@ export class AgentManager {
     const id = this.store.allocateId();
     const task = this.readFirstTask(filePath);
     const agent = createAgentState(id, filePath, folderName, { role, task, isExternal, sessionId });
-    this.watcher.primeFromStart(agent);
-    this.store.add(agent);
-    this.watcher.emitSnapshot(agent);
+    // Kichik transcript — sinxron (prime → add → snapshot); katta — async (host qotmaydi).
+    this.watcher.primeAndAdd(agent, () => this.store.add(agent));
     // Tashqi agentni terminalga bog'laymiz — terminal yopilsa agent ham o'chadi,
     // "Terminal" tugmasi ham shu terminalni ochadi.
     //  1) cwd (ish papkasi) mos keladigan terminal — eng ishonchli.
@@ -247,11 +286,12 @@ export class AgentManager {
   }
 
   /** Hook sessiyasi uchun agent topadi yoki yaratadi (avto-kashfiyot). */
-  ensureSessionAgent(sessionId: string, cwd?: string): AgentState {
+  ensureSessionAgent(sessionId: string, cwd?: string, transcriptPath?: string): AgentState {
     const existing = this.store.findBySession(sessionId);
     if (existing) return existing;
     const base = cwd || this.workspaceFolders()[0] || os.homedir();
-    const filePath = path.join(getSessionDir(base), `${sessionId}.jsonl`);
+    // Hook bergan aniq yo'l (tekshirilgan) — bo'lmasa slug bo'yicha taxmin.
+    const filePath = trustedTranscriptPath(transcriptPath) ?? path.join(getSessionDir(base), `${sessionId}.jsonl`);
     const byFile = this.store.findByFile(filePath);
     if (byFile) {
       byFile.sessionId = sessionId;
@@ -357,8 +397,7 @@ export class AgentManager {
     a.permissionActive = false;
     a.currentToolLabel = undefined;
     a.currentToolName = undefined;
-    this.watcher.primeFromStart(a);
-    this.watcher.emitSnapshot(a);
+    this.watcher.reprime(a); // /resume fayli katta bo'lishi mumkin — kerak bo'lsa async
   }
 
   /** Shu papkadagi, terminali HALI OCHIQ, boshqa fayldagi agentlar. */

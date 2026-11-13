@@ -15,6 +15,21 @@ export function normalizeProjectPath(absPath: string): string {
   return absPath.replace(/[^a-zA-Z0-9-]/g, "-");
 }
 
+/** Hook bergan `transcript_path` ishonchli transcript yo'limi: mutlaq, `.jsonl`,
+ *  va ~/.claude/projects ICHIDA (boshqa ixtiyoriy faylni kuzatmaymiz). Ha bo'lsa
+ *  yo'lni qaytaradi — slug taxmin qilishdan aniqroq (Claude uzun yo'llarni
+ *  boshqacha slug qilishi mumkin). */
+export function trustedTranscriptPath(p: unknown): string | undefined {
+  if (typeof p !== "string" || !p.endsWith(".jsonl") || !path.isAbsolute(p)) return undefined;
+  const norm = (s: string) => {
+    const t = path.resolve(s).replace(/[\\/]+/g, "/").replace(/\/+$/, "");
+    return process.platform === "win32" ? t.toLowerCase() : t;
+  };
+  const root = norm(claudeProjectsRoot());
+  const file = norm(p);
+  return file.startsWith(root + "/") ? path.resolve(p) : undefined;
+}
+
 /** Berilgan ish papkasi uchun sessiya papkasini topadi.
  *  Windows'da katta-kichik harf farqli fallback bilan. */
 export function getSessionDir(workspacePath: string): string {
