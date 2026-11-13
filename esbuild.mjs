@@ -38,6 +38,13 @@ const cliCtx = await esbuild.context({
   banner: { js: "#!/usr/bin/env node" },
 });
 
+// 4) `vscode:uninstall` skripti → dist/uninstall.js (o'chirishda hooklarni tozalaydi)
+const uninstallCtx = await esbuild.context({
+  ...common,
+  entryPoints: ["extension/vscode/uninstall.ts"],
+  outfile: "dist/uninstall.js",
+});
+
 if (watch) {
   await extCtx.watch();
   await hookCtx.watch();
@@ -47,7 +54,9 @@ if (watch) {
   await extCtx.rebuild();
   await hookCtx.rebuild();
   await cliCtx.rebuild();
+  await uninstallCtx.rebuild();
   await extCtx.dispose();
   await hookCtx.dispose();
   await cliCtx.dispose();
+  await uninstallCtx.dispose();
 }

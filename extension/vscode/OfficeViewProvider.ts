@@ -16,7 +16,7 @@ import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
 import { HistoryStore } from "./historyStore.js";
-import { installHooks } from "./hookInstaller.js";
+import { installHooks, installStableHookScript } from "./hookInstaller.js";
 import { buildWebviewHtml } from "./webviewHtml.js";
 
 export const VIEW_ID = "agent-office.panelView";
@@ -212,8 +212,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
           this.setHookActive(false);
           return;
         }
-        const hookScript = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
-        const ok = installHooks(hookScript);
+        const ok = installHooks(this.hookScriptPath());
         this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
         this.setHookActive(true);
       });
@@ -236,6 +235,15 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       this.logMsg("Hook rejimi o'chirilgan (agent-office.hooksEnabled=false) — faqat JSONL.");
       this.setHookActive(false);
     }
+  }
+
+  /** settings.json'ga yoziladigan hook-skript yo'li — BARQAROR nusxa
+   *  (~/.agent-office/hooks), versiyali kengaytma papkasi emas: yangilanish yoki
+   *  o'chirishdan keyin ham buyruq o'lik yo'lga qaramaydi. Nusxalab bo'lmasa —
+   *  kengaytmadagi asl fayl (avvalgi xatti-harakat). */
+  hookScriptPath(): string {
+    const dist = vscode.Uri.joinPath(this.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
+    return installStableHookScript(dist) ?? dist;
   }
 
   /** Hook holatini saqlab webview'ga yuboradi (ko'rsatkich uchun). */

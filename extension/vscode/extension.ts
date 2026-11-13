@@ -9,8 +9,6 @@ export function activate(context: vscode.ExtensionContext): void {
   const provider = new OfficeViewProvider(context.extensionUri, version);
   provider.activate();
 
-  const hookScript = vscode.Uri.joinPath(context.extensionUri, "dist", "hooks", "claude-hook.js").fsPath;
-
   context.subscriptions.push(
     // retainContextWhenHidden: panel yashiringanda webview o'chmaydi —
     // boshqa oynaga o'tib qaytganda holat 0dan boshlanmaydi.
@@ -24,13 +22,13 @@ export function activate(context: vscode.ExtensionContext): void {
       provider.log.show(true);
     }),
     vscode.commands.registerCommand("agent-office.installHooks", () => {
-      const ok = installHooks(hookScript);
+      const ok = installHooks(provider.hookScriptPath());
       vscode.window.showInformationMessage(
         ok ? "Agent Office: Claude hook'lari o'rnatildi." : "Agent Office: hook o'rnatib bo'lmadi.",
       );
     }),
     vscode.commands.registerCommand("agent-office.uninstallHooks", () => {
-      uninstallHooks(hookScript);
+      uninstallHooks("");
       vscode.window.showInformationMessage("Agent Office: Claude hook'lari olib tashlandi.");
     }),
     { dispose: () => provider.dispose() },

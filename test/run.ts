@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
-import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vscode/hookInstaller.js";
+import { areHooksInstalled, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
 import { HistoryStore } from "../extension/vscode/historyStore.js";
@@ -495,6 +495,50 @@ test("uninstall faqat bizning hookni oladi, boshqasini saqlaydi", () => {
   const s = JSON.parse(fs.readFileSync(f, "utf8"));
   assert.ok(!areHooksInstalled(SCRIPT, f), "bizning hook o'chirilishi kerak");
   assert.ok(s.hooks.Stop.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === "node /boshqa/hook.js")), "boshqa hook saqlanishi kerak");
+});
+
+test("barqaror hook-skript: nusxalanadi, takror chaqiruv o'zgartirmaydi; eski versiya yo'li ko'chiriladi", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-stable-"));
+  const src = path.join(dir, "ext-0.1.6", "dist", "hooks", "claude-hook.js");
+  fs.mkdirSync(path.dirname(src), { recursive: true });
+  fs.writeFileSync(src, "// v1");
+  const dest = path.join(dir, "home", ".agent-office", "hooks", "claude-hook.js");
+  assert.equal(installStableHookScript(src, dest), dest);
+  assert.equal(fs.readFileSync(dest, "utf8"), "// v1");
+  const m1 = fs.statSync(dest).mtimeMs;
+  assert.equal(installStableHookScript(src, dest), dest, "o'zgarmagan — qayta yozmaydi");
+  assert.equal(fs.statSync(dest).mtimeMs, m1);
+  fs.writeFileSync(src, "// v2");
+  installStableHookScript(src, dest);
+  assert.equal(fs.readFileSync(dest, "utf8"), "// v2", "yangi versiya nusxalanadi");
+  assert.equal(installStableHookScript(path.join(dir, "yoq.js"), dest), undefined, "manba yo'q → undefined (zaxira)");
+  // Eski (versiyali) yo'l bilan o'rnatilgan → barqaror yo'lga ko'chadi, dublikatsiz.
+  const f = path.join(dir, "settings.json");
+  installHooks(src, f);
+  assert.equal(hasOurHooks(f), true);
+  installHooks(dest, f);
+  const cmds = Object.values(JSON.parse(fs.readFileSync(f, "utf8")).hooks as Record<string, { hooks: { command: string }[] }[]>).flat().flatMap((g) => g.hooks.map((h) => h.command));
+  assert.ok(cmds.every((c) => c.includes(dest)), "faqat barqaror yo'l qoladi");
+  uninstallHooks("", f);
+  assert.equal(hasOurHooks(f), false);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("findOnPath: PATH'dagi node topiladi (fs, child_process yo'q); yo'q bo'lsa undefined", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-path-"));
+  const bin = path.join(dir, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "node"), "");
+  fs.writeFileSync(path.join(bin, "node.exe"), "");
+  // Ajratgich platformaga bog'liq (win32 ";" — drayv harfidagi ":" bilan to'qnashmaydi).
+  if (process.platform === "win32") {
+    assert.equal(findOnPath("node", { Path: `C:\\yoq;${bin}`, PATHEXT: ".COM;.EXE" }, "win32"), path.join(bin, "node.exe"));
+  } else {
+    assert.equal(findOnPath("node", { PATH: `/yoq:${bin}` }, "linux"), path.join(bin, "node"));
+  }
+  assert.equal(findOnPath("node", { PATH: "/yoq" }, "linux"), undefined);
+  assert.equal(findOnPath("node", {}, "linux"), undefined);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 console.log("Launch: 'claude' PATH-fail zombi tozalanadi:");

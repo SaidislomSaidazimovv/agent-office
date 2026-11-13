@@ -125,6 +125,66 @@ export function installHooks(hookScriptPath: string, settingsFile: string = defa
   }
 }
 
+/** settings.json'da BIZNING hook (istalgan versiya yo'li) bormi — mavjud
+ *  foydalanuvchini aniqlash uchun (rozilik so'rash faqat yangi o'rnatishda). */
+export function hasOurHooks(settingsFile: string = defaultSettingsPath()): boolean {
+  const { settings, readable } = readSettings(settingsFile);
+  if (!readable || !settings.hooks) return false;
+  return Object.values(settings.hooks).some((groups) =>
+    (groups || []).some((g) => (g.hooks || []).some((h) => isOurHook(h.command))),
+  );
+}
+
+/** Barqaror hook-skript joyi: ~/.agent-office/hooks/claude-hook.js. Kengaytma
+ *  papkasi versiya bilan o'zgaradi (…/thomasarisu.agent-office-0.1.6/…) va
+ *  yangilanish yoki o'chirishdan keyin yo'qoladi — settings.json'dagi buyruq
+ *  esa o'sha o'lik yo'lga qarab qolar va Claude HAR tool'da "hook error"
+ *  ko'rsatardi. Barqaror nusxa hech qachon yo'qolmaydi (server bo'lmasa jim
+ *  exit 0 qiladi). */
+export function stableHookScriptPath(): string {
+  return path.join(os.homedir(), ".agent-office", "hooks", "claude-hook.js");
+}
+
+/** Kengaytmadagi skriptni barqaror joyga atomik nusxalaydi (faqat farq qilsa).
+ *  Muvaffaqiyatli bo'lsa barqaror yo'lni, aks holda undefined qaytaradi. */
+export function installStableHookScript(srcPath: string, dest: string = stableHookScriptPath()): string | undefined {
+  try {
+    const src = fs.readFileSync(srcPath);
+    try {
+      if (fs.readFileSync(dest).equals(src)) return dest; // allaqachon joriy
+    } catch {
+      /* hali yo'q */
+    }
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const tmp = `${dest}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, src);
+    fs.renameSync(tmp, dest);
+    return dest;
+  } catch {
+    return undefined;
+  }
+}
+
+/** PATH'da bajariladigan fayl bormi (child_process'siz — faqat fs). Claude
+ *  hook'ni `node "…"` bilan ishga tushiradi; node bo'lmasa (masalan Claude
+ *  native o'rnatilgan) har tool'da hook xatosi chiqardi. */
+export function findOnPath(cmd: string, env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | undefined {
+  const raw = env.PATH ?? env.Path ?? "";
+  const dirs = raw.split(platform === "win32" ? ";" : ":").filter(Boolean);
+  const exts = platform === "win32" ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean) : [""];
+  for (const d of dirs) {
+    for (const e of exts) {
+      const p = path.join(d.replace(/^"|"$/g, ""), cmd + e.toLowerCase());
+      try {
+        if (fs.statSync(p).isFile()) return p;
+      } catch {
+        /* yo'q */
+      }
+    }
+  }
+  return undefined;
+}
+
 export function uninstallHooks(_hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {
   try {
     const { settings: s, readable } = readSettings(settingsFile);

@@ -134,6 +134,7 @@
     }
   },
   "scripts": {
+    "vscode:uninstall": "node ./dist/uninstall.js",
     "check-types": "tsc -p tsconfig.json",
     "build:extension": "node esbuild.mjs",
     "build:webview": "npm --prefix webview-ui run build",
