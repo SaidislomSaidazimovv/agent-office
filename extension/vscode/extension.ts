@@ -22,14 +22,12 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("agent-office.installHooks", async () => {
       const ok = await provider.installHooksCommand();
-      vscode.window.showInformationMessage(
-        ok ? "Agent Office: Claude hook'lari o'rnatildi." : "Agent Office: hook o'rnatib bo'lmadi.",
-      );
+      vscode.window.showInformationMessage(provider.t(ok ? "hooks.installed" : "hooks.installFailed"));
     }),
     vscode.commands.registerCommand("agent-office.uninstallHooks", async () => {
       // Rad etish saqlanadi — keyingi ishga tushishda hook'lar QAYTA YOZILMAYDI.
       await provider.uninstallHooksCommand();
-      vscode.window.showInformationMessage("Agent Office: Claude hook'lari olib tashlandi.");
+      vscode.window.showInformationMessage(provider.t("hooks.removed"));
     }),
     { dispose: () => provider.dispose() },
   );

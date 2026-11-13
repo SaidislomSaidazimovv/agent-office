@@ -48,7 +48,14 @@ export type ClientMessage =
   | SetRole
   | SessionStats
   | BudgetAlert
-  | PinnedAgent;
+  | PinnedAgent
+  | SetLang;
+
+/** Panelda tanlangan til — host toastlari/status bar shu tilda bo'ladi. */
+export interface SetLang {
+  type: "setLang";
+  lang: string;
+}
 
 /** Agentga qo'lda nom berish (bir repoda bir nechta agent bo'lsa farqlash uchun).
  *  Bo'sh nom → papka nomiga qaytadi. */

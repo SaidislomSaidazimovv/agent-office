@@ -13,7 +13,7 @@ export class OfficeStatusBar {
    *  Xarajat webview'da hisoblanadi (yagona manba), bu yerda faqat ko'rsatiladi. */
   private pinItem: vscode.StatusBarItem;
 
-  constructor() {
+  constructor(private t: (key: "sb.blocked" | "sb.stuck" | "sb.waiting" | "sb.working" | "sb.click") => string) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.item.command = "agent-office.showPanel";
     this.pinItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
@@ -50,12 +50,17 @@ export class OfficeStatusBar {
     const md = new vscode.MarkdownString();
     md.appendMarkdown("**Agent Office**\n\n");
     for (const g of agents) {
-      const state = g.blocked ? "⛔ bloklangan" : g.permissionActive ? (g.stuck ? "🙋 uzoq kutmoqda" : "🔔 ruxsat kutmoqda") : "🟢 ishlamoqda";
-      // Bloklangan bo'lsa SABABI ham ko'rinsin — status barga qarabоq bilinadi.
-      const why = g.blocked && g.reason ? ` — _${g.reason.slice(0, 90)}_` : "";
-      md.appendMarkdown(`- ${g.folderName} — ${state}${why}\n`);
+      const state = g.blocked ? this.t("sb.blocked") : g.permissionActive ? (g.stuck ? this.t("sb.stuck") : this.t("sb.waiting")) : this.t("sb.working");
+      // Nom va xato matni FOYDALANUVCHI/TOOL ma'lumoti — appendText bilan
+      // (markdown sifatida talqin qilinmaydi: havola/rasm kiritib bo'lmaydi).
+      md.appendMarkdown("- ");
+      md.appendText(`${g.folderName} — ${state}`);
+      // Bloklangan bo'lsa SABABI ham ko'rinsin — status barga qarab bilinadi.
+      if (g.blocked && g.reason) md.appendText(` — ${g.reason.slice(0, 90)}`);
+      md.appendMarkdown("\n");
     }
-    md.appendMarkdown("\n_Ofisni ochish uchun bosing_");
+    md.appendMarkdown("\n");
+    md.appendText(this.t("sb.click"));
     this.item.tooltip = md;
     this.item.show();
   }

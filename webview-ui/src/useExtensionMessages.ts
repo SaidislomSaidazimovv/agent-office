@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLang } from "./i18n";
 import { useLayout } from "./layoutStore";
 import { playDone, playPermission, unlockAudio } from "./notificationSound";
 import type { ServerMessage } from "./protocol";
@@ -125,8 +126,14 @@ export function useExtensionMessages(): void {
     window.addEventListener("pointerdown", unlock);
 
     send({ type: "webviewReady" });
+    // Tanlangan til host'ga — toast bildirishnomalar va status bar ham shu tilda.
+    send({ type: "setLang", lang: useLang.getState().lang });
+    const offLang = useLang.subscribe((s, prev) => {
+      if (s.lang !== prev.lang) send({ type: "setLang", lang: s.lang });
+    });
     return () => {
       off();
+      offLang();
       window.removeEventListener("pointerdown", unlock);
     };
   }, []);

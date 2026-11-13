@@ -11,6 +11,7 @@ import { pickServerForCwd, type ServerEntry, within } from "../extension/core/ho
 import { HistoryStore, recordFromAgents } from "../extension/vscode/historyStore.js";
 import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
 import { slimHookPayload } from "../extension/core/hookPayload.js";
+import { HOST_LANGS, ht, isHostLang, langFromLocale } from "../extension/core/hostI18n.js";
 import { trustedTranscriptPath } from "../extension/core/paths.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { isStaleExternal, MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, STALE_IDLE_MS, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
@@ -1816,6 +1817,23 @@ testAsync("katta transcript bo'laklab o'qiladi: darrov qaytadi, boshqa agent jon
   assert.equal(big.outputTokens, 2600, "1300 xabar × 2 (dedupe — 5200 EMAS)");
   assert.ok(ev.some((e) => e.id === big.id && e.type === "agentTokenUsage"), "yakuniy snapshot yuborildi");
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("host i18n: 8 til, o'rniga qo'yish, VS Code locale xaritasi, placeholder'lar har tilda bir xil", () => {
+  assert.equal(ht("en", "notify.stuck", { min: 3 }), "has been waiting for permission for 3 min 🙋");
+  assert.equal(ht("uz", "budget.over", { spent: "$2.00", limit: "$1.00" }), "💸 Byudjetdan oshdi: ~$2.00 / $1.00 (faqat ogohlantirish)");
+  assert.equal(langFromLocale("zh-cn"), "zh");
+  assert.equal(langFromLocale("en-us"), "en");
+  assert.equal(langFromLocale("ru"), "ru");
+  assert.equal(langFromLocale("de"), "en", "qo'llanmaydigan til → ingliz");
+  assert.equal(langFromLocale(undefined), "en");
+  assert.equal(isHostLang("uz"), true);
+  assert.equal(isHostLang("xx"), false);
+  // Har kalitning placeholder'lari ({min}, {spent}…) barcha tillarda bir xil.
+  for (const key of ["notify.stuck", "budget.over"] as const) {
+    const want = (ht("en", key).match(/\{\w+\}/g) ?? []).sort().join(",");
+    for (const l of HOST_LANGS) assert.equal((ht(l, key).match(/\{\w+\}/g) ?? []).sort().join(","), want, `${key}/${l}`);
+  }
 });
 
 test("manifest i18n: package.json'dagi har %kalit% package.nls.json'da bor, har til to'liq", () => {

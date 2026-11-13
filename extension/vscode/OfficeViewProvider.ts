@@ -18,6 +18,7 @@ import { AgentManager } from "./agentManager.js";
 import { HistoryStore, recordFromAgents } from "./historyStore.js";
 import { decideHookInstall, findOnPath, hasOurHooks, type HookConsent, installHooks, installStableHookScript, uninstallHooks } from "./hookInstaller.js";
 import { buildWebviewHtml } from "./webviewHtml.js";
+import { type HostKey, type HostLang, ht, isHostLang, langFromLocale } from "../core/hostI18n.js";
 import { within } from "../core/hookRouting.js";
 
 export const VIEW_ID = "agent-office.panelView";
@@ -43,9 +44,17 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
   private pending: ServerMessage[] = [];
   private ready = false;
   private soundEnabled = true;
-  private statusBar = new OfficeStatusBar();
+  private statusBar = new OfficeStatusBar((k) => this.t(k));
   private history = new HistoryStore();
   readonly log = vscode.window.createOutputChannel("Agent Office");
+
+  // ── Til (toast / status bar) — panelda tanlangan til; bo'lmasa VS Code tili ──
+  private static readonly LANG_KEY = "agent-office.lang";
+  private lang: HostLang = "en";
+  /** Host matni tanlangan tilda. */
+  t(key: HostKey, vars?: Record<string, string | number>): string {
+    return ht(this.lang, key, vars);
+  }
 
   private logMsg(m: string): void {
     const t = new Date().toISOString().slice(11, 19);
@@ -58,6 +67,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     /** Kengaytma globalState — hook roziligi kabi mashina-darajasidagi qarorlar. */
     private readonly state?: vscode.Memento,
   ) {
+    const saved = state?.get<string>(OfficeViewProvider.LANG_KEY);
+    this.lang = isHostLang(saved) ? saved : langFromLocale(vscode.env.language);
     // Yangi agent → personaj yaratish
     this.store.on("agentAdded", (agent: AgentState) => {
       this.logMsg(`+ agent #${agent.id}  folder=${agent.folderName}  role=${agent.role ?? "-"}  session=${agent.sessionId?.slice(0, 8) ?? "-"}  external=${agent.isExternal}`);
@@ -134,8 +145,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       // Eskalatsiya — panel ochiq bo'lsa ham (3 daqiqa e'tiborsiz qolgan).
       if (vscode.workspace.getConfiguration("agent-office").get<boolean>("notifications", true)) {
         void vscode.window
-          .showWarningMessage(`Agent Office — ${a.folderName}: ${Math.round(STUCK_MS / 60000)} daqiqadan beri ruxsat kutmoqda 🙋`, "Ko'rsatish")
-          .then((pick) => { if (pick === "Ko'rsatish") this.manager.focusAgent(id); });
+          .showWarningMessage(`Agent Office — ${a.customName || a.folderName}: ${this.t("notify.stuck", { min: Math.round(STUCK_MS / 60000) })}`, this.t("notify.show"))
+          .then((pick) => { if (pick === this.t("notify.show")) this.manager.focusAgent(id); });
       }
     }
     this.refreshStatusBar();
@@ -162,7 +173,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     let id: number, text: string;
     if (msg.type === "agentToolPermission") {
       id = msg.id;
-      text = "ruxsat so'radi 🔔";
+      text = this.t("notify.permission");
     } else if (msg.type === "agentBlocked" && msg.blocked) {
       // Tool xatolari juda ko'p uchraydi (topilmagan fayl, yiqilgan test) va
       // Claude ko'pincha o'zi tuzatadi — har biriga toast shovqin edi. Endi
@@ -171,7 +182,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       if (!vscode.workspace.getConfiguration("agent-office").get<boolean>("notifyOnErrors", false)) return;
       id = msg.id;
       // Sababi bo'lsa — bildirishnomada ham ko'rsatamiz (terminalni ochmasdan bilinadi).
-      text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : "bloklandi (xato) ⛔";
+      text = msg.reason ? `⛔ ${msg.reason.slice(0, 90)}` : this.t("notify.blocked");
     } else {
       return;
     }
@@ -185,8 +196,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.lastNotify.set(id, now);
     const a0 = this.store.get(id);
     const name = a0?.customName || a0?.folderName || `Agent #${id}`;
-    void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, "Ko'rsatish").then((pick) => {
-      if (pick === "Ko'rsatish") this.manager.focusAgent(id);
+    const show = this.t("notify.show");
+    void vscode.window.showWarningMessage(`Agent Office — ${name}: ${text}`, show).then((pick) => {
+      if (pick === show) this.manager.focusAgent(id);
     });
   }
 
@@ -280,11 +292,11 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     }
     if (decision === "ask") {
       this.setHookActive(false);
-      const allow = "Allow";
+      const allow = this.t("hooks.allow");
       const pick = await vscode.window.showInformationMessage(
-        "Agent Office: add hooks to ~/.claude/settings.json for faster, more reliable live detection? Without them the office still works from transcripts. You can remove them any time (command: Agent Office: Uninstall Claude Hooks).",
+        this.t("hooks.ask"),
         allow,
-        "Not now",
+        this.t("hooks.notNow"),
       );
       if (pick === undefined) return; // yopildi — keyingi safar yana so'raymiz
       await this.setConsent(pick === allow ? "granted" : "declined");
@@ -433,6 +445,13 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       case "budgetAlert":
         this.notifyBudget(msg.spent, msg.limit);
         break;
+      case "setLang":
+        if (isHostLang(msg.lang) && msg.lang !== this.lang) {
+          this.lang = msg.lang;
+          void this.state?.update(OfficeViewProvider.LANG_KEY, msg.lang);
+          this.refreshStatusBar();
+        }
+        break;
       case "pinnedAgent":
         this.statusBar.setPinned(msg.label, msg.cost);
         break;
@@ -451,9 +470,9 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.lastBudgetNotify = now;
     const fmt = (n: number) => `$${n.toFixed(2)}`;
     void vscode.window
-      .showWarningMessage(`Agent Office — 💸 Byudjetdan oshdi: ~${fmt(spent)} / ${fmt(limit)} (faqat ogohlantirish)`, "Panelni ochish")
+      .showWarningMessage(`Agent Office — ${this.t("budget.over", { spent: fmt(spent), limit: fmt(limit) })}`, this.t("budget.open"))
       .then((pick) => {
-        if (pick === "Panelni ochish") void vscode.commands.executeCommand("agent-office.showPanel");
+        if (pick === this.t("budget.open")) void vscode.commands.executeCommand("agent-office.showPanel");
       });
   }
 
@@ -743,7 +762,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       html = fs.readFileSync(indexPath, "utf8");
     } catch {
       return `<html><body style="font-family:sans-serif;padding:20px;color:#ddd;background:#111">
-        <h3>Agent Office</h3><p>Webview qurilmagan. <code>npm run build</code> ni ishga tushiring.</p></body></html>`;
+        <h3>Agent Office</h3><p>${this.t("webview.notBuilt")}</p></body></html>`;
     }
     // Asset URL'lari + qat'iy CSP + nonce'li runtime asset bazasi (webviewHtml.ts).
     const baseUri = webview.asWebviewUri(distPath).toString().replace(/\/$/, "");
