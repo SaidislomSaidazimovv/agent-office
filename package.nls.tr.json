@@ -1,0 +1,12 @@
+{
+  "cmd.showPanel": "Agent Office: Paneli göster",
+  "cmd.installHooks": "Agent Office: Claude hook'larını kur",
+  "cmd.uninstallHooks": "Agent Office: Claude hook'larını kaldır",
+  "cmd.showDiagnostics": "Agent Office: Tanılamayı göster",
+  "cfg.autoShowPanel": "VS Code başladığında Agent Office panelini otomatik aç.",
+  "cfg.autoSpawnAgent": "Başlangıçta hiç ajan çalışmıyorsa otomatik olarak bir tane başlat.",
+  "cfg.hooksEnabled": "Daha hızlı ve güvenilir canlı algılama için Claude Code hook'larını kullan (~/.claude/settings.json dosyasına hook eklemeden önce sorar). Kapalıyken yalnızca transkript (JSONL) izlenir.",
+  "cfg.notifications": "Panel gizliyken bir ajan izin istediğinde (veya 3 dakikadan uzun süredir beklediğinde) VS Code bildirimi göster.",
+  "cfg.notifyOnErrors": "Her başarısız araç çağrısında da bildirim göster (varsayılan kapalı: bu hatalar sıktır ve genelde kendiliğinden düzelir; ofis ajanı yine de nedeniyle birlikte kırmızı gösterir).",
+  "cfg.statusBar": "Ofis paneli kapalıyken bile durum çubuğunda ajan sayısını ve ilginizi bekleyenleri göster."
+}

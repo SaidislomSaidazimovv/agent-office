@@ -1,0 +1,12 @@
+{
+  "cmd.showPanel": "Agent Office: 패널 표시",
+  "cmd.installHooks": "Agent Office: Claude 훅 설치",
+  "cmd.uninstallHooks": "Agent Office: Claude 훅 제거",
+  "cmd.showDiagnostics": "Agent Office: 진단 표시",
+  "cfg.autoShowPanel": "VS Code 시작 시 Agent Office 패널을 자동으로 엽니다.",
+  "cfg.autoSpawnAgent": "시작 시 실행 중인 에이전트가 없으면 하나를 자동으로 실행합니다.",
+  "cfg.hooksEnabled": "더 빠르고 안정적인 실시간 감지를 위해 Claude Code 훅을 사용합니다(~/.claude/settings.json에 훅을 추가하기 전에 묻습니다). 끄면 트랜스크립트(JSONL) 감시만 사용합니다.",
+  "cfg.notifications": "패널이 숨겨져 있을 때 에이전트가 권한을 요청하면(또는 3분 이상 기다리면) VS Code 알림을 표시합니다.",
+  "cfg.notifyOnErrors": "도구 호출이 실패할 때마다 알림도 표시합니다(기본값 끔: 이런 실패는 흔하고 보통 스스로 수정됩니다. 사무실에서는 항상 이유와 함께 빨간색으로 표시됩니다).",
+  "cfg.statusBar": "사무실 패널이 닫혀 있어도 상태 표시줄에 에이전트 수와 주의가 필요한 에이전트를 표시합니다."
+}

@@ -1,0 +1,12 @@
+{
+  "cmd.showPanel": "Agent Office: Show Panel",
+  "cmd.installHooks": "Agent Office: Install Claude Hooks",
+  "cmd.uninstallHooks": "Agent Office: Uninstall Claude Hooks",
+  "cmd.showDiagnostics": "Agent Office: Show Diagnostics",
+  "cfg.autoShowPanel": "Open the Agent Office panel automatically when VS Code starts.",
+  "cfg.autoSpawnAgent": "On startup, launch one agent automatically if none is running.",
+  "cfg.hooksEnabled": "Use Claude Code hooks for faster, more reliable live detection (asks before adding a hook to ~/.claude/settings.json). When off, only transcript (JSONL) watching is used.",
+  "cfg.notifications": "Show a VS Code notification when an agent asks for permission (or has been waiting 3+ minutes) while the panel is hidden.",
+  "cfg.notifyOnErrors": "Also show a notification every time a tool call fails (off by default: failed tool calls are frequent and usually self-corrected; the office still shows the agent in red with the reason).",
+  "cfg.statusBar": "Show the agent count and who needs your attention in the status bar, even when the office panel is closed."
+}

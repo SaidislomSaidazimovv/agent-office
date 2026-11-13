@@ -1818,6 +1818,22 @@ testAsync("katta transcript bo'laklab o'qiladi: darrov qaytadi, boshqa agent jon
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("manifest i18n: package.json'dagi har %kalit% package.nls.json'da bor, har til to'liq", () => {
+  const root = __dirname; // test bundle (.test-out.cjs) repo ildizida ishlaydi
+  const pkgRaw = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const refs = (pkgRaw.match(/"%([a-zA-Z.]+)%"/g) ?? []).map((s) => s.slice(2, -2));
+  assert.ok(refs.length >= 10, "buyruqlar + sozlamalar lokalizatsiya qilingan");
+  const base = JSON.parse(fs.readFileSync(path.join(root, "package.nls.json"), "utf8")) as Record<string, string>;
+  for (const r of refs) assert.ok(base[r], `package.nls.json'da yo'q: ${r}`);
+  const files = fs.readdirSync(root).filter((f) => /^package\.nls\.[a-z-]+\.json$/.test(f));
+  assert.ok(files.length >= 6, "tarjimalar mavjud");
+  for (const f of files) {
+    const tr = JSON.parse(fs.readFileSync(path.join(root, f), "utf8")) as Record<string, string>;
+    assert.deepEqual(Object.keys(tr).sort(), Object.keys(base).sort(), `${f} kalitlari to'liq`);
+    for (const [k, v] of Object.entries(tr)) assert.ok(typeof v === "string" && v.trim(), `${f}:${k} bo'sh`);
+  }
+});
+
 test("isStaleExternal: faqat bog'lanmagan + kutayotgan + band emas + 30 daqiqa faoliyatsiz", () => {
   const now = 10 * STALE_IDLE_MS;
   const base = { isExternal: true, boundToOpenTerminal: false, isWaiting: true, busy: false, fileMtimeMs: now - STALE_IDLE_MS, now };
