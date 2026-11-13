@@ -47,7 +47,7 @@ It **observes, never runs** Claude Code — no API key, no credentials, nothing 
 - 🔔 **Sound + native notifications** — subtle chimes when a turn finishes or a permission is requested (with a one-click mute), plus VS Code toasts when an agent needs you while the panel is hidden.
 - 🔌 **Two detection paths, clearly labelled** — reliable **Claude Code Hooks** plus a **JSONL transcript** fallback. A badge in the top bar shows whether this window has the live **🔗 Hook** stream or is on the **📄 JSONL** fallback.
 - 🪑 **Layout editor** — an ✏️ edit mode to place, drag, rotate and delete furniture on a grid, recolour the floor, undo/redo, and export/import the layout as JSON. Layouts persist to `~/.agent-office/layout.json` and are shared with the standalone viewer.
-- 🌐 **Standalone browser viewer** — run `npx agent-office` (or `node dist/cli.js`) to watch the same 3D office in any browser at `http://localhost:3100`, no VS Code required. It reuses the hook/JSONL detection and the shared layout.
+- 🌐 **Standalone browser viewer** — run `node dist/cli.js` from a source build to watch the same 3D office in any browser at `http://localhost:3100`, no VS Code required. It reuses the hook/JSONL detection and the shared layout.
 
 ### Status at a glance
 
@@ -109,7 +109,7 @@ Then reload the window (`Ctrl+Shift+P` → *Developer: Reload Window*).
 1. Open the **Agent Office** panel from the bottom panel area, or run **`Agent Office: Show Panel`**.
 2. Click **`+ Agent`** and pick a role — a new Claude Code terminal opens and a character appears. In a multi-root workspace you can choose the folder; there is also an optional **⚡ skip-permissions** launch. (Any Claude session you start in the workspace is auto-detected too.)
 3. Give Claude a task and watch the character work; when it finishes, it gets up and wanders the office.
-4. Toggle **🚶 Ichki / 🔭 Yuqori** to switch between the first-person and isometric camera. In first-person: click to look, `WASD` to walk, `Esc` to exit.
+4. Toggle **🚶 Inside / 🔭 Top** to switch between the first-person and isometric camera. In first-person: click to look, `WASD` to walk, `Esc` to exit.
 5. Click a character to open its inspector (task, tokens, **Terminal** / **Close**).
 6. The top bar shows the detection mode (**🔗 Hook** / **📄 JSONL**) and a **🔊** sound toggle.
 
@@ -146,10 +146,13 @@ Press **F5** to launch an Extension Development Host for debugging.
 Watch the office in a plain browser — handy for a second monitor or when you're not in VS Code:
 
 ```bash
-npx agent-office                 # watch the current folder at http://localhost:3100
-npx agent-office ../my-project   # watch a specific project
-npx agent-office --port 4000     # custom port
+npm run install:all && npm run build   # once, from a clone of this repo
+node dist/cli.js                       # watch the current folder at http://localhost:3100
+node dist/cli.js ../my-project         # watch a specific project
+node dist/cli.js --port 4000           # custom port
 ```
+
+> **Note:** the viewer is not published to npm. The npm package named `agent-office` is an unrelated project by a different author — do not run `npx agent-office` expecting this viewer.
 
 It runs the same JSONL/hook detection and reads the layout you edited in the extension. (Observation only — the `+ Agent` terminal features are VS-Code specific.)
 
