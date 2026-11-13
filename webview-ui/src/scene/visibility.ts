@@ -18,14 +18,14 @@ export function updateFrustum(camera: THREE.Camera): void {
   _ready = true;
 }
 
-/** (x,y,z) atrofidagi ~1.4 radiusli shar frustumга tegadimi? Tayyor bo'lmasa true. */
+/** (x,y,z) atrofidagi ~1.4 radiusli shar frustumga tegadimi? Tayyor bo'lmasa true. */
 export function visiblePoint(x: number, y: number, z: number): boolean {
   if (!_ready) return true;
   _sphere.center.set(x, y, z);
   return _frustum.intersectsSphere(_sphere);
 }
 
-/** Obyekt (agent guruhi) ko'rinадими? Dunyo-pozitsiyasidan (y=0.9 markaz). */
+/** Obyekt (agent guruhi) ko'rinadimi? Dunyo-pozitsiyasidan (y=0.9 markaz). */
 export function visibleObject(obj: THREE.Object3D): boolean {
   if (!_ready) return true;
   obj.getWorldPosition(_v);

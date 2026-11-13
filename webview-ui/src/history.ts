@@ -1,5 +1,5 @@
 // ── Tarix — kunlik/loyiha bo'yicha jamlanma (sof funksiyalar) ──
-// Extension host `~/.agent-office/history.json`ga yozadi va ochilganда jo'natadi.
+// Extension host `~/.agent-office/history.json`ga yozadi va ochilganda jo'natadi.
 // Bu modul faqat KO'RSATISH uchun jamlaydi — hech narsa to'qib chiqarilmaydi,
 // hammasi o'lchangan (host yig'gan) ma'lumotdan. DOM'siz → test qilinadi.
 
@@ -22,20 +22,20 @@ export interface HistoryDay {
   projects: Record<string, DayStat>;
 }
 
-/** Arxivdagi bitta sessiya (o'tган ish) — so'nggi sessiyalar ro'yxati uchun. */
+/** Arxivdagi bitta sessiya (o'tgan ish) — so'nggi sessiyalar ro'yxati uchun. */
 export interface ArchiveSession {
   /** Qo'lda berilgan nom (bo'lsa). */
   name?: string;
   /** Loyiha (repo) papkasi. */
   project: string;
-  /** Birinchi ko'rilган payt (ms) — saralash + sana uchun. */
+  /** Birinchi ko'rilgan payt (ms) — saralash + sana uchun. */
   at: number;
   cost: number;
   inTok: number;
   outTok: number;
   tools: number;
   ms: number;
-  /** Sessiya modeli (xom id, masalan "claude-opus-4-8"). Eski yozuvlarда bo'lmasligi mumkin. */
+  /** Sessiya modeli (xom id, masalan "claude-opus-4-8"). Eski yozuvlarda bo'lmasligi mumkin. */
   model?: string;
 }
 
@@ -103,13 +103,13 @@ export function grandTotal(days: HistoryDay[]): DayStat {
   return days.map(dayTotal).reduce(addStat, emptyStat());
 }
 
-/** CSV katak — vergul/qo'shtirnoq/yangi qatorни qochiradi (RFC 4180). */
+/** CSV katak — vergul/qo'shtirnoq/yangi qatorni qochiradi (RFC 4180). */
 function csvCell(v: string): string {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
 /** Kunlik tarixni CSV qilib beradi (sana o'sish tartibida). Har qator — bir
- *  kun × bir loyiha. Jadvalда (Excel/Sheets) pivot uchun tayyor. */
+ *  kun × bir loyiha. Jadvalda (Excel/Sheets) pivot uchun tayyor. */
 export function historyCsv(days: HistoryDay[]): string {
   const rows: string[] = ["date,project,cost_usd,input_tokens,output_tokens,tools,active_ms"];
   for (const d of [...days].sort((a, b) => a.date.localeCompare(b.date))) {

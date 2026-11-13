@@ -26,7 +26,7 @@ const LINK_MAT = basicMat("#ffd60a", { transparent: true, opacity: 0.55 });
 function AgentAvatar({ agent }: { agent: AgentView }) {
   const seat = seatFor(agent.seatIndex);
   const preset = characterFor(agent.role, agent.seatIndex, agent.id);
-  // Yorliq — papka nomi (repoда hammasи bir xil) o'rniga ANIQLANGAN rol (tarjimali).
+  // Yorliq — papka nomi (repoda hammasi bir xil) o'rniga ANIQLANGAN rol (tarjimali).
   const t = useT();
   // Yorliq: qo'lda nom berilgan bo'lsa — O'SHA nom (bir repodagi ikki agentni
   // farqlash uchun aynan shu kerak edi), aks holda aniqlangan rol.
@@ -53,7 +53,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   }, [hiring]);
 
   // Yordamchilar — BARQAROR slot + chiqish animatsiyasi. Store ro'yxatidan
-  // farqi: ketayotgan yordamchini darrov o'chirmay, kichrayib yo'qolgunча
+  // farqi: ketayotgan yordamchini darrov o'chirmay, kichrayib yo'qolguncha
   // saqlaymiz. Slot kalit bo'yicha barqaror — o'rtadagi ketsa qolganlari
   // SAKRAMAYDI (avvalgi index-asosli joylashuv bug'i).
   // Yorliq/turi yordamchi YARATILGANDA saqlanadi — ketayotganda (store'dan
@@ -137,7 +137,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const metAt = useRef(0); // gather nuqtasiga yetgan payt (0 = yetmagan)
   const [emote, setEmote] = useState<"" | "👋" | "☕" | "💬">("");
   const emoteRef = useRef<"" | "👋" | "☕" | "💬">("");
-  useEffect(() => () => unreport(agent.id), [agent.id]); // ketganda reyestrдан chiqar
+  useEffect(() => () => unreport(agent.id), [agent.id]); // ketganda reyestrdan chiqar
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -213,11 +213,11 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           const bothHere = metAt.current > 0 && partner != null && partner.metAt > 0;
           const chatSince = bothHere ? Math.max(metAt.current, partner!.metAt) : 0;
           const chatDone = bothHere && now - chatSince > 6;
-          const partnerGone = partner == null || meetingOf(meet.partner) == null; // yurib turган bo'lsam ham bekor qilaman (R2)
+          const partnerGone = partner == null || meetingOf(meet.partner) == null; // yurib turgan bo'lsam ham bekor qilaman (R2)
           if (now > meet.until || chatDone || partnerGone) {
             clearMeeting(agent.id);
             metAt.current = 0;
-            seekCd.current = 18 + Math.random() * 20; // yaqinда qayta uchrashmasin
+            seekCd.current = 18 + Math.random() * 20; // yaqinda qayta uchrashmasin
             pause.current = 0.4 + Math.random();
           } else if (Math.hypot(p.x - spot.x, p.z - spot.z) < 0.32) {
             if (metAt.current === 0) metAt.current = now; // joyimga yetdim (sherikni kutaman)
@@ -272,7 +272,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         const mvz = (dz / dist) * SPEED * dt;
         const res = slide(p.x, p.z, mvx, mvz, 0.16);
         // Agent-agent collision — bir-birini ustidan arvohdek o'tmaydi. O'q
-        // bo'yicha: agar YANGI joy boshqa agentга tegsa (va hozir tegmayotgan
+        // bo'yicha: agar YANGI joy boshqa agentga tegsa (va hozir tegmayotgan
         // bo'lsak) — o'sha o'q bo'yicha turamiz. (Ichida qolsa — chiqishga ruxsat.)
         const SEP = 0.42;
         let fx = res.x, fz = res.z;
@@ -312,7 +312,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     g.position.z = p.z;
 
     // ── Uchrashuv: joyimga yetsam SHERIKKA qarayman; IKKOVIMIZ yetsa gaplashamiz.
-    //    Emote FAQAT ikkovi ham yetganда (yolg'iz o'zidan emote yo'q). ──
+    //    Emote FAQAT ikkovi ham yetganda (yolg'iz o'zidan emote yo'q). ──
     const mNow = meetingOf(agent.id);
     const partnerNow = mNow ? presenceOf(mNow.partner) : undefined;
     if (mNow && metAt.current > 0) {
@@ -410,7 +410,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 
       {/* Fon vazifasi belgisi — kam bezovta, BARQAROR (emotedan farqli): agent
           run_in_background bilan bir narsa ishga tushirgan va u fonda ishlayapti.
-          Yon tomonда, boshdagi qatlamlardan pastroqда — hech narsani yopmaydi. */}
+          Yon tomonda, boshdagi qatlamlardan pastroqda — hech narsani yopmaydi. */}
       {agent.background && (
         <Html position={[0.6, 1.55, 0]} center style={{ pointerEvents: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 10, background: "rgba(94,155,255,0.9)", color: "#f2f7ff", fontFamily: "system-ui", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" }}>🔄 {t("bg.badge")}</div>
@@ -418,7 +418,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       )}
 
       {/* XAVFSIZLIK belgisi — agent --dangerously-skip-permissions bilan ishlayapti
-          (tool ruxsat so'ramaydi). Amber ogohlantirish, chap tomonда (fon belgisi
+          (tool ruxsat so'ramaydi). Amber ogohlantirish, chap tomonda (fon belgisi
           bilan to'qnashmaydi). Faqat KUZATILGAN permissionMode'dan. */}
       {agent.permissionMode === "bypassPermissions" && (
         <Html position={[-0.6, 1.55, 0]} center style={{ pointerEvents: "none" }}>
@@ -469,7 +469,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
 
 // Sub-agent — parent yonidagi KICHIK yordamchi. Kirganda noldan "pop"
 // (easeOutBack) bilan kattalashadi, ketganda kichrayib yo'qoladi (leaving),
-// so'ng onExited orqali ro'yxatдан chiqadi. Joyi `slot` bo'yicha barqaror.
+// so'ng onExited orqali ro'yxatdan chiqadi. Joyi `slot` bo'yicha barqaror.
 const SUB_TARGET = 0.5;
 /** Yordamchi joyi — slot bo'yicha BARQAROR (o'rtadagi ketsa qolganlari sakramaydi). */
 export function helperSlot(slot: number): { x: number; z: number } {

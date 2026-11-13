@@ -11,7 +11,7 @@ import { visibleObject } from "./visibility";
 // Ulashilgan birlik-kub qutisi: har voxel bo'lagi bitta geometriya + keshlangan
 // material (20 agentda minglab dublikat o'rniga o'nlab noyob obyekt).
 type V3 = [number, number, number];
-// cast default FALSE — 20 agentда ~600 mayda soya-tashlovchi mesh perf'ni yeydi.
+// cast default FALSE — 20 agentda ~600 mayda soya-tashlovchi mesh perf'ni yeydi.
 // Faqat tana+bosh (siluet) soya tashlaydi — yerga o'tirtirish uchun yetarli.
 function VB({ p, s, m, cast = false }: { p?: V3; s: V3; m: THREE.Material; cast?: boolean }) {
   return <mesh position={p} scale={s} geometry={UNIT_BOX} material={m} castShadow={cast} />;
@@ -33,7 +33,7 @@ interface Props {
   detail?: "high" | "low";
   /** Har freym o'qiladi (re-render'siz poza/harakatni yangilash uchun). */
   getState?: () => { sit: boolean; moving: boolean; speed?: number };
-  /** Rol "energiyasi" (~0.7 xotirjam … 1.3 faol) — bo'sh vaqtда qanchalik
+  /** Rol "energiyasi" (~0.7 xotirjam … 1.3 faol) — bo'sh vaqtda qanchalik
    *  tez-tez atrofga qaraydi/qimirlaydi. Faqat mavjud harakatlarni shkalalaydi
    *  (geometriyaga tegmaydi). Standart 1. */
   energy?: number;
@@ -74,7 +74,7 @@ function Accessory({ type }: { type: AccessoryType }) {
     );
   }
   if (type === "beanie") {
-    // Jun shapka — kepkadan farqli: kozirоksiz, boshni ko'proq yopadi, pastда
+    // Jun shapka — kepkadan farqli: koziroksiz, boshni ko'proq yopadi, pastda
     // qatlam (buklama). Iliq jun rangi.
     const bm = stdMat("#7a5a8c", { roughness: 0.98 });
     return (
@@ -95,7 +95,7 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
     case "short":
       return (<group>{cap}<VB p={[0, 0.02, 0.13]} s={[0.33, 0.3, 0.09]} m={hm} /></group>);
     case "long":
-      // Yon tutamlar biroz ORQAROQ (z=0.05) — oldiда yuzни kesib o'tmasin.
+      // Yon tutamlar biroz ORQAROQ (z=0.05) — oldida yuzni kesib o'tmasin.
       return (
         <group>{cap}
           {[-0.185, 0.185].map((x) => <VB key={x} p={[x, -0.14, 0.05]} s={[0.06, 0.4, 0.32]} m={hm} />)}
@@ -104,7 +104,7 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
       );
     case "afro":
       // Shar ORQAGA surildi (z=0.1) va kichraytirildi — oldi z≈-0.12'da tugaydi,
-      // ko'zlar (z=-0.151) OLDIда qoladi → yuz ko'rinadi (avval afro yuzni yopardi).
+      // ko'zlar (z=-0.151) OLDIda qoladi → yuz ko'rinadi (avval afro yuzni yopardi).
       return (<mesh position={[0, 0.15, 0.1]} castShadow geometry={sphere(0.22, 12, 10)} material={hm2} />);
     case "curly":
       return (
@@ -165,11 +165,11 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const dt = Math.min(delta, 0.05);
     // Perf: ekrandan tashqarida bo'lsa rigni MUZLATAMIZ (faqat kosmetika —
     // harakat/joylashuv AgentAvatar'da, bunga bog'liq emas). damp() eksponensial
-    // bo'lgani uchun qayta ko'ринganda silliq davom etadi (sakramaydi).
+    // bo'lgani uchun qayta ko'ringanda silliq davom etadi (sakramaydi).
     if (rootRef.current && !visibleObject(rootRef.current)) return;
     // Kamaytirilgan harakat: vaqtni oldinga surmaymiz → nafas, yozish tebranishi,
     // bosh chayqalishi va pirpirash to'xtaydi. Poza (o'tirish/turish) va YURISH
-    // baribir ishlaydi — ular mazmunли, bezak emas.
+    // baribir ishlaydi — ular mazmunli, bezak emas.
     const rm = useSettings.getState().reducedMotion;
     t.current += rm ? 0 : dt;
     const tt = t.current;
@@ -179,7 +179,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     const thinking = sit && status === "thinking";
     const walk = !sit && st.moving;
 
-    // Vaqti-vaqti bilan cho'zilish — faqat HAQIQIY bo'sh (idle) turganда
+    // Vaqti-vaqti bilan cho'zilish — faqat HAQIQIY bo'sh (idle) turganda
     // (ishlayotgan yordamchi subagentlar cho'zilmasin).
     const standingIdle = !sit && !st.moving && status === "idle" && !rm;
     if (standingIdle) {
@@ -194,7 +194,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
     const stretching = stretchLeft.current > 0;
 
-    // ── Qadam fazasi — MASOFAга bog'liq (oyoq sirg'anmaydi) + silliq kirish ──
+    // ── Qadam fazasi — MASOFAga bog'liq (oyoq sirg'anmaydi) + silliq kirish ──
     const spd = st.speed ?? 0;
     walkPhase.current += (spd / 0.34) * Math.PI * dt; // ~0.34m qadam = yarim sikl
     walkBlend.current = damp(walkBlend.current, walk ? 1 : 0, 9, dt);
@@ -241,7 +241,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     else if (thinking) { tilt = 0.2; nod = -0.06; }
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
-    // Bo'sh/o'ylanayotganда gohida yon-yonga qaraydi. Faol rollar (yuqori energiya)
+    // Bo'sh/o'ylanayotganda gohida yon-yonga qaraydi. Faol rollar (yuqori energiya)
     // tez-tez va kengroq qaraydi; xotirjam olimlar kamroq.
     if (!working && !rm) {
       glanceCd.current -= dt;
@@ -267,7 +267,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     }
     if (eyesRef.current) {
       const bl = blinkLeft.current;
-      // 0.12s ичида: yopil (0→~0.06s) → och. sinus bilan silliq.
+      // 0.12s ichida: yopil (0→~0.06s) → och. sinus bilan silliq.
       const openY = bl > 0 ? Math.max(0.08, 1 - Math.sin((1 - bl / 0.12) * Math.PI) * 0.95) : 1;
       eyesRef.current.scale.y = openY;
     }
@@ -312,7 +312,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
       <VB p={[0, -0.2, 0]} s={[0.13, 0.42, 0.14]} m={bottomMat} />
       <group ref={kneeRef} position={[0, -0.4, 0]}>
         <VB p={[0, -0.2, 0]} s={[0.12, 0.42, 0.12]} m={bottomMat} />
-        {/* to'piq pivotда poyabzal — yurganda tumshuq ko'tariladi, tekis bosadi */}
+        {/* to'piq pivotda poyabzal — yurganda tumshuq ko'tariladi, tekis bosadi */}
         <group ref={ankleRef} position={[0, -0.42, 0]}>
           <VB p={[0, 0, -0.05]} s={[0.13, 0.1, 0.26]} m={shoeMat} />
         </group>
@@ -351,7 +351,7 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
             {/* Yuz tafsilotlari (ko'z/burun/quloq/aksessuar) — faqat high LOD.
                 Kichik yordamchilar (low) uchun ko'rinmaydi → tashlab ketamiz. */}
             {!lod && <>
-              {/* ko'zlar — eyesRef guruhда (y=0.025 markaz) → pirpiraganda joyida yumiladi */}
+              {/* ko'zlar — eyesRef guruhda (y=0.025 markaz) → pirpiraganda joyida yumiladi */}
               <group ref={eyesRef} position={[0, 0.025, 0]}>
                 {[-0.07, 0.07].map((x) => (
                   <group key={x} position={[x, 0, -0.151]}>

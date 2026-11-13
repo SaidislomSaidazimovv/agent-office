@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 // ── Foydalanuvchi sozlamalari (localStorage'da saqlanadi) ────
 // Til alohida store'da (i18n.ts) — u eng erta kerak. Qolgan sozlamalar shu yerda.
 // QOIDA: bu yerdagi har bir sozlama HAQIQATAN biror narsani o'zgartiradi —
-// bezak tugma yo'q. Qayerga ulanishi izohда ko'rsatilgan.
+// bezak tugma yo'q. Qayerga ulanishi izohda ko'rsatilgan.
 
 export type Quality = "high" | "low";
 
@@ -12,12 +12,12 @@ export type Quality = "high" | "low";
 export function dprFor(q: Quality): number {
   return q === "low" ? 0.7 : 1;
 }
-/** Sifat → soya xaritasi necha freymда bir yangilanadi. */
+/** Sifat → soya xaritasi necha freymda bir yangilanadi. */
 export function shadowEvery(q: Quality): number {
   return q === "low" ? 12 : 4;
 }
 
-/** Tizim "kamaytirilgan harakat"ni so'ragan bo'lsa — birinchi ishga tushishда yoqiq. */
+/** Tizim "kamaytirilgan harakat"ni so'ragan bo'lsa — birinchi ishga tushishda yoqiq. */
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -36,7 +36,7 @@ export interface SettingsValues {
   wander: boolean;
   /** Bo'sh agentlar uchrashadimi (AgentAvatar + presence). Sayr o'chiq bo'lsa ta'sirsiz. */
   social: boolean;
-  /** Yuqori panel + inspektorда xarajat (Hud). Analitika panelida baribir ko'rinadi. */
+  /** Yuqori panel + inspektorda xarajat (Hud). Analitika panelida baribir ko'rinadi. */
   showCost: boolean;
   /** Kamera tanlangan agentni kuzatadi (App.tsx). */
   followSelected: boolean;

@@ -52,7 +52,7 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
   if (a.role) msgs.push({ type: "agentRoleDetected", id: a.id, role: a.role });
   if (a.permissionActive) msgs.push({ type: "agentToolPermission", id: a.id });
   if (a.blocked) msgs.push({ type: "agentBlocked", id: a.id, blocked: true, reason: a.blockedReason });
-  // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishда yoki
+  // Ruxsat rejimi default'dan farqli bo'lsa (bypass/auto) — qayta ulanishda yoki
   // launch-seed (+Agent --dangerously-skip-permissions) holatida ham ko'rinsin.
   if (a.permissionMode && a.permissionMode !== "default") msgs.push({ type: "agentPermissionMode", id: a.id, mode: a.permissionMode });
   // Session statlari — ENG OXIRIDA (yuqoridagi agentToolStart replay'lari

@@ -458,7 +458,7 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  // ── Budjetdan oshish bildirishnomasi (webview chegaradan O'TISHда yuboradi) ──
+  // ── Budjetdan oshish bildirishnomasi (webview chegaradan O'TISHda yuboradi) ──
   // FAQAT ogohlantirish — hech narsa to'xtatilmaydi. `notifications` sozlamasiga
   // bo'ysunadi; qo'shimcha host throttle ko'p-panel dublikatlaridan himoya qiladi.
   private lastBudgetNotify = 0;

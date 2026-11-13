@@ -800,14 +800,14 @@ test("toolDone: sanoq 0ga tushsa yorliq tozalanadi (osilib qolmaydi)", () => {
   s.toolDone(400);
   assert.equal(useOffice.getState().agents[400].toolLabel, undefined, "sanoq 0da yorliq tozalanishi kerak");
 });
-test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganда tozalanadi", () => {
+test("runInBackground: fon bayrog'i ushlab turiladi, agent bo'shaganda tozalanadi", () => {
   const s = useOffice.getState();
   s.addAgent({ id: 410, folderName: "bg" });
   s.setTool(410, "Bash", "Bash npm run dev", true); // fonda ishga tushdi
   assert.equal(useOffice.getState().agents[410].background, true, "fon bayrog'i yonishi kerak");
   s.toolDone(410); // fon tool CHAQIRUVI tugadi — bayroq o'chmasin
   assert.equal(useOffice.getState().agents[410].background, true, "toolDone bayroqni o'chirmasligi kerak");
-  s.setTool(410, "Edit", "Edit x.ts"); // oldinги (foreground) ish — ushlab qoladi
+  s.setTool(410, "Edit", "Edit x.ts"); // oldingi (foreground) ish — ushlab qoladi
   assert.equal(useOffice.getState().agents[410].background, true, "foreground tool bayroqni ushlab qolishi kerak");
   s.setActive(410, false); // agent bo'shadi — burst tugadi
   assert.equal(useOffice.getState().agents[410].background, false, "bo'shaganda tozalanishi kerak");
@@ -894,13 +894,13 @@ test("budgetState: limit yo'q → o'chiq; 80% → warn; 100% → over", () => {
   assert.ok(Math.abs(b.left - 0.75) < 1e-9, "qolgani 0.75");
   assert.equal(budgetState(3, 1).left, 0, "oshib ketsa qolgani 0 (manfiy emas)");
 });
-test("budgetCrossing: chegaradan o'tishда BIR marta fire, gisterezis bilan qayta tiklanadi", () => {
+test("budgetCrossing: chegaradan o'tishda BIR marta fire, gisterezis bilan qayta tiklanadi", () => {
   assert.deepEqual(budgetCrossing(0.5, 1, false), { fire: false, notified: false }, "budjet ostida — xabar yo'q");
-  assert.deepEqual(budgetCrossing(1, 1, false), { fire: true, notified: true }, "o'tishда fire=true");
-  assert.deepEqual(budgetCrossing(1.5, 1, true), { fire: false, notified: true }, "hali oshgan, avval xabar berilган — qayta fire yo'q");
-  // budjet ko'tarilди (sarf endi <95% limit) → qayta tiklanadi
-  assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarilди → reset");
-  assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishда yana fire");
+  assert.deepEqual(budgetCrossing(1, 1, false), { fire: true, notified: true }, "o'tishda fire=true");
+  assert.deepEqual(budgetCrossing(1.5, 1, true), { fire: false, notified: true }, "hali oshgan, avval xabar berilgan — qayta fire yo'q");
+  // budjet ko'tarildi (sarf endi <95% limit) → qayta tiklanadi
+  assert.deepEqual(budgetCrossing(1.5, 2, true), { fire: false, notified: false }, "budjet ko'tarildi → reset");
+  assert.deepEqual(budgetCrossing(2, 2, false), { fire: true, notified: true }, "yangi o'tishda yana fire");
   assert.deepEqual(budgetCrossing(5, 0, false), { fire: false, notified: false }, "budjet o'chiq (0) → hech qachon fire");
 });
 test("forecast: costVelocity — so'nggi oynada $/daqiqa; kam namuna → 0", () => {
@@ -1035,7 +1035,7 @@ test("editedFile: tahrir toolidan fayl; boshqa tool → null", () => {
   assert.equal(editedFile("Read store.ts"), null, "o'qish tahrir emas");
   assert.equal(editedFile("Bash npm test"), null);
 });
-test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv", () => {
+test("buildInsights: bir repoda bir faylni 2 agent tahrirlasa → to'qnashuv", () => {
   const withHist = (id: number, folder: string, labels: string[]) => ({
     ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })),
   });
@@ -1050,7 +1050,7 @@ test("buildInsights: bir repoда bir faylni 2 agent tahrirlasa → to'qnashuv",
   assert.equal(conflict!.vars!.n, 2);
   assert.deepEqual(conflict!.agentIds!.sort(), [1, 2]);
 });
-test("fileConflicts: bir repoда bir faylni 2 agent → to'qnashuv; boshqa repo → yo'q", () => {
+test("fileConflicts: bir repoda bir faylni 2 agent → to'qnashuv; boshqa repo → yo'q", () => {
   const wh = (id: number, folder: string, labels: string[]) => ({ ...baseAgent(id, folder), toolHistory: labels.map((l, i) => ({ label: l, at: i })) });
   const cs = fileConflicts([
     wh(1, "repo", ["Edit store.ts"]),
@@ -1063,7 +1063,7 @@ test("fileConflicts: bir repoда bir faylni 2 agent → to'qnashuv; boshqa repo
   assert.equal(cs[0].folderName, "repo");
   assert.deepEqual(cs[0].ids.sort(), [1, 2]);
 });
-test("buildInsights: boshqa REPOда bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
+test("buildInsights: boshqa REPOda bir xil fayl → to'qnashuv EMAS (yolg'on signal yo'q)", () => {
   const ins = buildInsights([
     { ...baseAgent(1, "repoA"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
     { ...baseAgent(2, "repoB"), toolHistory: [{ label: "Edit store.ts", at: 0 }] },
@@ -1532,7 +1532,7 @@ test("transcript: xato natija → bloklandi + SABAB uzatiladi; toza natija → t
   const blocked = ev.find((m) => m.type === "agentBlocked") as (Msg & { blocked?: boolean; reason?: string }) | undefined;
   assert.ok(blocked?.blocked, "bloklangan bo'lishi kerak");
   assert.equal(blocked!.reason, "npm ERR! missing script: buld", "sabab aynan xato matni");
-  assert.equal(agent.blockedReason, "npm ERR! missing script: buld", "holatда saqlanadi (replay uchun)");
+  assert.equal(agent.blockedReason, "npm ERR! missing script: buld", "holatda saqlanadi (replay uchun)");
 
   ev.length = 0;
   processTranscriptLine(store, agent, JSON.stringify({
@@ -1617,7 +1617,7 @@ test("matchAgents: vazifa (task) matni bo'yicha ham topiladi", () => {
   ];
   assert.deepEqual(matchAgents(list, "auth").map((a) => a.id), [1], "vazifa matni bo'yicha");
   assert.deepEqual(matchAgents(list, "billing").map((a) => a.id), [2], "vazifa matni bo'yicha (2)");
-  // Papka nomi vazifadan ustun (folder 'api' — task 'auth'дан kuchli emas, lekin
+  // Papka nomi vazifadan ustun (folder 'api' — task 'auth'dan kuchli emas, lekin
   // 'api' so'rovda faqat 2ni topadi)
   assert.deepEqual(matchAgents(list, "api").map((a) => a.id), [2], "papka nomi baribir ishlaydi");
 });
@@ -1702,7 +1702,7 @@ test("hech bir xona ichki nuqtasi mebel ichida emas (agent titramaydi)", () => {
 
 // ── Nav grafi butunligi ──────────────────────────────────────
 // Regressiya qalqoni: bir paytlar "glassA_d" ham startsWith("g") ga tushib,
-// eshik O'ZIGA ulanib qolgan edi → 3 shisha xona grafдан uzilib, agent ichkariga
+// eshik O'ZIGA ulanib qolgan edi → 3 shisha xona grafdan uzilib, agent ichkariga
 // kirib chiqolmay qolardi. Quyidagi 3 test shuni qaytadan sodir bo'lishiga
 // yo'l qo'ymaydi.
 

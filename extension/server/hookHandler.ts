@@ -23,7 +23,7 @@ function stableStringify(v: unknown): string {
   }
 }
 
-// Imzo ajratgichi — unit-separator (U+001F). Tool nomi/inputда uchramaydi,
+// Imzo ajratgichi — unit-separator (U+001F). Tool nomi/inputda uchramaydi,
 // lekin manba faylida XOM control-bayt yozmaymiz (grep/muharrir/git uchun toza).
 const SIG_SEP = String.fromCharCode(0x1f);
 

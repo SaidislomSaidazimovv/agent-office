@@ -4,7 +4,7 @@ import { type AttentionAgent, needsAttention, statusText, summarize } from "../c
 // ── Status bar ───────────────────────────────────────────────
 // Ofis paneli YOPIQ bo'lsa ham agentlar holati ko'rinib tursin: nechta agent
 // ishlayapti, nechtasi sizni kutmoqda. Bosilsa — panel ochiladi.
-// Xarajat ATAYLAB yozilmaydi: narx hisobi webview'da (pricing.ts) — uni bu yerда
+// Xarajat ATAYLAB yozilmaydi: narx hisobi webview'da (pricing.ts) — uni bu yerda
 // takrorlash ikki manba yasaydi va ular vaqt o'tib bir-biriga mos kelmay qoladi.
 
 export class OfficeStatusBar {
@@ -34,7 +34,7 @@ export class OfficeStatusBar {
     this.pinItem.show();
   }
 
-  /** Agentlar holatini status barда yangilaydi (agent yo'q → yashiriladi). */
+  /** Agentlar holatini status barda yangilaydi (agent yo'q → yashiriladi). */
   update(agents: (AttentionAgent & { folderName: string; stuck?: boolean; reason?: string })[]): void {
     const on = vscode.workspace.getConfiguration("agent-office").get<boolean>("statusBar", true);
     if (!on || agents.length === 0) {

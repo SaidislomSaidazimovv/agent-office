@@ -61,7 +61,7 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
   const seg = Math.max(0.01, (x1 - x0 - door) / 2);
   const wc = useLayout((s) => s.wallColor) ?? WALL_C; // mavzu devor rangi
   const swing = z < 0 ? 1 : -1; // markazga (yo'lakka) ochilsin
-  const W = door * 0.94; // tavaqa eni — teshik enига mos (deyarli to'ldiradi)
+  const W = door * 0.94; // tavaqa eni — teshik eniga mos (deyarli to'ldiradi)
   const openH = WALL_H - 0.3; // teshik balandligi (pol → lintel)
   return (
     <group>
@@ -83,7 +83,7 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
           <boxGeometry args={[door * 0.16, WALL_H - 0.9, 0.04]} />
           <meshStandardMaterial color="#bfe0ff" transparent opacity={0.35} roughness={0.1} metalness={0.1} />
         </mesh>
-        {/* zamonaviy uzun tutqich (erkin chetда) */}
+        {/* zamonaviy uzun tutqich (erkin chetda) */}
         <mesh position={[W - 0.12, -0.05, 0.05 * swing]}>
           <boxGeometry args={[0.04, 0.4, 0.04]} />
           {MM("#c8ccd2")}
@@ -250,7 +250,7 @@ function Kitchen({ p, ry = 0 }: { p: V3; ry?: number }) {
       <Box p={[2.9, 0.95, 0]} s={[0.75, 1.9, 0.7]} c="#eceae4" rough={0.5} />
       <Box p={[2.9, 0.95, 0.36]} s={[0.5, 0.02, 0.02]} c={ACCENT} />
       {/* NEON yozuv — "retro diner" districtining imzosi. Faqat emissive
-          (pointLight EMAS) → perf narxi nol, lekin kechаsi kuchli porlaydi. */}
+          (pointLight EMAS) → perf narxi nol, lekin kechasi kuchli porlaydi. */}
       <mesh position={[0, 1.78, -0.3]}><boxGeometry args={[2.1, 0.54, 0.06]} /><meshStandardMaterial color="#191216" roughness={0.5} /></mesh>
       <mesh position={[0, 1.78, -0.26]}><boxGeometry args={[1.78, 0.24, 0.03]} /><meshStandardMaterial color="#ff4d8d" emissive="#ff4d8d" emissiveIntensity={2.8} toneMapped={false} /></mesh>
     </group>
@@ -262,7 +262,7 @@ function Whiteboard({ p, ry = 0 }: { p: V3; ry?: number }) {
   return (
     <group position={p} rotation={[0, ry, 0]}>
       <Box p={[0, 1.4, 0]} s={[1.95, 1.12, 0.07]} c="#161a20" rough={0.4} />
-      {/* Endi JONLI statistika taxtasi (kamerага qaraydi — asosiy displey). */}
+      {/* Endi JONLI statistika taxtasi (kameraga qaraydi — asosiy displey). */}
       <group position={[0, 1.4, 0.05]}><StatsBoard size={[1.74, 0.92]} /></group>
     </group>
   );
@@ -293,8 +293,8 @@ function ModChairAt({ p, ry = 0 }: { p: V3; ry?: number }) {
 export function Painting({ p, ry = 0, c }: { p: V3; ry?: number; c: string }) {
   return <group position={p} rotation={[0, ry, 0]}><Box p={[0, 0, 0]} s={[1.1, 0.8, 0.06]} c="#3a2e22" rough={0.6} /><mesh position={[0, 0, 0.04]}><planeGeometry args={[0.9, 0.6]} /><meshBasicMaterial color={c} /></mesh></group>;
 }
-// Devor soati — yuzi +z (Painting kabi), ry bilan devorга buriladi. Strelkalar
-// HAQIQIY joriy vaqtни ko'rsatadi va jonli yuradi (useFrame — React re-render
+// Devor soati — yuzi +z (Painting kabi), ry bilan devorga buriladi. Strelkalar
+// HAQIQIY joriy vaqtni ko'rsatadi va jonli yuradi (useFrame — React re-render
 // yo'q). Avval qotib turardi (statik 10:10 — "soxta") — endi tirik.
 export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
   const hourRef = useRef<THREE.Group>(null);
@@ -332,7 +332,7 @@ function computeBoardStats() {
   return { total: list.length, active, cost, warns };
 }
 function StatsBoard({ size = [1.85, 1.0] as [number, number] }: { size?: [number, number] }) {
-  // PERF: store-churn'ga OBUNA BO'LMAYMIZ (har token yangilanishда emas) — taxta
+  // PERF: store-churn'ga OBUNA BO'LMAYMIZ (har token yangilanishda emas) — taxta
   // 2s'da bir yangilanadi (soniqlar sub-soniya yangilikni talab qilmaydi), shu
   // bilan doim-mount TV+doska buildInsights'ni ortiqcha chaqirmaydi. Faqat qiymat
   // O'ZGARSA setState (aks holda qayta chizmaymiz).
@@ -424,7 +424,7 @@ export function StandingLamp({ p }: { p: V3 }) {
 
 // Shift chirog'i (pendant) — ochiq ofis ustida osilgan. Bulb KUNDUZ ham porlaydi
 // (ilgari to'q konus + o'chiq bulb → "qora uzunchoq" ko'rinardi). Shade iliq och
-// rangда, bulb har doim yorug' (toneMapped=false → haqiqatan porlaydi).
+// rangda, bulb har doim yorug' (toneMapped=false → haqiqatan porlaydi).
 export function PendantLight({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   return (
@@ -434,7 +434,7 @@ export function PendantLight({ p }: { p: V3 }) {
       <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#e6dcc8" roughness={0.6} side={2} /></mesh>
       {/* Bulb — kunduz ham yonib turadi */}
       <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.095, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.6 : 1.5} toneMapped={false} /></mesh>
-      {/* Yumshoq halo — kunduz nozik, kechаsi kuchli */}
+      {/* Yumshoq halo — kunduz nozik, kechasi kuchli */}
       <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.3, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={lampsOn ? 0.22 : 0.12} depthWrite={false} /></mesh>
       {lampsOn && <>
         <pointLight position={[0, 1.78, 0]} intensity={5} distance={5} decay={2} color="#ffd98a" />
@@ -445,12 +445,12 @@ export function PendantLight({ p }: { p: V3 }) {
 
 // Shift yoritgich paneli (recessed office light) — pol lampasi o'rniga. Ofisdek
 // tepadan yoritadi: yassi porlab turgan panel + qora ramka, WH=3.4 shift ostida.
-// Emissive TEKIN (yorug' hisoblanmaydi); haqiqiy pointLight faqat kechаsi.
+// Emissive TEKIN (yorug' hisoblanmaydi); haqiqiy pointLight faqat kechasi.
 export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   // Fixtura FAQAT ichkaridan (FPV) ko'rinadi — shift kabi tepadan (iso) yashirin
-  // (ilgari oq panel bo'shliqда "osilib" ko'rinardi). Iso'da faqat pol yorug'ligi
-  // (pointLight, kechаsi) qoladi — bu aynan recessed downlight ko'rinishi.
+  // (ilgari oq panel bo'shliqda "osilib" ko'rinardi). Iso'da faqat pol yorug'ligi
+  // (pointLight, kechasi) qoladi — bu aynan recessed downlight ko'rinishi.
   const fpv = useOffice((s) => s.cameraMode === "fpv");
   return (
     <group position={p}>
@@ -540,8 +540,8 @@ function ReadingTable({ p }: { p: V3 }) {
   );
 }
 
-// District tungi nuri — FAQAT kechаsi mavjud bo'ladi (kunduzда `null` qaytaradi,
-// ya'ni pointLight umuman yaratilmaydi → kunduzги perf narxi NOL). Tunda jami
+// District tungi nuri — FAQAT kechasi mavjud bo'ladi (kunduzda `null` qaytaradi,
+// ya'ni pointLight umuman yaratilmaydi → kunduzgi perf narxi NOL). Tunda jami
 // 9 pointLight (2 torsher + 4 pendant + 3 district) — xavfsiz chegara.
 function DistrictLight({ p, c, intensity = 9, distance = 14 }: { p: V3; c: string; intensity?: number; distance?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
@@ -553,7 +553,7 @@ function DistrictLight({ p, c, intensity = 9, distance = 14 }: { p: V3; c: strin
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
 // bej/kul bo'lib ko'rinardi ("generic quti" hissi). Yechim: har xonaga
 // XARAKTERLI, kontrastli, lekin uyg'un pol. Pol rangi BEPUL (nur emas) va
-// KUNDUZи ham ishlaydi — shu bois district identikasining asosi shu.
+// KUNDUZi ham ishlaydi — shu bois district identikasining asosi shu.
 const DISTRICT = {
   server: "#252a31", // ma'lumot g'ori — deyarli qora (yagona dramatik langar)
   kitchen: "#7fbcae", // retro diner — moviy-yashil
@@ -578,14 +578,14 @@ export default function OfficeDecor() {
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15.4]} />)}
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={`b${x}`} p={[x, 0, -11]} ry={Math.PI} />)}
       <CoolingUnit p={[-22.6, 0, -13]} ry={Math.PI / 2} />
-      {/* Tunда: sovuq ko'k "ma'lumot g'ori" hovuzi */}
+      {/* Tunda: sovuq ko'k "ma'lumot g'ori" hovuzi */}
       <DistrictLight p={[-16, 2.2, -12.8]} c="#4fa8ff" intensity={10} distance={15} />
 
       {/* OSHXONA [-9,-1] */}
       <Floor x0={-9} x1={-1} z0={-16} z1={-9.5} c={DISTRICT.kitchen} />
       <WallX x0={-9} x1={-1} z={-9.5} door={2} />
       <Kitchen p={[-5, 0, -15.5]} />
-      {/* Tunда: neon yozuvdan taralayotgan pushti porlash */}
+      {/* Tunda: neon yozuvdan taralayotgan pushti porlash */}
       <DistrictLight p={[-5, 1.9, -14.3]} c="#ff5c9d" intensity={7} distance={11} />
 
       {/* MAJLIS [-1,8] */}
@@ -616,7 +616,7 @@ export default function OfficeDecor() {
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
-      {/* Tunда: to'q yog'och ustidа iliq amber "sobor" nuri */}
+      {/* Tunda: to'q yog'och ustida iliq amber "sobor" nuri */}
       <DistrictLight p={[-17, 2.2, 13]} c="#ffb463" intensity={10} distance={15} />
 
       {/* FOKUS [-11,-3] */}
@@ -657,7 +657,7 @@ export default function OfficeDecor() {
       {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
           Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
       {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
-          Markazdagi pendant'larга tegmaydi (x=±4); bular tashqi stollar (x=±13)
+          Markazdagi pendant'larga tegmaydi (x=±4); bular tashqi stollar (x=±13)
           ustida — ilgari u yer yoritilmagan edi. */}
       <CeilingPanel p={[-12, 0, -3.2]} />
       <CeilingPanel p={[-12, 0, 3.2]} />
@@ -674,12 +674,12 @@ export default function OfficeDecor() {
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
-      {/* Shift chiroqlari — ochiq ofis ustida (kechаsi porlaydi) */}
+      {/* Shift chiroqlari — ochiq ofis ustida (kechasi porlaydi) */}
       <PendantLight p={[-4, 0, -3.2]} />
       <PendantLight p={[4, 0, -3.2]} />
       <PendantLight p={[-4, 0, 3.2]} />
       <PendantLight p={[4, 0, 3.2]} />
-      {/* Devor soati + qo'shimcha rasmlar (yon devorlarда, ochiq ofisga qaragan) */}
+      {/* Devor soati + qo'shimcha rasmlar (yon devorlarda, ochiq ofisga qaragan) */}
       <WallClock p={[-22.85, 2.35, -6]} ry={Math.PI / 2} />
       <Painting p={[-22.85, 1.6, 6]} ry={Math.PI / 2} c="#5a8c5a" />
       <Painting p={[22.85, 1.6, -6]} ry={-Math.PI / 2} c="#c8a03a" />

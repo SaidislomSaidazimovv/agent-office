@@ -17,11 +17,11 @@ import { type AgentView, useOffice } from "../store";
 import { send } from "../transport";
 
 // ── Analitika dashboard ──────────────────────────────────────
-// Chart kutubxonasi yo'q — SVG qo'lда. Dizayn `dataviz` qo'llanmasi bo'yicha:
+// Chart kutubxonasi yo'q — SVG qo'lda. Dizayn `dataviz` qo'llanmasi bo'yicha:
 //  • Forma vazifaga qarab: jami → STAT TILE (grafik emas); vaqt → AREA (1 qator,
 //    legend kerak emas); rol → GORIZONTAL BAR (pie EMAS); tafsilot → JADVAL.
 //  • Palitra TASDIQLANGAN (validator: dark, sirt #101419 → ALL CHECKS PASS).
-//    CVD ogohlantirishi (green↔yellow ΔE 10.3) → har barда TO'G'RIDAN-TO'G'RI
+//    CVD ogohlantirishi (green↔yellow ΔE 10.3) → har barda TO'G'RIDAN-TO'G'RI
 //    YORLIQ + 2px oraliq, ya'ni shaxsiyat hech qachon faqat rangda emas.
 //  • Matn HAR DOIM ink ranglarida (qator rangida emas). Grid/o'q — susaygan.
 //  • Bitta o'q — hech qachon ikki y-shkala.
@@ -89,7 +89,7 @@ function CostChart({ samples, budget }: { samples: { t: number; cost: number }[]
     // chizig'i uchun qatorning aniqligini qurbon qilmaymiz).
     const inDomain = budget > 0 && budget <= dataMax * 2;
     const max = inDomain ? Math.max(dataMax, budget) : dataMax;
-    // "Chiroyli" tepa — grid yaxlit sonlarда tursin
+    // "Chiroyli" tepa — grid yaxlit sonlarda tursin
     const mag = Math.pow(10, Math.floor(Math.log10(max)));
     const maxY = Math.ceil(max / mag) * mag;
     const px = (i: number) => PL + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
@@ -164,7 +164,7 @@ function CostChart({ samples, budget }: { samples: { t: number; cost: number }[]
   );
 }
 
-// ── Rol bo'yicha xarajat — gorizontal bar. Pie EMAS. Har barда to'g'ridan-to'g'ri
+// ── Rol bo'yicha xarajat — gorizontal bar. Pie EMAS. Har barda to'g'ridan-to'g'ri
 //    yorliq (rol + $) → shaxsiyat faqat rangda emas (CVD floor-band talabi). ──
 function RoleBars({ rows, colors }: { rows: { key: string; label: string; cost: number }[]; colors?: Record<string, string> }) {
   const pal = colors ?? CAT;
@@ -188,7 +188,7 @@ function RoleBars({ rows, colors }: { rows: { key: string; label: string; cost: 
 
 // ── Budjet — sarflangan ulush. Rang SEMANTIK (yashil/sariq/qizil), kategorik
 //    emas: u faqat holatni bildiradi va hech qanday grafikda qayta ishlatilmaydi.
-//    Bar YONIDA doim raqam turadi → ma'no faqat rangда emas (CVD). ──
+//    Bar YONIDA doim raqam turadi → ma'no faqat rangda emas (CVD). ──
 function BudgetBar({ spent, limit }: { spent: number; limit: number }) {
   const t = useT();
   const b = budgetState(spent, limit);
@@ -609,7 +609,7 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
 }
 
 // ── Tarix paneli — extension VAQT bo'yicha ko'radi. host `~/.agent-office/
-//    history.json`да yiqqan kunlik/loyiha jamlanmasini ko'rsatadi (o'lchangan). ──
+//    history.json`da yiqqan kunlik/loyiha jamlanmasini ko'rsatadi (o'lchangan). ──
 function localDayISO(offsetDays = 0): string {
   const d = new Date();
   d.setDate(d.getDate() - offsetDays);

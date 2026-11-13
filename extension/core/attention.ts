@@ -1,6 +1,6 @@
 // ── E'tibor talab qiladigan agentlar ─────────────────────────
 // Sof mantiq (vscode'siz) → test qilinadi. Ikki savolga javob beradi:
-//   1) Status barда nima yozilsin (nechta agent, nechtasi sizni kutmoqda)?
+//   1) Status barda nima yozilsin (nechta agent, nechtasi sizni kutmoqda)?
 //   2) Qaysi agent JUDA uzoq kutib qoldi (siz e'tibor bermay qo'ygansiz)?
 
 /** Shuncha vaqt ruxsat kutilsa — "tiqilib qolgan" deb hisoblanadi. */

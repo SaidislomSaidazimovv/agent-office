@@ -132,7 +132,7 @@ export function randomNodeKey(): string {
 }
 
 // ── Kontekstli (smart) idle manzillari ──────────────────────
-// Bo'sh turgan agent tasodifiy nuqtaga emas — rolига mos xonaga boradi
+// Bo'sh turgan agent tasodifiy nuqtaga emas — roliga mos xonaga boradi
 // (tadqiqotchi kutubxonaga, backend serverga, hamma oshxonaga tanaffusga...).
 // Bu ofisni "tirik" ko'rsatadi: har kim maqsad bilan yuradi.
 
@@ -156,7 +156,7 @@ export function breakRoom(): string {
   return BREAK_ROOMS[Math.floor(Math.random() * BREAK_ROOMS.length)];
 }
 
-/** Rolига mos idle manzil. 25% holatda umumiy tasodif — tabiiy ko'rinsin. */
+/** Roliga mos idle manzil. 25% holatda umumiy tasodif — tabiiy ko'rinsin. */
 export function idleDestination(role: string | undefined): string {
   if (Math.random() < 0.25) return randomNodeKey();
   const rooms = (role && ROLE_ROOMS[role]) || ALL_ROOMS;

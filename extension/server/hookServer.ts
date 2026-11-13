@@ -11,7 +11,7 @@ import * as path from "node:path";
 // KO'P-OYNA: har VS Code oynasi (yoki CLI) O'Z serverini ishga tushiradi va
 // ~/.agent-office/servers/<pid>.json ga {port, token, pid, folders} yozadi (har
 // oyna o'z fayli — kontensiyasiz). Hook-skript event cwd'siga qarab to'g'ri
-// oynani tanlaydi (hookRouting). Eski o'rnatilган hooklar uchun bitta legacy
+// oynani tanlaydi (hookRouting). Eski o'rnatilgan hooklar uchun bitta legacy
 // ~/.agent-office/server.json ham yoziladi (last-writer-wins).
 
 export interface HookServerHandle {
@@ -49,7 +49,7 @@ export class HookServer {
     });
   }
 
-  /** Ish-papkalar o'zgarganда (onDidChangeWorkspaceFolders) yozuvni yangilaydi. */
+  /** Ish-papkalar o'zgarganda (onDidChangeWorkspaceFolders) yozuvni yangilaydi. */
   refreshFolders(): void {
     if (this.server) this.writeEntry();
   }
@@ -133,7 +133,7 @@ export class HookServer {
   private writeEntry(): void {
     const folders = this.folders().filter((f): f is string => typeof f === "string" && f.length > 0);
     this.atomicWrite(this.ownFile(), JSON.stringify({ port: this.port, pid: process.pid, token: this.token, folders }));
-    // Legacy — bitta server.json (eski o'rnatilган hooklar shuni o'qiydi).
+    // Legacy — bitta server.json (eski o'rnatilgan hooklar shuni o'qiydi).
     this.atomicWrite(this.serverJsonPath(), JSON.stringify({ port: this.port, pid: process.pid, token: this.token }));
   }
 
@@ -154,7 +154,7 @@ export class HookServer {
           fs.rmSync(file, { force: true });
         }
       } catch {
-        /* parse xatosi (boshqa oyna hozir yozayotган bo'lishi mumkin) — tegmaymiz */
+        /* parse xatosi (boshqa oyna hozir yozayotgan bo'lishi mumkin) — tegmaymiz */
       }
     }
   }

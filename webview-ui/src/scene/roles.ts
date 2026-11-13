@@ -13,7 +13,7 @@ export interface CharSkin {
   top: string;
   bottom: string;
   shoes: string;
-  /** Aksessuar (per-agent xilma-xillik uchun) — ko'zoynak/naushnik/shляпа. */
+  /** Aksessuar (per-agent xilma-xillik uchun) — ko'zoynak/naushnik/shlyapa. */
   accessory?: Accessory;
 }
 
@@ -40,7 +40,7 @@ export function presetFor(role: string | undefined, seatIndex: number): CharSkin
   return PALETTE[seatIndex % PALETTE.length];
 }
 
-// Rol KALITI (i18n uchun) — aniqlanган rol yoki seat-fallback kaliti.
+// Rol KALITI (i18n uchun) — aniqlangan rol yoki seat-fallback kaliti.
 const ROLE_KEYS = Object.keys(ROLE_PRESETS);
 export function roleKeyFor(role: string | undefined, seatIndex: number): string {
   if (role && ROLE_PRESETS[role]) return role;
@@ -48,7 +48,7 @@ export function roleKeyFor(role: string | undefined, seatIndex: number): string 
 }
 
 // Har ROLning IMZO aksessuari — rol bir qarashda tanilsin (siluetdan). Har
-// rolда 4 variant: birinchisi ustuvor (rol identifikatori), qolganlari id
+// rolda 4 variant: birinchisi ustuvor (rol identifikatori), qolganlari id
 // bo'yicha xilma-xillik (bir xil rolli 2 agent aynan bir xil bo'lmasin).
 //   Tadqiqot/Hujjatlar — olim → ko'zoynak · Backend/Ma'lumot — koder → naushnik
 //   QA — tester → kepka · Frontend — erkin uslub.
@@ -61,7 +61,7 @@ const ROLE_ACCESSORY: Record<string, Accessory[]> = {
   data: ["headphones", "glasses", "headphones", "cap"],
 };
 
-// Rol "energiyasi" — bo'sh vaqtдagi jonlilik (atrofga qarash chastotasi). Olimlar
+// Rol "energiyasi" — bo'sh vaqtdagi jonlilik (atrofga qarash chastotasi). Olimlar
 // (Tadqiqot/Hujjatlar) xotirjam, Frontend/QA faolroq. Faqat mavjud animatsiyani
 // shkalalaydi (PixelPerson).
 const ROLE_ENERGY: Record<string, number> = {

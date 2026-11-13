@@ -91,7 +91,7 @@ export interface SaveMedia {
 }
 
 /** Budjetdan oshdi (webview → host) — host VS Code bildirishnomasini ko'rsatadi
- *  (`agent-office.notifications` sozlamasiga bo'ysunadi). Webview har o'tishда
+ *  (`agent-office.notifications` sozlamasiga bo'ysunadi). Webview har o'tishda
  *  BIR marta yuboradi (spam yo'q). FAQAT ogohlantirish — hech narsa to'xtatilmaydi. */
 export interface BudgetAlert {
   type: "budgetAlert";
@@ -101,7 +101,7 @@ export interface BudgetAlert {
   limit: number;
 }
 
-/** Status-barда qadalgan (pin) agent — webview host'ga uning yorlig'i + JORIY
+/** Status-barda qadalgan (pin) agent — webview host'ga uning yorlig'i + JORIY
  *  xarajatini yuboradi (host status-bar'da ko'rsatadi, panel yopiq bo'lsa ham).
  *  Xarajat webview'da hisoblanadi (yagona manba) — host faqat ko'rsatadi.
  *  label=null → pin yechildi (status-bar item yashiriladi). */

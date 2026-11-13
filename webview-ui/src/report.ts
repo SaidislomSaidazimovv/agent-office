@@ -27,7 +27,7 @@ export interface ReportInput {
   agents: AgentView[];
   /** Hisobot yaratilgan payt (ms) — tashqaridan beriladi (test uchun barqaror). */
   now: number;
-  /** Xarajat budjeti ($). 0 = o'chiq → hisobotда ko'rsatilmaydi. */
+  /** Xarajat budjeti ($). 0 = o'chiq → hisobotda ko'rsatilmaydi. */
   budgetUsd: number;
   /** Tarjimon (reaktiv `useT()` yoki test uchun `(k) => k`). */
   t: (k: Key) => string;

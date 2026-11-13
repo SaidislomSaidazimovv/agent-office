@@ -20,7 +20,7 @@ import Tour, { useTour } from "./Tour";
 // ── DOM overlay: sarlavha, +Agent, bo'sh holat, agent inspektori ──
 
 // Chip-bar holat filtri guruhi — e'tibor talab qiladiganlar (bloklangan/ruxsat/
-// tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda kerakliларини topish uchun.
+// tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda keraklilarini topish uchun.
 type StatusFilter = "all" | "attn" | "active" | "idle";
 function bucketOf(a: AgentView): "attn" | "active" | "idle" {
   if (a.blocked || a.permission || a.stuck) return "attn";
@@ -123,7 +123,7 @@ export default function Hud() {
   // ── Umumiy xarajat + budjet holati ──
   const totalCost = order.reduce((s, id) => s + (agents[id]?.costUsd || 0), 0);
   const budget = budgetState(totalCost, budgetUsd);
-  // Daraja OSHGANDA bir marta tasmaga yozamiz (har renderда emas). Boshlang'ich
+  // Daraja OSHGANDA bir marta tasmaga yozamiz (har renderda emas). Boshlang'ich
   // qiymat — joriy daraja: sahifa allaqachon oshib ketgan holatda ochilsa,
   // eski ogohlantirish qayta chiqmaydi.
   const prevLevel = useRef<BudgetLevel>(budget.level);
@@ -136,7 +136,7 @@ export default function Hud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat daraja o'zgarishiga reaksiya
   }, [budget.level]);
 
-  // Jonli vaqt (1s): faol agent tanlanганда "faol vaqt", YOKI feed ochiq bo'lганда
+  // Jonli vaqt (1s): faol agent tanlanganda "faol vaqt", YOKI feed ochiq bo'lganda
   // "N oldin" muhrlari yangilansin (aks holda ular keyingi hodisagacha qotardi).
   useEffect(() => {
     const activeAgent = !!sel && sel.activeSince != null;
@@ -145,7 +145,7 @@ export default function Hud() {
     return () => clearInterval(t);
   }, [feed, sel?.id, sel?.activeSince]);
 
-  // Klaviatura: ←/→ agentlar orasида o'tish, Esc — tanlovni bekor qilish.
+  // Klaviatura: ←/→ agentlar orasida o'tish, Esc — tanlovni bekor qilish.
   // Matn kiritish (input/textarea)da ishlamaydi.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -202,7 +202,7 @@ export default function Hud() {
           {order.length} {t("hud.agents")}
         </div>
         {/* Umumiy taxminiy xarajat — budjet belgilangan bo'lsa, rang darajani bildiradi.
-            Sozlamada yashirilsa ko'rinmaydi (ekran ulashishда qulay) — lekin budjet
+            Sozlamada yashirilsa ko'rinmaydi (ekran ulashishda qulay) — lekin budjet
             ogohlantirishi baribir tasmaga tushadi. */}
         {showCost && totalCost > 0 && (
           <div
@@ -328,7 +328,7 @@ export default function Hud() {
       {/* Yuqori agent-bar (namunadek — ismlar + status nuqta) + holat filtri */}
       {order.length > 0 && (
         <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: "62vw", pointerEvents: "auto" }}>
-          {/* Holat filtri — faqat ko'p agent bo'lganda (kerakliларини topish oson). */}
+          {/* Holat filtri — faqat ko'p agent bo'lganda (keraklilarini topish oson). */}
           {order.length >= 4 && (
             <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 20, background: "rgba(20,24,32,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>
               {([
@@ -630,7 +630,7 @@ export default function Hud() {
             </div>
           )}
           {/* Kelib chiqishi — +Agent bilan ochilgan (ichki) vs avto-topilgan (tashqi).
-              Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentда boshqacha ishlaydi. */}
+              Neytral belgi: ba'zi tugmalar (Terminal) tashqi agentda boshqacha ishlaydi. */}
           <div style={{ marginTop: 5 }}>
             <span
               title={sel.isExternal ? t("origin.externalTip") : t("origin.internalTip")}
@@ -671,7 +671,7 @@ export default function Hud() {
 
           {/* Git holati — branch · ahead/behind · staged/unstaged. Satr-darajadagi
               +/- YO'Q (git diff = child_process, xavfsizlik siyosati taqiqlaydi);
-              faqat Git API'дagi fayl-darajасидagi hisoblar. */}
+              faqat Git API'dagi fayl-darajasidagi hisoblar. */}
           {(() => {
             const g = gitRepos[sel.folderName];
             if (!g?.branch) return null;

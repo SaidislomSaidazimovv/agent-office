@@ -150,12 +150,12 @@ export type CameraMode = "iso" | "fpv";
 export interface CostSample {
   /** Namuna olingan payt (ms). */
   t: number;
-  /** Jami taxminiy xarajat ($) — shu paytдa. */
+  /** Jami taxminiy xarajat ($) — shu paytda. */
   cost: number;
   /** Jami kirish / chiqish tokenlari. */
   inTok: number;
   outTok: number;
-  /** Shu paytдa faol agentlar soni. */
+  /** Shu paytda faol agentlar soni. */
   active: number;
 }
 /** ~1 soat (10s oralig'ida 360 namuna). Ring buffer — eskisi tushib ketadi. */
@@ -169,7 +169,7 @@ interface OfficeState {
   /** Xarajat/token vaqt qatori (10s'da bir namuna). */
   samples: CostSample[];
   selectedId: number | null;
-  /** Status-barда qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
+  /** Status-barda qadalgan (pin) agent — panel yopiq bo'lsa ham kuzatiladi. */
   pinnedId: number | null;
   movingId: number | null;
   seatCount: number;
@@ -215,7 +215,7 @@ interface OfficeState {
   setHistory(days: HistoryDay[], archive: ArchiveSession[]): void;
   setHookActive(active: boolean): void;
   select(id: number | null): void;
-  /** Agentni status-barга qadaydi/yechadi (bir xil id → yechadi). */
+  /** Agentni status-barga qadaydi/yechadi (bir xil id → yechadi). */
   pin(id: number | null): void;
   setMoving(id: number | null): void;
   reassignSeat(id: number, seatIndex: number): void;
@@ -406,7 +406,7 @@ export const useOffice = create<OfficeState>((set, get) => ({
   setSessionStats(id, toolCalls, turns, activeMs) {
     const a = get().agents[id];
     if (!a) return;
-    // Reconnect snapshot'dan tiklash: JAMI qiymatlarни o'rnatamiz. activeMs —
+    // Reconnect snapshot'dan tiklash: JAMI qiymatlarni o'rnatamiz. activeMs —
     // keshlangan JAMI; joriy interval (activeSince) qaytadan boshlanadi, aks
     // holda activeMs + (now - activeSince) intervalni ikki marta hisoblardi.
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, toolCalls, turns, activeMs, activeSince: a.active ? Date.now() : null } } }));

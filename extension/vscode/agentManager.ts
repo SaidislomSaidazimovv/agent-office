@@ -213,7 +213,7 @@ export class AgentManager {
 
   /** Sessiya papkasidagi HALI KUZATILMAGAN `.jsonl` fayllar (yo'l + mtime).
    *  Allaqachon kuzatilayotgan yoki retired fayllarga stat SHART EMAS — mtime ular
-   *  uchun ishlatilmaydi, shu bilan har skanда yuzlab keraksiz stat oldini olamiz.
+   *  uchun ishlatilmaydi, shu bilan har skanda yuzlab keraksiz stat oldini olamiz.
    *  Async + parallel (`Promise.all`) — asosiy oqim bloklanmaydi. */
   private async listJsonl(dir: string): Promise<{ filePath: string; mtime: number }[]> {
     let entries: string[];

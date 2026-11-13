@@ -8,7 +8,7 @@ import { NODES } from "./nav";
 export interface Presence { id: number; x: number; z: number; idle: boolean; metAt: number }
 const reg = new Map<number, Presence>();
 
-/** Har agent o'z joyi + bo'sh holati + uchrashuvга yetgan payti (metAt) bildiradi. */
+/** Har agent o'z joyi + bo'sh holati + uchrashuvga yetgan payti (metAt) bildiradi. */
 export function report(id: number, x: number, z: number, idle: boolean, metAt = 0): void {
   const p = reg.get(id);
   if (p) { p.x = x; p.z = z; p.idle = idle; p.metAt = metAt; }
@@ -22,7 +22,7 @@ export function unreport(id: number): void {
   clearMeeting(id);
 }
 
-/** Agent-agent collision: (x,z) boshqa (id emas) agentга rad ichida yaqinmi? */
+/** Agent-agent collision: (x,z) boshqa (id emas) agentga rad ichida yaqinmi? */
 export function blockedByAgent(id: number, x: number, z: number, rad: number): boolean {
   const r2 = rad * rad;
   for (const p of reg.values()) {
@@ -34,8 +34,8 @@ export function blockedByAgent(id: number, x: number, z: number, rad: number): b
 }
 
 // ── Uchrashuvlar ─────────────────────────────────────────────
-// Uchrashuv = umumiy "gather" nav-tuguni + har agentга ALOHIDA joy (side: chap/
-// o'ng) → yopishmaydi, orasida masofa bo'ladi. Emote FAQAT ikkovi ham yetganда.
+// Uchrashuv = umumiy "gather" nav-tuguni + har agentga ALOHIDA joy (side: chap/
+// o'ng) → yopishmaydi, orasida masofa bo'ladi. Emote FAQAT ikkovi ham yetganda.
 export interface Meet { partner: number; point: string; side: number; until: number }
 const meets = new Map<number, Meet>();
 // Band hub'lar — bir hub'ga BIR juft. Ikki juft bir joyni tanlab, bir-birini
@@ -45,7 +45,7 @@ const occupiedHubs = new Set<string>();
 export function meetingOf(id: number): Meet | null {
   return meets.get(id) ?? null;
 }
-/** Uchrashuvni tozalaydi — HAR IKKALA tomonни ham (sherikda "osilib" qolgan
+/** Uchrashuvni tozalaydi — HAR IKKALA tomonni ham (sherikda "osilib" qolgan
  *  yozuv qolmasin, R4) va hub'ni bo'shatadi. */
 export function clearMeeting(id: number): void {
   const m = meets.get(id);
@@ -57,7 +57,7 @@ export function clearMeeting(id: number): void {
 }
 
 // Ijtimoiy uchrashuv joylari (xona ichki tugunlari). Katta ofisda tasodifiy
-// yaqinlashish bo'lmagani uchun umumiy hub'ga chaqiramiz ("tanaffusга chiqishdi").
+// yaqinlashish bo'lmagani uchun umumiy hub'ga chaqiramiz ("tanaffusga chiqishdi").
 const SOCIAL_HUBS = ["kitchen_i", "lounge_i", "meeting_i", "library_i", "focus_i"];
 
 /** Bo'sh, juftlashmagan sherik izlaydi. Faqat KICHIK id tashabbus qiladi.
@@ -89,7 +89,7 @@ export function seekMeeting(id: number, x: number, z: number, now: number): Meet
   return meets.get(id)!;
 }
 
-// Uchrashuvдаги turish joyi — hub markazidan `side` bo'yicha x-siljish
+// Uchrashuvdagi turish joyi — hub markazidan `side` bo'yicha x-siljish
 // (ikkovi ~1.1m masofada yonma-yon; bir-biriga qaraydi).
 export const MEET_OFFSET = 0.55;
 export function meetSpot(m: Meet): { x: number; z: number } {

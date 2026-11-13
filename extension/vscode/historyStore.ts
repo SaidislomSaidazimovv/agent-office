@@ -120,7 +120,7 @@ export class HistoryStore {
     // Model — kelmasa oldingisini saqlaymiz (statlar modeldan oldin kelishi mumkin).
     const abs: SessionAbs = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms, model: model ?? prev?.model };
     this.data.sessions[sessionId] = abs;
-    // Diskka yozishда qayta hisoblanadi (merge) — so'nggi ABSOLYUT qiymat yetarli.
+    // Diskka yozishda qayta hisoblanadi (merge) — so'nggi ABSOLYUT qiymat yetarli.
     this.pending.set(sessionId, abs);
     this.dirty = true;
     this.scheduleSave();

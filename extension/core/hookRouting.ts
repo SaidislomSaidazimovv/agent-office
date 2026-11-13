@@ -16,7 +16,7 @@ export interface ServerEntry {
 
 /** Yo'lni taqqoslash uchun normallashtiradi — barcha ajratgichlar bittalik "/"
  *  ga keltiriladi (Windows'da `cwd` va vscode fsPath aralash "/"/"\\" bo'lishi
- *  mumkin — aks holda prefiks-moslik uzилиб yo'naltirish buzilardi), oxirgisi
+ *  mumkin — aks holda prefiks-moslik uzilib yo'naltirish buzilardi), oxirgisi
  *  olib tashlanadi, Windows'da katta-kichik harf farqsiz. */
 export function normPath(p: string): string {
   const s = p.replace(/[\\/]+/g, "/").replace(/\/+$/, "");
