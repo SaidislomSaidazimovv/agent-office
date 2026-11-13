@@ -1,12 +1,11 @@
 import * as vscode from "vscode";
-import { installHooks, uninstallHooks } from "./hookInstaller.js";
 import { OfficeViewProvider, VIEW_ID } from "./OfficeViewProvider.js";
 
 // ── Extension kirish nuqtasi ─────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext): void {
   const version = (context.extension.packageJSON as { version?: string }).version ?? "0.0.0";
-  const provider = new OfficeViewProvider(context.extensionUri, version);
+  const provider = new OfficeViewProvider(context.extensionUri, version, context.globalState);
   provider.activate();
 
   context.subscriptions.push(
@@ -21,14 +20,15 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agent-office.showDiagnostics", () => {
       provider.log.show(true);
     }),
-    vscode.commands.registerCommand("agent-office.installHooks", () => {
-      const ok = installHooks(provider.hookScriptPath());
+    vscode.commands.registerCommand("agent-office.installHooks", async () => {
+      const ok = await provider.installHooksCommand();
       vscode.window.showInformationMessage(
         ok ? "Agent Office: Claude hook'lari o'rnatildi." : "Agent Office: hook o'rnatib bo'lmadi.",
       );
     }),
-    vscode.commands.registerCommand("agent-office.uninstallHooks", () => {
-      uninstallHooks("");
+    vscode.commands.registerCommand("agent-office.uninstallHooks", async () => {
+      // Rad etish saqlanadi — keyingi ishga tushishda hook'lar QAYTA YOZILMAYDI.
+      await provider.uninstallHooksCommand();
       vscode.window.showInformationMessage("Agent Office: Claude hook'lari olib tashlandi.");
     }),
     { dispose: () => provider.dispose() },

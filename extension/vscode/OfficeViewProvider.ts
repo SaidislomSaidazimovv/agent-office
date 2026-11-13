@@ -16,7 +16,7 @@ import { HookServer } from "../server/hookServer.js";
 import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
 import { HistoryStore } from "./historyStore.js";
-import { installHooks, installStableHookScript } from "./hookInstaller.js";
+import { decideHookInstall, findOnPath, hasOurHooks, type HookConsent, installHooks, installStableHookScript, uninstallHooks } from "./hookInstaller.js";
 import { buildWebviewHtml } from "./webviewHtml.js";
 
 export const VIEW_ID = "agent-office.panelView";
@@ -51,7 +51,12 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
     this.log.appendLine(`[${t}] ${m}`);
   }
 
-  constructor(private readonly extensionUri: vscode.Uri, private readonly version: string) {
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly version: string,
+    /** Kengaytma globalState — hook roziligi kabi mashina-darajasidagi qarorlar. */
+    private readonly state?: vscode.Memento,
+  ) {
     // Yangi agent → personaj yaratish
     this.store.on("agentAdded", (agent: AgentState) => {
       this.logMsg(`+ agent #${agent.id}  folder=${agent.folderName}  role=${agent.role ?? "-"}  session=${agent.sessionId?.slice(0, 8) ?? "-"}  external=${agent.isExternal}`);
@@ -212,9 +217,8 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
           this.setHookActive(false);
           return;
         }
-        const ok = installHooks(this.hookScriptPath());
-        this.logMsg(`Hook server: 127.0.0.1:${handle.port} · ~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗"}`);
-        this.setHookActive(true);
+        this.logMsg(`Hook server: 127.0.0.1:${handle.port}`);
+        void this.applyHookDecision();
       });
       // Ish-papkalar o'zgarsa (folder qo'shildi/olib tashlandi) — servers/<pid>.json
       // dagi papkalar ro'yxatini yangilaymiz, aks holda yangi papkaning hooklari
@@ -235,6 +239,68 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       this.logMsg("Hook rejimi o'chirilgan (agent-office.hooksEnabled=false) — faqat JSONL.");
       this.setHookActive(false);
     }
+  }
+
+  // ── Hook o'rnatish roziligi ──
+  // ~/.claude/settings.json — foydalanuvchining GLOBAL Claude sozlamasi. Unga
+  // so'ramasdan yozmaymiz: yangi o'rnatishda bir marta rozilik so'raladi.
+  // Mavjud foydalanuvchi (hook allaqachon bor) uchun hech narsa o'zgarmaydi.
+  private static readonly CONSENT_KEY = "agent-office.hookConsent";
+  private consent(): HookConsent {
+    return this.state?.get<HookConsent>(OfficeViewProvider.CONSENT_KEY);
+  }
+  private async setConsent(c: HookConsent): Promise<void> {
+    await this.state?.update(OfficeViewProvider.CONSENT_KEY, c);
+  }
+
+  private async applyHookDecision(): Promise<void> {
+    const decision = decideHookInstall({
+      alreadyInstalled: hasOurHooks(),
+      consent: this.consent(),
+      nodeFound: !!findOnPath("node"),
+    });
+    this.logMsg(`Hook qarori: ${decision}`);
+    if (decision === "skip-no-node") {
+      this.logMsg("⚠ 'node' PATH'da topilmadi — hook'lar o'rnatilmadi (aks holda Claude har tool'da hook xatosi ko'rsatardi). Faqat JSONL kuzatuvi.");
+      this.setHookActive(false);
+      return;
+    }
+    if (decision === "skip-declined") {
+      this.setHookActive(false);
+      return;
+    }
+    if (decision === "ask") {
+      this.setHookActive(false);
+      const allow = "Allow";
+      const pick = await vscode.window.showInformationMessage(
+        "Agent Office: add hooks to ~/.claude/settings.json for faster, more reliable live detection? Without them the office still works from transcripts. You can remove them any time (command: Agent Office: Uninstall Claude Hooks).",
+        allow,
+        "Not now",
+      );
+      if (pick === undefined) return; // yopildi — keyingi safar yana so'raymiz
+      await this.setConsent(pick === allow ? "granted" : "declined");
+      if (pick !== allow) return;
+    }
+    const ok = installHooks(this.hookScriptPath());
+    this.logMsg(`~/.claude/settings.json hook: ${ok ? "o'rnatildi ✓" : "o'rnatilmadi ✗ (fayl o'qilmadi — tegilmadi)"}`);
+    this.setHookActive(ok);
+  }
+
+  /** "Install hooks" buyrug'i — aniq rozilik. */
+  async installHooksCommand(): Promise<boolean> {
+    await this.setConsent("granted");
+    if (!findOnPath("node")) this.logMsg("⚠ 'node' PATH'da topilmadi — Claude hook'ni ishga tushira olmasligi mumkin.");
+    const ok = installHooks(this.hookScriptPath());
+    if (ok) this.setHookActive(true);
+    return ok;
+  }
+
+  /** "Uninstall hooks" buyrug'i — rad etish SAQLANADI, shuning uchun keyingi
+   *  ishga tushishda hook'lar qayta yozilmaydi (avval darrov qaytib kelardi). */
+  async uninstallHooksCommand(): Promise<void> {
+    await this.setConsent("declined");
+    uninstallHooks("");
+    this.setHookActive(false);
   }
 
   /** settings.json'ga yoziladigan hook-skript yo'li — BARQAROR nusxa

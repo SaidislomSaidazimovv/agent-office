@@ -185,6 +185,22 @@ export function findOnPath(cmd: string, env: NodeJS.ProcessEnv = process.env, pl
   return undefined;
 }
 
+export type HookConsent = "granted" | "declined" | undefined;
+export type HookDecision = "install" | "ask" | "skip-declined" | "skip-no-node";
+
+/** Ishga tushishda hook'lar bilan nima qilish (sof — test qilinadi):
+ *  • allaqachon o'rnatilgan (mavjud foydalanuvchi) → yangilaymiz (yo'l
+ *    ko'chirish), hech narsa so'ramaymiz — xatti-harakati o'zgarmaydi;
+ *  • foydalanuvchi rad etgan / "Uninstall" bosgan → TEGMAYMIZ (qayta yozmaymiz);
+ *  • `node` PATH'da yo'q → yozmaymiz (aks holda har tool'da hook xatosi);
+ *  • rozilik berilgan → o'rnatamiz; hali so'ralmagan → so'raymiz. */
+export function decideHookInstall(o: { alreadyInstalled: boolean; consent: HookConsent; nodeFound: boolean }): HookDecision {
+  if (o.alreadyInstalled) return "install";
+  if (o.consent === "declined") return "skip-declined";
+  if (!o.nodeFound) return "skip-no-node";
+  return o.consent === "granted" ? "install" : "ask";
+}
+
 export function uninstallHooks(_hookScriptPath: string, settingsFile: string = defaultSettingsPath()): void {
   try {
     const { settings: s, readable } = readSettings(settingsFile);

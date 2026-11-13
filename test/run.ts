@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { AgentManager } from "../extension/vscode/agentManager.js";
 import { AgentStateStore } from "../extension/server/agentStateStore.js";
 import { FileWatcher } from "../extension/server/fileWatcher.js";
-import { areHooksInstalled, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
+import { areHooksInstalled, decideHookInstall, findOnPath, hasOurHooks, installHooks, installStableHookScript, uninstallHooks } from "../extension/vscode/hookInstaller.js";
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
 import { HistoryStore } from "../extension/vscode/historyStore.js";
@@ -522,6 +522,20 @@ test("barqaror hook-skript: nusxalanadi, takror chaqiruv o'zgartirmaydi; eski ve
   uninstallHooks("", f);
   assert.equal(hasOurHooks(f), false);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("hook qarori: mavjud foydalanuvchi o'zgarishsiz; yangisidan rozilik; rad/Uninstall hurmat qilinadi; node yo'q → yozilmaydi", () => {
+  // Mavjud o'rnatish (hozirgi foydalanuvchilar) — hech narsa so'ralmaydi, yangilanadi.
+  assert.equal(decideHookInstall({ alreadyInstalled: true, consent: undefined, nodeFound: true }), "install");
+  assert.equal(decideHookInstall({ alreadyInstalled: true, consent: undefined, nodeFound: false }), "install", "ishlab turgan o'rnatishni buzmaymiz");
+  // Yangi o'rnatish — so'raymiz.
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: undefined, nodeFound: true }), "ask");
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "granted", nodeFound: true }), "install");
+  // Rad etilgan / Uninstall bosilgan — qayta yozmaymiz.
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "declined", nodeFound: true }), "skip-declined");
+  // node yo'q — so'ramaymiz ham, yozmaymiz ham (har tool'da hook xatosi bo'lardi).
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: undefined, nodeFound: false }), "skip-no-node");
+  assert.equal(decideHookInstall({ alreadyInstalled: false, consent: "granted", nodeFound: false }), "skip-no-node");
 });
 
 test("findOnPath: PATH'dagi node topiladi (fs, child_process yo'q); yo'q bo'lsa undefined", () => {
