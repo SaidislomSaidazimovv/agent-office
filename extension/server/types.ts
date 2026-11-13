@@ -91,6 +91,12 @@ export interface AgentState {
    *  har tool_use'da HAQIQIY nomi bilan oshadi (tarixiy + jonli). Snapshot'da
    *  webview'ga yuboriladi (dashboard "tool taqsimoti" uchun — o'lchangan). */
   toolCats: Record<string, number>;
+  /** Hisoblangan assistant xabar ID'lari (message.id). Claude Code bitta API
+   *  javobini HAR content-block uchun alohida JSONL qatoriga yozadi va har
+   *  qatorda AYNAN bir xil `usage` takrorlanadi — ID bo'yicha bir marta
+   *  hisoblamasak xarajat 2-3 barobar oshib ketadi. Takrorlar yonma-yon keladi,
+   *  shuning uchun faqat so'nggi ID'lar saqlanadi (cheklangan). */
+  seenMsgIds: Set<string>;
 
   // ── Taymerlar (heuristik rejim) ──
   waitingTimer?: ReturnType<typeof setTimeout>;
@@ -131,5 +137,6 @@ export function createAgentState(
     billedCacheWrite: 0,
     billedCacheRead: 0,
     contextWindow: MAX_CONTEXT_TOKENS,
+    seenMsgIds: new Set(),
   };
 }

@@ -46,6 +46,7 @@ export class FileWatcher {
     agent.billedCacheWrite = 0;
     agent.billedCacheRead = 0;
     agent.toolCats = {}; // qayta o'qishda tool turkumlari ikki barobar bo'lmasin
+    agent.seenMsgIds.clear(); // 0dan qayta o'qiymiz — dedupe ham 0dan
     this.store.beginSilent();
     try {
       let guard = 0;

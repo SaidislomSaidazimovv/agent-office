@@ -88,6 +88,41 @@ test("context tokens = input + cache_read + cache_creation", () => {
   assert.equal(agent.outputTokens, 50);
 });
 
+test("bir xil message.id'li qatorlar (har content-block alohida) usage'ni BIR MARTA hisoblaydi", () => {
+  // Haqiqiy Claude Code transkripti: bitta API javobi thinking/text/tool_use
+  // bloklari uchun 3 qatorga bo'linadi, har birida AYNAN bir xil usage.
+  const { store, agent } = setup();
+  const usage = { input_tokens: 10, cache_read_input_tokens: 1000, cache_creation_input_tokens: 200, output_tokens: 300 };
+  const line = (block: unknown) => JSON.stringify({ type: "assistant", requestId: "req_1", message: { id: "msg_A", model: "claude-opus-4-8", content: [block], usage } });
+  processTranscriptLine(store, agent, line({ type: "thinking", thinking: "..." }));
+  processTranscriptLine(store, agent, line({ type: "text", text: "ok" }));
+  processTranscriptLine(store, agent, line({ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }));
+  assert.equal(agent.outputTokens, 300, "output bir marta");
+  assert.equal(agent.billedInput, 10);
+  assert.equal(agent.billedCacheRead, 1000);
+  assert.equal(agent.billedCacheWrite, 200);
+  assert.ok(agent.activeToolIds.has("t1"), "tool bloki baribir qayta ishlanadi");
+  // Keyingi (boshqa id'li) xabar — qo'shiladi.
+  processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { id: "msg_B", content: [{ type: "text", text: "x" }], usage: { input_tokens: 1, output_tokens: 5 } } }));
+  assert.equal(agent.outputTokens, 305);
+  assert.equal(agent.billedInput, 11);
+});
+
+test("primeFromStart qayta o'qishda dedupe 0dan boshlanadi (xarajat yo'qolmaydi)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ao-dedupe-"));
+  const file = path.join(dir, "s.jsonl");
+  const l = JSON.stringify({ type: "assistant", message: { id: "msg_A", content: [{ type: "text", text: "x" }], usage: { input_tokens: 7, output_tokens: 9 } } });
+  fs.writeFileSync(file, `${l}\n${l}\n`);
+  const store = new AgentStateStore();
+  const watcher = new FileWatcher(store);
+  const agent = createAgentState(1, file, "proj", { sessionId: "s" });
+  watcher.primeFromStart(agent);
+  assert.equal(agent.outputTokens, 9);
+  watcher.primeFromStart(agent); // /clear·/resume·truncate yo'li
+  assert.equal(agent.outputTokens, 9, "ikkinchi o'qishda ham to'g'ri (0 emas, 18 emas)");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test("default context window is 200k; token usage broadcasts it", () => {
   const { store, agent, ev } = setup();
   assert.equal(agent.contextWindow, 200000);
