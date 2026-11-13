@@ -22,6 +22,10 @@ esbuild.mjs
 .gitignore
 .gitattributes
 .editorconfig
+.nvmrc
+.npmignore
+# Standalone CLI faqat manbadan ishlatiladi (README) — kengaytma paketiga kerak emas
+dist/cli.js
 
 # Sourcemaplar (vsix hajmini kichraytirish)
 **/*.map

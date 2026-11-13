@@ -148,7 +148,7 @@
     "watch:extension": "node esbuild.mjs --watch",
     "cli": "node dist/cli.js",
     "install:all": "npm install && npm --prefix webview-ui install",
-    "package": "npm run build && vsce package --no-dependencies"
+    "package": "npm run check-types && node esbuild.mjs --production && npm run build:webview && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
