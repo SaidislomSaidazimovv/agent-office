@@ -1,18 +1,18 @@
 {
   "version": "1.0.0",
   "project_name": "agent-office",
-  "scale_mode": "squad",
+  "scale_mode": "custom",
   "terminal_count": 4,
   "has_planner": true,
   "lock_ttl_minutes": 15,
   "stale_lock_policy": "warn",
-  "git_variant": "B",
-  "integration_branch": "dev",
+  "git_variant": "A",
+  "integration_branch": "main",
   "prod_branch": "main",
-  "approval_gate_enabled": true,
+  "approval_gate_enabled": false,
   "build_command": "npm run build",
-  "test_command": "npm run build",
+  "test_command": "npm test",
   "commit_format": "conventional",
   "configured_at": "2026-07-02T22:57:52+0500",
-  "configured_via": "preset:squad"
+  "configured_via": "custom (2026-11-13: solo day-to-day, feature branches off main, user pushes)"
 }
