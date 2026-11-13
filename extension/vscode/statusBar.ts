@@ -4,13 +4,14 @@ import { type AttentionAgent, needsAttention, statusText, summarize } from "../c
 // ── Status bar ───────────────────────────────────────────────
 // Ofis paneli YOPIQ bo'lsa ham agentlar holati ko'rinib tursin: nechta agent
 // ishlayapti, nechtasi sizni kutmoqda. Bosilsa — panel ochiladi.
-// Xarajat ATAYLAB yozilmaydi: narx hisobi webview'da (pricing.ts) — uni bu yerda
-// takrorlash ikki manba yasaydi va ular vaqt o'tib bir-biriga mos kelmay qoladi.
+// Xarajat asosiy elementda ATAYLAB yozilmaydi (ixcham qolsin). Narxni host
+// hisoblaydi (core/pricing.ts) — qadalgan agent elementi shu qiymatni ko'rsatadi.
 
 export class OfficeStatusBar {
   private item: vscode.StatusBarItem;
   /** Qadalgan (pin) agent uchun ALOHIDA element — asosiy xulosaga tegmaydi.
-   *  Xarajat webview'da hisoblanadi (yagona manba), bu yerda faqat ko'rsatiladi. */
+   *  Xarajat host'da hisoblanadi (core/pricing.ts), webview orqali keladi va bu
+   *  yerda faqat ko'rsatiladi. */
   private pinItem: vscode.StatusBarItem;
 
   constructor(private t: (key: "sb.blocked" | "sb.stuck" | "sb.waiting" | "sb.working" | "sb.click") => string) {
