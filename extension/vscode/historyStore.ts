@@ -30,6 +30,17 @@ function daysBetween(a: string, b: string): number {
   return Math.abs((Date.parse(b + "T00:00:00") - Date.parse(a + "T00:00:00")) / 86400000);
 }
 
+/** Eski kunlar/sessiyalarni olib tashlaydi (KEEP_DAYS / SESSION_TTL_DAYS). */
+function pruneData(data: HistoryData): void {
+  const today = localDay();
+  for (const date of Object.keys(data.days)) {
+    if (daysBetween(date, today) > KEEP_DAYS) delete data.days[date];
+  }
+  for (const [sid, s] of Object.entries(data.sessions)) {
+    if (daysBetween(s.day, today) > SESSION_TTL_DAYS) delete data.sessions[sid];
+  }
+}
+
 export class HistoryStore {
   private data: HistoryData = { days: {}, sessions: {} };
   private loaded = false;
@@ -79,9 +90,31 @@ export class HistoryStore {
     }
     const firstSeen = prev?.firstSeen ?? Date.now();
     // Model — kelmasa oldingisini saqlaymiz (statlar modeldan oldin kelishi mumkin).
-    this.data.sessions[sessionId] = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms, model: model ?? prev?.model };
+    const abs: SessionAbs = { project, day, firstSeen, cost: cur.cost, inTok: cur.inTok, outTok: cur.outTok, tools: cur.tools, ms: cur.ms, model: model ?? prev?.model };
+    this.data.sessions[sessionId] = abs;
+    // Diskka yozishда qayta hisoblanadi (merge) — so'nggi ABSOLYUT qiymat yetarli.
+    this.pending.set(sessionId, abs);
     this.dirty = true;
     this.scheduleSave();
+  }
+
+  /** Saqlanmagan sessiyalar — sessionId → so'nggi absolyut jami. */
+  private pending = new Map<string, SessionAbs>();
+
+  /** Diskdagi joriy holatni o'qiydi: null — buzuq (yozmaslik kerak). */
+  private readDisk(): HistoryData | null {
+    let raw: string;
+    try {
+      raw = fs.readFileSync(this.filePath(), "utf8");
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === "ENOENT" ? { days: {}, sessions: {} } : null;
+    }
+    try {
+      const o = JSON.parse(raw) as HistoryData;
+      return o && typeof o === "object" && o.days && o.sessions && typeof o.days === "object" && typeof o.sessions === "object" ? o : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Webview'ga jo'natish uchun — kunlar ro'yxati (sana bo'yicha). */
@@ -105,13 +138,7 @@ export class HistoryStore {
   }
 
   private prune(): void {
-    const today = localDay();
-    for (const date of Object.keys(this.data.days)) {
-      if (daysBetween(date, today) > KEEP_DAYS) delete this.data.days[date];
-    }
-    for (const [sid, s] of Object.entries(this.data.sessions)) {
-      if (daysBetween(s.day, today) > SESSION_TTL_DAYS) delete this.data.sessions[sid];
-    }
+    pruneData(this.data);
   }
 
   private scheduleSave(): void {
@@ -119,18 +146,56 @@ export class HistoryStore {
     this.saveTimer = setTimeout(() => { this.saveTimer = undefined; this.save(); }, 15000);
   }
 
-  /** Atomik yozuv. corrupt bo'lsa — HECH NARSA yozmaydi. */
+  /** Atomik yozuv, BIRLASHTIRIB (merge). Bir nechta VS Code oynasi (va CLI)
+   *  bitta history.json'ga yozadi. Avval har biri faylni BIR MARTA yuklab,
+   *  keyin butun faylni o'z nusxasi bilan USTIDAN yozardi → boshqa oynaning
+   *  yozuvlari o'chib ketardi. Endi: diskdagi JORIY holat qayta o'qiladi va
+   *  har saqlanmagan sessiya uchun delta DISKDAGI oxirgi qiymatga nisbatan
+   *  qo'shiladi — ikki oyna bir-birini o'chirmaydi va bitta sessiyani ikkalasi
+   *  kuzatsa ham ikki marta hisoblanmaydi. corrupt bo'lsa — HECH NARSA yozmaydi. */
   save(): void {
     if (this.corrupt || !this.dirty) return;
+    const disk = this.readDisk();
+    if (!disk) {
+      this.corrupt = true; // boshqa jarayon buzuq fayl qoldirgan — tegmaymiz
+      return;
+    }
+    for (const [sid, cur] of this.pending) {
+      const prev = disk.sessions[sid];
+      const dcost = prev ? Math.max(0, cur.cost - prev.cost) : cur.cost;
+      const din = prev ? Math.max(0, cur.inTok - prev.inTok) : cur.inTok;
+      const dout = prev ? Math.max(0, cur.outTok - prev.outTok) : cur.outTok;
+      const dtools = prev ? Math.max(0, cur.tools - prev.tools) : cur.tools;
+      const dms = prev ? Math.max(0, cur.ms - prev.ms) : cur.ms;
+      if (dcost || din || dout || dtools || dms || !prev) {
+        const d = (disk.days[cur.day] ||= {});
+        const s = (d[cur.project] ||= emptyStat());
+        s.cost += dcost; s.inTok += din; s.outTok += dout; s.tools += dtools; s.ms += dms;
+      }
+      // Diskdagi qiymat KATTAROQ bo'lsa (boshqa oyna oldinroq yozgan) — kamaytirmaymiz.
+      disk.sessions[sid] = {
+        ...cur,
+        firstSeen: Math.min(cur.firstSeen, prev?.firstSeen ?? cur.firstSeen),
+        cost: Math.max(cur.cost, prev?.cost ?? 0),
+        inTok: Math.max(cur.inTok, prev?.inTok ?? 0),
+        outTok: Math.max(cur.outTok, prev?.outTok ?? 0),
+        tools: Math.max(cur.tools, prev?.tools ?? 0),
+        ms: Math.max(cur.ms, prev?.ms ?? 0),
+        model: cur.model ?? prev?.model,
+      };
+    }
+    pruneData(disk);
     try {
       const p = this.filePath();
       fs.mkdirSync(path.dirname(p), { recursive: true });
       const tmp = `${p}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(this.data));
+      fs.writeFileSync(tmp, JSON.stringify(disk));
       fs.renameSync(tmp, p); // atomik almashtirish
+      this.data = disk; // endi boshqa oynalarning yozuvlari ham ko'rinadi
+      this.pending.clear();
       this.dirty = false;
     } catch {
-      /* yoza olmasa — jim (tarix ixtiyoriy) */
+      /* yoza olmasa — jim (tarix ixtiyoriy); pending saqlanadi, keyingi safar */
     }
   }
 

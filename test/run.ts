@@ -1179,6 +1179,33 @@ test("HistoryStore: atomik yozuv + qayta yuklash — kun/sessiya/model saqlanadi
     assert.equal(Object.values(h2.getDays()[0].projects)[0].cost, 2, "kunlik cost qayta yuklanadi");
   });
 });
+test("HistoryStore: ikki oyna bitta faylga yozadi — bir-birini O'CHIRMAYDI, bir sessiya IKKI MARTA hisoblanmaydi", () => {
+  withScratchHome(() => {
+    const A = new HistoryStore();
+    const B = new HistoryStore();
+    A.load();
+    B.load(); // ikkalasi ham bo'sh holatda yuklandi (avval: oxirgi yozgan g'olib)
+    A.record("sA", "repoA", { cost: 1, inTok: 10, outTok: 1, tools: 1, ms: 100 });
+    B.record("sB", "repoB", { cost: 2, inTok: 20, outTok: 2, tools: 2, ms: 200 });
+    A.flush();
+    B.flush();
+    const C = new HistoryStore();
+    C.load();
+    const projects = C.getDays()[0].projects;
+    assert.equal(projects.repoA?.cost, 1, "A oynasining yozuvi saqlandi");
+    assert.equal(projects.repoB?.cost, 2, "B oynasining yozuvi saqlandi");
+    assert.equal(C.getSessions().length, 2);
+    // Bitta sessiyani ikkala oyna kuzatsa (bir xil papka 2 oynada) — jami bir marta.
+    A.record("sShared", "repoA", { cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+    B.record("sShared", "repoA", { cost: 5, inTok: 0, outTok: 0, tools: 0, ms: 0 });
+    A.flush();
+    B.flush();
+    const D = new HistoryStore();
+    D.load();
+    assert.equal(D.getDays()[0].projects.repoA.cost, 6, "1 + 5 (10 EMAS)");
+  });
+});
+
 test("history: modelTotals — arxiv sessiyalari short-model bo'yicha jamlanadi", () => {
   const sessions = [
     { project: "a", at: 1, cost: 2, inTok: 100, outTok: 50, tools: 3, ms: 0, model: "claude-opus-4-8" },
