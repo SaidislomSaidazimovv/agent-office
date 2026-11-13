@@ -19,7 +19,9 @@ export interface HookServerHandle {
   token: string;
 }
 
-const MAX_BODY = 256 * 1024;
+// Yangi hook-skript payload'ni ixchamlashtiradi (hookPayload.ts) — bu chegara
+// eski versiya skriptlari (yangilanmagan settings.json) uchun ham zaxira.
+const MAX_BODY = 1024 * 1024;
 
 export class HookServer {
   private server?: http.Server;

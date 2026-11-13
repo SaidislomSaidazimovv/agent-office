@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
+import { slimHookPayload } from "../../core/hookPayload.js";
 import { pickServerForCwd, type ServerEntry } from "../../core/hookRouting.js";
 
 function done(): never {
@@ -59,11 +60,14 @@ process.stdin.on("data", (c) => {
 });
 process.stdin.on("end", () => {
   try {
-    const body = data || "{}";
+    let body = data || "{}";
     let cwd = "";
     try {
       const j = JSON.parse(body);
       if (j && typeof j.cwd === "string") cwd = j.cwd;
+      // Faqat kerakli maydonlar — tool natijasi, so'rov matni, fayl mazmuni
+      // lokal serverga ham yuborilmaydi (maxfiylik + katta tana rad etilmasin).
+      if (j && typeof j === "object" && !Array.isArray(j)) body = JSON.stringify(slimHookPayload(j));
     } catch {
       /* payload cwd'siz — zaxiraga tushamiz */
     }
