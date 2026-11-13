@@ -225,20 +225,22 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       // dagi papkalar ro'yxatini yangilaymiz, aks holda yangi papkaning hooklari
       // shu oynaga yo'naltirilmasdi.
       this.folderWatch = vscode.workspace.onDidChangeWorkspaceFolders(() => this.hookServer.refreshFolders());
-
-      const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
-      if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
-        this.autoSpawnTimer = setTimeout(() => {
-          this.autoSpawnTimer = undefined;
-          if (this.store.size === 0) {
-            this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
-            this.manager.launchAgent();
-          }
-        }, 2000);
-      }
     } else {
       this.logMsg("Hook rejimi o'chirilgan (agent-office.hooksEnabled=false) — faqat JSONL.");
       this.setHookActive(false);
+    }
+
+    // autoSpawnAgent hook rejimidan MUSTAQIL (avval faqat hooksEnabled=true
+    // bo'lganda ishlardi — hook'larni o'chirgan foydalanuvchida jim e'tiborsiz qolardi).
+    const autoSpawn = vscode.workspace.getConfiguration("agent-office").get<boolean>("autoSpawnAgent", false);
+    if (autoSpawn && (vscode.workspace.workspaceFolders?.length ?? 0) > 0) {
+      this.autoSpawnTimer = setTimeout(() => {
+        this.autoSpawnTimer = undefined;
+        if (this.store.size === 0) {
+          this.logMsg("autoSpawnAgent: agent yo'q — bittasini ishga tushiramiz.");
+          this.manager.launchAgent();
+        }
+      }, 2000);
     }
   }
 
