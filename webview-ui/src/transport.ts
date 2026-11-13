@@ -41,11 +41,42 @@ if (!vscode && typeof window !== "undefined" && typeof WebSocket !== "undefined"
       }
     };
     ws.onclose = () => {
+      const wasOpen = wsReady;
       wsReady = false;
+      // CLI qayta ishga tushirildi / uzildi — har 2s'da qayta urinamiz. Server
+      // qayta ishga tushganda agent ID'lari 0dan boshlanadi, shuning uchun eski
+      // holat bilan aralashtirmasdan sahifani TO'LIQ qayta yuklaymiz (toza snapshot).
+      if (wasOpen) reconnectThenReload(proto);
     };
   } catch {
     ws = undefined;
   }
+}
+
+/** Standalone CLI uzilganda: server qaytguncha har 2s'da tekshiradi, qaytgach reload. */
+function reconnectThenReload(proto: string): void {
+  const attempt = () => {
+    let probe: WebSocket;
+    try {
+      probe = new WebSocket(`${proto}://${location.host}`);
+    } catch {
+      setTimeout(attempt, 2000);
+      return;
+    }
+    let opened = false;
+    probe.onopen = () => {
+      opened = true;
+      probe.close();
+      location.reload();
+    };
+    probe.onerror = () => {
+      /* onclose keyin keladi */
+    };
+    probe.onclose = () => {
+      if (!opened) setTimeout(attempt, 2000);
+    };
+  };
+  setTimeout(attempt, 2000);
 }
 
 export function send(msg: ClientMessage): void {
