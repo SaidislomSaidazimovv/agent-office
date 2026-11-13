@@ -26,7 +26,7 @@ import { cacheStats, estimateCost } from "../webview-ui/src/pricing.js";
 import { messageCost } from "../extension/core/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
-import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals, rollupCost } from "../webview-ui/src/history.js";
+import { compareSessions, dailyCost, dayStatFor, filterDaysByProject, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, sessionKey } from "../webview-ui/src/history.js";
 import { buildInsights, costSpike, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
@@ -1850,6 +1850,31 @@ test("manifest i18n: package.json'dagi har %kalit% package.nls.json'da bor, har 
     assert.deepEqual(Object.keys(tr).sort(), Object.keys(base).sort(), `${f} kalitlari to'liq`);
     for (const [k, v] of Object.entries(tr)) assert.ok(typeof v === "string" && v.trim(), `${f}:${k} bo'sh`);
   }
+});
+
+test("tarix: loyiha bo'yicha filtr (drill-down) va ikki sessiyani solishtirish", () => {
+  const st = (cost: number) => ({ cost, inTok: 10, outTok: 5, tools: 2, ms: 1000 });
+  const days = [
+    { date: "2026-11-01", projects: { a: st(1), b: st(2) } },
+    { date: "2026-11-02", projects: { b: st(3) } },
+    { date: "2026-11-03", projects: { a: st(4) } },
+  ];
+  const fa = filterDaysByProject(days, "a");
+  assert.deepEqual(fa.map((d) => d.date), ["2026-11-01", "2026-11-03"], "faqat shu loyiha bor kunlar");
+  assert.ok(fa.every((d) => Object.keys(d.projects).join() === "a"), "boshqa loyihalar olib tashlandi");
+  assert.equal(grandTotal(fa).cost, 5, "jami faqat 'a'");
+  assert.equal(days[0].projects.b.cost, 2, "asl ma'lumot o'zgarmaydi");
+  const A = { project: "a", at: 1, cost: 2, inTok: 100, outTok: 50, tools: 4, ms: 60_000, model: "claude-opus-5-5" };
+  const B = { project: "b", at: 2, cost: 3, inTok: 300, outTok: 0, tools: 0, ms: 30_000 };
+  const rows = compareSessions(A, B);
+  const by = Object.fromEntries(rows.map((r) => [r.metric, r]));
+  assert.equal(by.cost.deltaPct, 50, "+50%");
+  assert.equal(by.tokens.a, 150);
+  assert.equal(by.time.deltaPct, -50);
+  assert.equal(by.costPerTool.a, 0.5);
+  assert.equal(by.costPerTool.b, 0, "tool yo'q → 0 (bo'luvchi yo'q)");
+  assert.equal(compareSessions({ ...A, cost: 0 }, B)[0].deltaPct, null, "asos 0 → foiz ma'nosiz");
+  assert.notEqual(sessionKey(A), sessionKey(B));
 });
 
 test("costSpike: so'nggi 2 daq odatiy 20 daqdan ≥3× tez → sakrash; bir tekis sarf / qisqa tarix / mayda summa → yo'q", () => {

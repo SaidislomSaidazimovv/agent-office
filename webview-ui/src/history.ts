@@ -138,3 +138,47 @@ export function modelTotals(sessions: ArchiveSession[]): { model: string; cost: 
     .map(([model, v]) => ({ model, cost: v.cost, tok: v.tok, count: v.count }))
     .sort((a, b) => b.cost - a.cost);
 }
+
+// ── Loyiha bo'yicha batafsil (drill-down) ──
+/** Faqat bitta loyihaning kunlik yozuvlari (boshqa loyihalar olib tashlanadi;
+ *  shu loyiha bo'lmagan kunlar tushib qoladi). Butun tarix paneli — bugun/kecha,
+ *  trend, jami — shu kesim bo'yicha qayta hisoblanadi. */
+export function filterDaysByProject(days: HistoryDay[], project: string): HistoryDay[] {
+  const out: HistoryDay[] = [];
+  for (const d of days) {
+    const s = d.projects[project];
+    if (s) out.push({ date: d.date, projects: { [project]: s } });
+  }
+  return out;
+}
+
+// ── Sessiyalarni solishtirish ──
+/** Arxiv sessiyasining barqaror kaliti (ro'yxat yangilanganda indeks siljiydi). */
+export function sessionKey(s: ArchiveSession): string {
+  return `${s.at}|${s.project}`;
+}
+
+export interface CompareRow {
+  /** Ko'rsatkich: cost | tokens | tools | time | costPerTool. */
+  metric: "cost" | "tokens" | "tools" | "time" | "costPerTool";
+  a: number;
+  b: number;
+  /** (b − a) / a × 100, a = 0 bo'lsa null (foiz ma'nosiz). */
+  deltaPct: number | null;
+}
+
+/** Ikki sessiyani ko'rsatkichma-ko'rsatkich solishtiradi — faqat yozilgan
+ *  qiymatlardan; tool soni 0 bo'lsa "tool boshiga xarajat" 0 (bo'luvchi yo'q). */
+export function compareSessions(a: ArchiveSession, b: ArchiveSession): CompareRow[] {
+  const row = (metric: CompareRow["metric"], x: number, y: number): CompareRow => ({
+    metric, a: x, b: y, deltaPct: x > 0 ? ((y - x) / x) * 100 : null,
+  });
+  const cpt = (s: ArchiveSession) => (s.tools > 0 ? s.cost / s.tools : 0);
+  return [
+    row("cost", a.cost, b.cost),
+    row("tokens", a.inTok + a.outTok, b.inTok + b.outTok),
+    row("tools", a.tools, b.tools),
+    row("time", a.ms, b.ms),
+    row("costPerTool", cpt(a), cpt(b)),
+  ];
+}

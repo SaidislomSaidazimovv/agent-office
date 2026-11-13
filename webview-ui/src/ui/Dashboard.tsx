@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { type CSSProperties, useMemo, useRef, useState } from "react";
 import { budgetState } from "../budget";
 import { fmtDur, fmtTok, shortModel } from "../format";
 import { agentEfficiency, costVelocity, timeToBudgetMin } from "../forecast";
-import { dayStatFor, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, type Granularity } from "../history";
+import { type ArchiveSession, compareSessions, dayStatFor, filterDaysByProject, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, sessionKey, type Granularity } from "../history";
 import { fill, useT } from "../i18n";
 import { buildInsights } from "../insights";
 import { cacheStats, fmtCost, PRICING_AS_OF } from "../pricing";
@@ -630,17 +630,28 @@ function fmtHistDate(ms: number): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-function HistoryPanel({ days, archive, onClose }: { days: import("../history").HistoryDay[]; archive: import("../history").ArchiveSession[]; onClose: () => void }) {
+function HistoryPanel({ days: allDays, archive, onClose }: { days: import("../history").HistoryDay[]; archive: import("../history").ArchiveSession[]; onClose: () => void }) {
   const t = useT();
   const [gran, setGran] = useState<Granularity>("day");
+  // S7-5 — loyiha bo'yicha batafsil: tanlansa BUTUN panel shu loyiha kesimida.
+  const [project, setProject] = useState<string | null>(null);
+  // S7-2 — solishtirish uchun tanlangan sessiyalar (barqaror kalit, ko'pi bilan 2).
+  const [picked, setPicked] = useState<string[]>([]);
+  // Ko'rinish (view) — filtr bo'lsa shu loyiha, aks holda to'liq tarix.
+  const days = useMemo(() => (project ? filterDaysByProject(allDays, project) : allDays), [allDays, project]);
+  const vArchive = useMemo(() => (project ? archive.filter((s) => s.project === project) : archive), [archive, project]);
   const trend = useMemo(() => {
     const all = rollupCost(days, gran);
     const n = gran === "day" ? 14 : gran === "week" ? 12 : 6; // so'nggi ~2 hafta / 12 hafta / 6 oy
     return all.slice(-n);
   }, [days, gran]);
-  const projects = useMemo(() => projectTotals(days).slice(0, 6), [days]);
-  const models = useMemo(() => modelTotals(archive).slice(0, 6), [archive]);
+  // Loyiha ro'yxati — doim TO'LIQ tarixdan (filtr tanlash uchun).
+  const projects = useMemo(() => projectTotals(allDays).slice(0, 6), [allDays]);
+  const models = useMemo(() => modelTotals(vArchive).slice(0, 6), [vArchive]);
   const total = useMemo(() => grandTotal(days), [days]);
+  const togglePick = (key: string) =>
+    setPicked((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key].slice(-2)));
+  const pickedSessions = picked.map((k) => archive.find((s) => sessionKey(s) === k)).filter((s): s is ArchiveSession => !!s);
   const maxModel = Math.max(...models.map((m) => m.cost), 0.0001);
   const today = dayStatFor(days, localDayISO(0));
   const yday = dayStatFor(days, localDayISO(1));
@@ -666,6 +677,16 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
         </div>
       </div>
       <div style={{ fontSize: 10.5, color: MUTED, marginTop: -6 }}>{t("hist.hint")}</div>
+      {project && (
+        <button
+          onClick={() => setProject(null)}
+          title={t("hist.allProjects")}
+          aria-label={`${t("hist.allProjects")} (${project})`}
+          style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, cursor: "pointer", fontSize: 11, fontWeight: 600, color: INK, border: "1px solid rgba(94,155,255,0.6)", background: "rgba(94,155,255,0.18)" }}
+        >
+          📁 {project} <span style={{ color: MUTED, fontSize: 13, lineHeight: 1 }}>×</span>
+        </button>
+      )}
 
       {/* Kecha vs bugun */}
       <div style={{ display: "flex", gap: 8 }}>
@@ -726,13 +747,24 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
           <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.byProject")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {projects.map((p, i) => (
-              <div key={p.project} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                key={p.project}
+                onClick={() => setProject(project === p.project ? null : p.project)}
+                aria-pressed={project === p.project}
+                title={t("hist.projectTip")}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "2px 4px", margin: "0 -4px", borderRadius: 6, cursor: "pointer", font: "inherit", textAlign: "left",
+                  border: `1px solid ${project === p.project ? "rgba(94,155,255,0.6)" : "transparent"}`,
+                  background: project === p.project ? "rgba(94,155,255,0.12)" : "transparent",
+                  opacity: project && project !== p.project ? 0.45 : 1,
+                }}
+              >
                 <span style={{ width: 96, fontSize: 11, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.project}</span>
                 <div style={{ flex: 1, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
                   <div style={{ width: `${Math.max(3, (p.stat.cost / maxProj) * 100)}%`, height: "100%", background: MODEL_PAL_H[i % MODEL_PAL_H.length], borderRadius: 4 }} />
                 </div>
                 <span style={{ width: 52, textAlign: "right", fontSize: 11, color: INK2, fontVariantNumeric: "tabular-nums" }}>~{fmtCost(p.stat.cost)}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -764,12 +796,30 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
       </div>
 
       {/* So'nggi sessiyalar arxivi — eng yangi birinchi */}
-      {archive.length > 0 && (
+      {/* S7-2 — ikki sessiyani yonma-yon solishtirish (faqat yozilgan qiymatlar) */}
+      {pickedSessions.length === 2 && (
+        <SessionCompare a={pickedSessions[0]} b={pickedSessions[1]} onClear={() => setPicked([])} />
+      )}
+
+      {vArchive.length > 0 && (
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: INK2, marginBottom: 8 }}>{t("hist.recent")}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: INK2 }}>{t("hist.recent")}</span>
+            {pickedSessions.length === 1 && <span style={{ fontSize: 10, color: "#5e9bff" }}>⇄ {t("hist.compareHint")}</span>}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {archive.slice(0, 20).map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            {vArchive.slice(0, 20).map((s) => {
+              const key = sessionKey(s);
+              const sel = picked.includes(key);
+              return (
+              <button
+                key={key}
+                onClick={() => togglePick(key)}
+                aria-pressed={sel}
+                title={t("hist.compareTip")}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 8, cursor: "pointer", font: "inherit", textAlign: "left", background: sel ? "rgba(94,155,255,0.14)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(94,155,255,0.6)" : "rgba(255,255,255,0.06)"}` }}
+              >
+                <span aria-hidden style={{ width: 14, fontSize: 11, color: sel ? "#5e9bff" : "rgba(255,255,255,0.25)" }}>{sel ? "◉" : "○"}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {s.name || s.project}{s.name ? <span style={{ opacity: 0.6, fontWeight: 400 }}> · 📁 {s.project}</span> : null}
@@ -777,11 +827,66 @@ function HistoryPanel({ days, archive, onClose }: { days: import("../history").H
                   <span style={{ display: "block", fontSize: 10, color: MUTED }}>{fmtHistDate(s.at)}{s.model ? ` · ${shortModel(s.model)}` : ""} · {s.tools} {t("dash.colTools").toLowerCase()} · {fmtDur(s.ms)}</span>
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#30d158", fontVariantNumeric: "tabular-nums" }}>~{fmtCost(s.cost)}</span>
-              </div>
-            ))}
+              </button>
+              );
+            })}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Sessiyalarni solishtirish kartasi (S7-2) ──
+function SessionCompare({ a, b, onClear }: { a: ArchiveSession; b: ArchiveSession; onClear: () => void }) {
+  const t = useT();
+  const rows = compareSessions(a, b);
+  const label: Record<string, string> = {
+    cost: t("dash.colCost"),
+    tokens: t("dash.colTokens"),
+    tools: t("dash.colTools"),
+    time: t("hist.totalTime"),
+    costPerTool: t("hist.costPerTool"),
+  };
+  const fmt = (metric: string, v: number) =>
+    metric === "cost" || metric === "costPerTool" ? `~${fmtCost(v)}` : metric === "tokens" ? fmtTok(v) : metric === "time" ? fmtDur(v) : String(v);
+  const head = (s: ArchiveSession) => (
+    <span style={{ display: "block", minWidth: 0 }}>
+      <span style={{ display: "block", fontSize: 11, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name || s.project}</span>
+      <span style={{ display: "block", fontSize: 9.5, color: MUTED, whiteSpace: "nowrap" }}>{fmtHistDate(s.at)}{s.model ? ` · ${shortModel(s.model)}` : ""}</span>
+    </span>
+  );
+  const cell: CSSProperties = { padding: "5px 6px", fontSize: 11, textAlign: "right", fontVariantNumeric: "tabular-nums", color: INK2 };
+  return (
+    <div role="region" aria-label={t("hist.compareTitle")} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(94,155,255,0.06)", border: "1px solid rgba(94,155,255,0.35)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: INK }}>⇄ {t("hist.compareTitle")}</span>
+        <button onClick={onClear} aria-label={t("common.close")} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: 15, lineHeight: 1 }}>×</button>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <thead>
+          <tr>
+            <th style={{ width: "26%" }} />
+            <th style={{ ...cell, textAlign: "right" }}>{head(a)}</th>
+            <th style={{ ...cell, textAlign: "right" }}>{head(b)}</th>
+            <th style={{ ...cell, width: "18%", fontSize: 10, color: MUTED, fontWeight: 600 }}>{t("hist.diff")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const d = r.deltaPct;
+            const col = d == null || Math.abs(d) < 0.5 ? MUTED : d > 0 ? "#ff9f0a" : "#30d158";
+            return (
+              <tr key={r.metric} style={{ borderTop: `1px solid ${GRID}` }}>
+                <td style={{ ...cell, textAlign: "left", color: MUTED, fontSize: 10.5 }}>{label[r.metric]}</td>
+                <td style={cell}>{fmt(r.metric, r.a)}</td>
+                <td style={cell}>{fmt(r.metric, r.b)}</td>
+                <td style={{ ...cell, color: col, fontWeight: 700 }}>{d == null ? "—" : `${d > 0 ? "+" : ""}${Math.round(d)}%`}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
