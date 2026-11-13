@@ -32,6 +32,12 @@ function toolSig(name: string, input: unknown): string {
   return name + SIG_SEP + stableStringify(input);
 }
 
+/** Hook payload'idagi tool_use_id (yangi Claude Code versiyalari beradi). */
+function hookToolUseId(raw: Record<string, unknown>): string | undefined {
+  const v = raw.tool_use_id;
+  return typeof v === "string" && v ? v.slice(0, 128) : undefined;
+}
+
 /** PostToolUse — mos imzoli eng eski (FIFO) tool ID'ni navbatdan oladi. Imzo
  *  mos kelmasa (kamdan-kam) — leak bo'lmasin uchun eng eski istalgan toolni. */
 function popHookTool(agent: AgentState, name: string, input: unknown): string | undefined {
@@ -98,13 +104,20 @@ export function handleHookEvent(
         const detected = accumulateRole(agent, name, input);
         if (detected) store.broadcast({ type: "agentRoleDetected", id: agent.id, role: detected });
       }
-      const sig = toolSig(name, input);
       const isSub = SUBAGENT_TOOL_NAMES.has(name);
-      const toolId = `${isSub ? "hook-sub" : "hook"}-${agent.hookToolCounter++}`;
-      // Imzo bo'yicha navbatga qo'shamiz (parallel tool'lar biri ustiga biri yozmaydi)
-      const q = agent.hookToolQueue.get(sig);
-      if (q) q.push(toolId);
-      else agent.hookToolQueue.set(sig, [toolId]);
+      const useId = hookToolUseId(raw);
+      let toolId: string;
+      if (useId) {
+        // Yangi Claude Code: Pre/Post ikkalasida ham tool_use_id bor — ANIQ moslik.
+        toolId = `hook-${useId}`;
+      } else {
+        // Eski versiya: id yo'q → imzo (name+input) bo'yicha FIFO navbat.
+        toolId = `${isSub ? "hook-sub" : "hook"}-${agent.hookToolCounter++}`;
+        const sig = toolSig(name, input);
+        const q = agent.hookToolQueue.get(sig);
+        if (q) q.push(toolId);
+        else agent.hookToolQueue.set(sig, [toolId]);
+      }
       if (isSub) {
         const info = formatSubagent(input);
         agent.subagentToolIds.set(toolId, info);
@@ -121,16 +134,22 @@ export function handleHookEvent(
 
     case "PostToolUse":
     case "PostToolUseFailure": {
-      // Xato → bloklandi (sababi tool javobidan); muvaffaqiyat → tiklandi.
-      const failed = event === "PostToolUseFailure";
-      setBlocked(store, agent, failed, failed ? formatError(raw.tool_response ?? raw.error) : undefined);
+      // Xato → bloklandi (sababi `error` maydonidan); muvaffaqiyat → tiklandi.
+      // is_interrupt — foydalanuvchi to'xtatgan (Esc): bu xato EMAS, qizil qilmaymiz.
+      const failed = event === "PostToolUseFailure" && raw.is_interrupt !== true;
+      setBlocked(store, agent, failed, failed ? formatError(raw.error ?? raw.tool_response) : undefined);
       // Tool tugadi → ruxsat pufagini tozalaymiz (qotib qolmasin).
       if (agent.permissionActive) {
         agent.permissionActive = false;
         store.broadcast({ type: "agentToolPermissionClear", id: agent.id });
       }
       const name = (raw.tool_name as string) || "Tool";
-      const toolId = popHookTool(agent, name, raw.tool_input);
+      const useId = hookToolUseId(raw);
+      const byId = useId ? `hook-${useId}` : undefined;
+      const toolId =
+        byId && (agent.activeToolIds.has(byId) || agent.subagentToolIds.has(byId))
+          ? byId
+          : popHookTool(agent, name, raw.tool_input);
       if (toolId) {
         if (agent.subagentToolIds.has(toolId)) {
           agent.subagentToolIds.delete(toolId);
@@ -153,9 +172,21 @@ export function handleHookEvent(
       break;
 
     case "Notification": {
+      // Yangi Claude Code `notification_type` beradi — matnga emas, turiga
+      // qaraymiz. Noma'lum tur — soxta holat yasamaymiz (e'tiborsiz).
+      const ntype = typeof raw.notification_type === "string" ? raw.notification_type : "";
+      if (ntype) {
+        if (ntype === "permission_prompt") {
+          agent.permissionActive = true;
+          store.broadcast({ type: "agentToolPermission", id: agent.id });
+        } else if (ntype === "idle_prompt") {
+          markWaiting(store, agent, true); // "Kirish kutmoqda"
+        }
+        break;
+      }
+      // Eski versiya (turi yo'q): matn bo'yicha tasnif — permission FAQAT
+      // ruxsat-kalitlarda; waiting alohida.
       const msg = ((raw.message as string) || "").toLowerCase();
-      // Aniq tasnif: permission FAQAT ruxsat-kalitlarda; waiting alohida;
-      // noma'lum notification — soxta holat yasamaymiz (e'tiborsiz).
       if (/permission|approve|allow|grant|confirm/.test(msg)) {
         agent.permissionActive = true;
         store.broadcast({ type: "agentToolPermission", id: agent.id });
@@ -171,7 +202,13 @@ export function handleHookEvent(
       break;
 
     case "SubagentStop": {
-      for (const tid of [...agent.subagentToolIds.keys()]) {
+      // SubagentStop o'zining agent_id'sini beradi, lekin u Task tool id'siga
+      // bog'lanmaydi — QAYSI sub-agent tugaganini bilib bo'lmaydi. Avval bu yerda
+      // HAMMASI o'chirilardi → parallel sub-agentlardan biri tugasa qolganlari ham
+      // yo'qolardi. Har sub-agent o'z Task'ining PostToolUse'ida aniq yopiladi;
+      // bu yerda faqat YAGONA sub-agent bo'lsa (noaniqlik yo'q) yopamiz.
+      if (agent.subagentToolIds.size === 1) {
+        const [tid] = agent.subagentToolIds.keys();
         agent.subagentToolIds.delete(tid);
         store.broadcast({ type: "subagentClear", id: agent.id, parentToolId: tid });
       }

@@ -15,6 +15,10 @@ import * as path from "node:path";
 const EVENTS = [
   "PreToolUse",
   "PostToolUse",
+  // Tool XATO bilan tugaganda PostToolUse EMAS, shu event keladi (rasmiy hujjat).
+  // Busiz hook rejimida "bloklandi" holati hech qachon ko'rinmas va xato bergan
+  // tool indikatori navbat oxirigacha osilib qolardi.
+  "PostToolUseFailure",
   "Stop",
   "Notification",
   "SessionStart",

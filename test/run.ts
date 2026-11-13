@@ -10,6 +10,8 @@ import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
 import { HistoryStore } from "../extension/vscode/historyStore.js";
 import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
+import { slimHookPayload } from "../extension/core/hookPayload.js";
+import { trustedTranscriptPath } from "../extension/core/paths.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
@@ -240,6 +242,86 @@ test("Notification 'waiting for input' → awaiting (permission EMAS)", () => {
   handleHookEvent(store, agent, { hook_event_name: "Notification", message: "Claude is waiting for your input" });
   assert.ok(ev.some((e) => e.type === "agentStatus" && (e as { awaitingInput?: boolean }).awaitingInput === true), "awaiting bo'lishi kerak");
   assert.ok(!ev.some((e) => e.type === "agentToolPermission"), "permission YASALMASLIGI kerak");
+});
+
+test("tool_use_id: bir xil imzoli parallel toollar ANIQ id bo'yicha yopiladi", () => {
+  const { store, agent } = setup();
+  const pre = (id: string) => handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "npm test" }, tool_use_id: id });
+  pre("toolu_A");
+  pre("toolu_B");
+  assert.deepEqual([...agent.activeToolIds].sort(), ["hook-toolu_A", "hook-toolu_B"]);
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "npm test" }, tool_use_id: "toolu_B" });
+  assert.deepEqual([...agent.activeToolIds], ["hook-toolu_A"], "faqat B yopildi");
+});
+
+test("PostToolUseFailure → bloklandi (error sababi bilan); is_interrupt → bloklanMAYDI", () => {
+  const { store, agent } = setup();
+  handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "npm i" }, tool_use_id: "t1" });
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm i" }, tool_use_id: "t1", error: "Exit code 1\nError: Cannot find module 'express'" });
+  assert.equal(agent.blocked, true);
+  assert.ok(agent.blockedReason?.includes("Cannot find module"), "sabab error maydonidan");
+  assert.equal(agent.activeToolIds.size, 0, "xato bergan tool osilib qolmaydi");
+  const b = setup();
+  handleHookEvent(b.store, b.agent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "sleep 9" }, tool_use_id: "t2" });
+  handleHookEvent(b.store, b.agent, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "sleep 9" }, tool_use_id: "t2", error: "Interrupted", is_interrupt: true });
+  assert.equal(b.agent.blocked, false, "foydalanuvchi to'xtatgani — xato emas");
+  assert.equal(b.agent.activeToolIds.size, 0);
+});
+
+test("Notification notification_type: permission_prompt / idle_prompt; noma'lum tur e'tiborsiz", () => {
+  const a = setup();
+  handleHookEvent(a.store, a.agent, { hook_event_name: "Notification", notification_type: "permission_prompt", message: "Claude needs your permission" });
+  assert.ok(a.ev.some((e) => e.type === "agentToolPermission"));
+  const b = setup();
+  handleHookEvent(b.store, b.agent, { hook_event_name: "Notification", notification_type: "idle_prompt", message: "Claude is waiting for your input" });
+  assert.ok(b.ev.some((e) => e.type === "agentStatus" && e.awaitingInput === true));
+  const c = setup();
+  // Turi berilgan, lekin bizga noma'lum — matnida "permission" bo'lsa ham holat yasamaymiz.
+  handleHookEvent(c.store, c.agent, { hook_event_name: "Notification", notification_type: "auth_success", message: "permission granted" });
+  assert.ok(!c.ev.some((e) => e.type === "agentToolPermission" || (e.type === "agentStatus" && e.status === "waiting")));
+});
+
+test("SubagentStop: parallel sub-agentlar qolgan; yagona bo'lsa yopiladi", () => {
+  const { store, agent } = setup();
+  const task = (id: string, d: string) => handleHookEvent(store, agent, { hook_event_name: "PreToolUse", tool_name: "Task", tool_input: { description: d, prompt: "p" }, tool_use_id: id });
+  task("s1", "A");
+  task("s2", "B");
+  handleHookEvent(store, agent, { hook_event_name: "SubagentStop", agent_id: "agent-x" });
+  assert.equal(agent.subagentToolIds.size, 2, "qaysi biri tugagani noma'lum — ikkalasi ham qoladi");
+  handleHookEvent(store, agent, { hook_event_name: "PostToolUse", tool_name: "Task", tool_input: { description: "A", prompt: "p" }, tool_use_id: "s1" });
+  assert.deepEqual([...agent.subagentToolIds.keys()], ["hook-s2"], "Task PostToolUse aniq yopadi");
+  handleHookEvent(store, agent, { hook_event_name: "SubagentStop", agent_id: "agent-y" });
+  assert.equal(agent.subagentToolIds.size, 0, "yagona qolgan — yopiladi");
+});
+
+test("hook payload ixchamlashtiriladi: natija/so'rov/javob matni tashlanadi, uzun satrlar qisqaradi", () => {
+  const big = "x".repeat(50_000);
+  const raw = {
+    session_id: "s", cwd: "/p", hook_event_name: "PostToolUse", tool_name: "Write", tool_use_id: "t",
+    tool_input: { file_path: "/p/a.ts", content: big }, tool_response: { content: big },
+    prompt: "secret prompt", last_assistant_message: "reply text", transcript_path: "/h/.claude/projects/p/s.jsonl",
+  };
+  const out = slimHookPayload(raw);
+  assert.equal(out.tool_response, undefined);
+  assert.equal(out.prompt, undefined);
+  assert.equal(out.last_assistant_message, undefined);
+  assert.equal(out.transcript_path, raw.transcript_path);
+  const ti = out.tool_input as { file_path: string; content: string };
+  assert.equal(ti.file_path, "/p/a.ts");
+  assert.ok(ti.content.length < 2100 && ti.content.endsWith("…[50000]"));
+  assert.ok(JSON.stringify(out).length < 3000);
+  assert.deepEqual(slimHookPayload(raw), out, "deterministik (Pre/Post imzosi mos)");
+});
+
+test("trustedTranscriptPath: faqat ~/.claude/projects ichidagi mutlaq .jsonl", () => {
+  const root = path.join(os.homedir(), ".claude", "projects");
+  const ok = path.join(root, "proj", "abc.jsonl");
+  assert.equal(trustedTranscriptPath(ok), path.resolve(ok));
+  assert.equal(trustedTranscriptPath(path.join(os.homedir(), "evil.jsonl")), undefined, "ildizdan tashqarida");
+  assert.equal(trustedTranscriptPath(path.join(root, "..", "x.jsonl")), undefined, "../ bilan chiqib ketish");
+  assert.equal(trustedTranscriptPath(path.join(root, "proj", "abc.txt")), undefined);
+  assert.equal(trustedTranscriptPath("relative/abc.jsonl"), undefined);
+  assert.equal(trustedTranscriptPath(42), undefined);
 });
 
 test("noma'lum Notification → soxta permission YASAMAYDI", () => {
