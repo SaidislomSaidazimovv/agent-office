@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { CLAUDE_TERMINAL_NAME_PREFIX, MAX_CONTEXT_TOKENS, PROJECT_SCAN_INTERVAL_MS } from "../core/constants.js";
+import { isStaleExternal, STALE_IDLE_MS } from "../core/attention.js";
 import { getSessionDir, trustedTranscriptPath } from "../core/paths.js";
 import type { AgentStateStore } from "../server/agentStateStore.js";
 import type { FileWatcher } from "../server/fileWatcher.js";
@@ -144,6 +145,11 @@ export class AgentManager {
           // /clear|/resume'dan keyin tashlab ketilgan eski fayl — qayta adopt qilmaymiz
           if (this.retired.has(f.filePath)) continue;
           if (f.mtime < this.startupTime) continue; // ochilishdan oldingi — kutamiz
+          // Eskirgan deb olingan — faqat fayl YANGIDAN o'zgarsa qaytadi (aks holda
+          // keyingi skanda darrov qayta qo'shilib, aylanib qolardi).
+          const staleAt = this.staleRemoved.get(f.filePath);
+          if (staleAt !== undefined && f.mtime <= staleAt) continue;
+          this.staleRemoved.delete(f.filePath);
           // /clear yoki /resume detektsiyasi (hook yo'q bo'lsa) — dublikatsiz reassign
           if (this.tryReassignNewFile(dir, ws, f.filePath)) continue;
           this.adopt(f.filePath, folderName, true);
@@ -166,8 +172,42 @@ export class AgentManager {
           this.store.remove(agent.id);
         }
       }
+      // Eskirgan (30+ daqiqa faoliyatsiz, terminalga bog'lanmagan) tashqi agentlar —
+      // har ~30 skanda bir marta (stat arzon, lekin har soniya shart emas).
+      if (this.scanCount++ % 30 === 0) await this.removeStale();
     } finally {
       this.scanning = false;
+    }
+  }
+
+  private scanCount = 0;
+  /** Eskirgan deb olib tashlangan fayllar → o'sha paytdagi mtime. */
+  private staleRemoved = new Map<string, number>();
+  private async removeStale(): Promise<void> {
+    const open = new Set(vscode.window.terminals);
+    const now = Date.now();
+    for (const a of this.store.values()) {
+      if (!a.isExternal || a.priming) continue;
+      const t = this.terminals.get(a.id);
+      let mtime: number;
+      try {
+        mtime = (await fs.promises.stat(a.filePath)).mtimeMs;
+      } catch {
+        continue; // fayl yo'q — yuqoridagi tozalash hal qiladi
+      }
+      const stale = isStaleExternal({
+        isExternal: a.isExternal,
+        boundToOpenTerminal: !!t && open.has(t),
+        isWaiting: a.isWaiting,
+        busy: a.activeToolIds.size > 0 || a.subagentToolIds.size > 0 || a.permissionActive,
+        fileMtimeMs: mtime,
+        now,
+      });
+      if (stale && this.store.has(a.id)) {
+        this.log(`- #${a.id} ${Math.round(STALE_IDLE_MS / 60000)} daqiqa faoliyatsiz (terminalga bog'lanmagan) — ofisdan olindi; sessiya davom etsa qaytadi.`);
+        this.staleRemoved.set(a.filePath, mtime);
+        this.detach(a.id);
+      }
     }
   }
 

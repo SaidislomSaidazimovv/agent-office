@@ -51,6 +51,25 @@ export function sanitizeName(raw: unknown): string {
   return s.length > MAX_NAME_LEN ? s.slice(0, MAX_NAME_LEN) : s;
 }
 
+/** Shuncha vaqt hech qanday faoliyat bo'lmasa, terminalga bog'lanmagan tashqi
+ *  agent ofisdan olib tashlanadi (sessiya qaytsa — avtomatik qayta paydo bo'ladi). */
+export const STALE_IDLE_MS = 30 * 60_000;
+
+/** Tashqi agent "eskirgan"mi: VS Code terminaliga bog'lanmagan (yopilishini
+ *  bilib bo'lmaydi), hozir kutish holatida, transkript fayli STALE_IDLE_MS dan
+ *  beri o'zgarmagan va hech qanday faol tool/ruxsat yo'q. Avval bunday agentlar
+ *  (masalan tashqi terminalda yopilgan Claude, SessionEnd'siz) abadiy qolardi. */
+export function isStaleExternal(o: {
+  isExternal: boolean;
+  boundToOpenTerminal: boolean;
+  isWaiting: boolean;
+  busy: boolean;
+  fileMtimeMs: number;
+  now: number;
+}): boolean {
+  return o.isExternal && !o.boundToOpenTerminal && o.isWaiting && !o.busy && o.now - o.fileMtimeMs >= STALE_IDLE_MS;
+}
+
 /** STUCK_MS dan uzoq kutayotgan, ammo hali "tiqilgan" deb belgilanmagan agentlar. */
 export function newlyStuck(since: Map<number, number>, already: Set<number>, now: number): number[] {
   const out: number[] = [];

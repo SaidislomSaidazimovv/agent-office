@@ -13,7 +13,8 @@ import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js
 import { slimHookPayload } from "../extension/core/hookPayload.js";
 import { trustedTranscriptPath } from "../extension/core/paths.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
-import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
+import { isStaleExternal, MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, STALE_IDLE_MS, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
+import { getSessionDir } from "../extension/core/paths.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
 import { createAgentState } from "../extension/server/types.js";
 import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
@@ -1817,8 +1818,58 @@ testAsync("katta transcript bo'laklab o'qiladi: darrov qaytadi, boshqa agent jon
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("isStaleExternal: faqat bog'lanmagan + kutayotgan + band emas + 30 daqiqa faoliyatsiz", () => {
+  const now = 10 * STALE_IDLE_MS;
+  const base = { isExternal: true, boundToOpenTerminal: false, isWaiting: true, busy: false, fileMtimeMs: now - STALE_IDLE_MS, now };
+  assert.equal(isStaleExternal(base), true);
+  assert.equal(isStaleExternal({ ...base, fileMtimeMs: now - STALE_IDLE_MS + 1000 }), false, "yaqinda faol");
+  assert.equal(isStaleExternal({ ...base, boundToOpenTerminal: true }), false, "ochiq terminal — u yopilganda olinadi");
+  assert.equal(isStaleExternal({ ...base, isWaiting: false }), false, "ishlayapti");
+  assert.equal(isStaleExternal({ ...base, busy: true }), false, "ruxsat kutyapti / tool ochiq");
+  assert.equal(isStaleExternal({ ...base, isExternal: false }), false, "+Agent terminali");
+});
+
+testAsync("eskirgan tashqi agent olinadi, fayl o'zgarmaguncha QAYTA qo'shilmaydi, o'zgarsa qaytadi", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "ao-stale-"));
+  const prevU = process.env.USERPROFILE;
+  const prevH = process.env.HOME;
+  process.env.USERPROFILE = home;
+  process.env.HOME = home;
+  try {
+    const proj = path.join(home, "proj");
+    fs.mkdirSync(proj);
+    resetState(proj);
+    const store = new AgentStateStore();
+    const watcher = { primeFromStart() {}, emitSnapshot() {}, primeAndAdd(_a: unknown, add: () => void) { add(); }, reprime() {} } as unknown as import("../extension/server/fileWatcher.js").FileWatcher;
+    const mgr = new AgentManager(store, watcher, () => {});
+    mgr.start();
+    const m = mgr as unknown as { startupTime: number; removeStale(): Promise<void>; scanForNew(): Promise<void>; dispose(): void };
+    m.startupTime = Date.now() - 2 * STALE_IDLE_MS; // ochilganiga 1 soat bo'lgan
+    const dir = getSessionDir(proj);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "sess-old.jsonl");
+    fs.writeFileSync(file, "{}\n");
+    const old = new Date(Date.now() - STALE_IDLE_MS - 60_000);
+    fs.utimesSync(file, old, old);
+    const a = mgr.ensureSessionAgent("sess-old", proj);
+    assert.ok(store.has(a.id) && a.isExternal);
+    await m.removeStale();
+    assert.equal(store.has(a.id), false, "30+ daqiqa faoliyatsiz — olindi");
+    await m.scanForNew();
+    assert.equal(store.size, 0, "fayl o'zgarmagan — qayta qo'shilmadi (aylanish yo'q)");
+    fs.appendFileSync(file, "{}\n"); // sessiya davom etdi
+    await m.scanForNew();
+    assert.equal(store.size, 1, "yangi faoliyat — agent qaytdi");
+    m.dispose();
+  } finally {
+    if (prevU === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = prevU;
+    if (prevH === undefined) delete process.env.HOME; else process.env.HOME = prevH;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 void (async () => {
-  if (asyncTests.length) console.log("Async (katta transcript — host qotmaydi):");
+  if (asyncTests.length) console.log("Async testlar:");
   for (const t of asyncTests) {
     try {
       await t.fn();

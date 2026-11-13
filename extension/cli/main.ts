@@ -3,7 +3,7 @@ import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import { WebSocketServer } from "ws";
-import { sanitizeName } from "../core/attention.js";
+import { isStaleExternal, sanitizeName } from "../core/attention.js";
 import { READING_TOOLS, SUBAGENT_TOOL_NAMES } from "../core/constants.js";
 import type { ClientMessage, ServerMessage } from "../core/messages.js";
 import { within } from "../core/hookRouting.js";
@@ -138,11 +138,17 @@ function scan(): void {
       const filePath = path.join(dir, name);
       const sid = path.basename(name, ".jsonl");
       if (store.findByFile(filePath) || store.findBySession(sid)) continue;
+      let mtime: number;
       try {
-        if (fs.statSync(filePath).mtimeMs < startupTime) continue;
+        mtime = fs.statSync(filePath).mtimeMs;
       } catch {
         continue;
       }
+      if (mtime < startupTime) continue;
+      // Eskirgan deb olingan — faqat fayl yangidan o'zgarsa qaytadi.
+      const staleAt = staleRemoved.get(filePath);
+      if (staleAt !== undefined && mtime <= staleAt) continue;
+      staleRemoved.delete(filePath);
       adopt(filePath, folderName);
     }
   }
@@ -150,7 +156,28 @@ function scan(): void {
   for (const a of store.values()) {
     if (!fs.existsSync(a.filePath)) store.remove(a.id);
   }
+  // 30+ daqiqa faoliyatsiz agentlar (CLI'da terminal yo'q — yopilganini bilib
+  // bo'lmaydi) — ~30 soniyada bir tekshiramiz; sessiya davom etsa qaytadi.
+  if (scanCount++ % 30 === 0) {
+    const now = Date.now();
+    for (const a of store.values()) {
+      if (a.priming) continue;
+      let mtime: number;
+      try {
+        mtime = fs.statSync(a.filePath).mtimeMs;
+      } catch {
+        continue;
+      }
+      const busy = a.activeToolIds.size > 0 || a.subagentToolIds.size > 0 || a.permissionActive;
+      if (isStaleExternal({ isExternal: true, boundToOpenTerminal: false, isWaiting: a.isWaiting, busy, fileMtimeMs: mtime, now })) {
+        staleRemoved.set(a.filePath, mtime);
+        store.remove(a.id);
+      }
+    }
+  }
 }
+let scanCount = 0;
+const staleRemoved = new Map<string, number>();
 setInterval(scan, 1000);
 scan();
 
