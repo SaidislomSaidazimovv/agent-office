@@ -95,6 +95,10 @@ report you can share — and its cost numbers are now the real ones.
   and `\` alike on Windows and respects case on Linux.
 - The browser viewer reconnects after the CLI restarts, and a malformed URL no
   longer crashes the CLI.
+- Agent labels and bubbles no longer draw over the dashboard and other
+  panels; the history/story/report views no longer shrink to a sliver when no
+  agent is running; and in a narrow panel the agent bar moves below the
+  toolbars instead of covering their buttons.
 
 ### Security
 
