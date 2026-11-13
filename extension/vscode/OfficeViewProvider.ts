@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -16,6 +17,7 @@ import type { AgentState } from "../server/types.js";
 import { AgentManager } from "./agentManager.js";
 import { HistoryStore } from "./historyStore.js";
 import { installHooks } from "./hookInstaller.js";
+import { buildWebviewHtml } from "./webviewHtml.js";
 
 export const VIEW_ID = "agent-office.panelView";
 const MAX_PENDING = 1000;
@@ -655,18 +657,14 @@ export class OfficeViewProvider implements vscode.WebviewViewProvider {
       return `<html><body style="font-family:sans-serif;padding:20px;color:#ddd;background:#111">
         <h3>Agent Office</h3><p>Webview qurilmagan. <code>npm run build</code> ni ishga tushiring.</p></body></html>`;
     }
-    // Nisbiy asset URL'larini webview URI'lariga aylantiramiz
-    html = html.replace(/(href|src)="\.?\/([^"]+)"/g, (_m, attr, file) => {
-      const uri = webview.asWebviewUri(vscode.Uri.joinPath(distPath, file));
-      return `${attr}="${uri}"`;
-    });
-    // Runtime asset bazasi (GLB/tekstura three.js yuklashi uchun) — webview URI
+    // Asset URL'lari + qat'iy CSP + nonce'li runtime asset bazasi (webviewHtml.ts).
     const baseUri = webview.asWebviewUri(distPath).toString().replace(/\/$/, "");
-    html = html.replace(
-      /<head>/i,
-      `<head><script>window.__ASSET_BASE__ = ${JSON.stringify(baseUri + "/")};</script>`,
-    );
-    return html;
+    return buildWebviewHtml(html, {
+      toUri: (file) => webview.asWebviewUri(vscode.Uri.joinPath(distPath, file)).toString(),
+      cspSource: webview.cspSource,
+      nonce: crypto.randomBytes(16).toString("base64"),
+      assetBase: baseUri + "/",
+    });
   }
 
   dispose(): void {

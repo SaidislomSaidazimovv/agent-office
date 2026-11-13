@@ -9,6 +9,7 @@ import { areHooksInstalled, installHooks, uninstallHooks } from "../extension/vs
 import { handleHookEvent } from "../extension/server/hookHandler.js";
 import { pickServerForCwd, type ServerEntry } from "../extension/core/hookRouting.js";
 import { HistoryStore } from "../extension/vscode/historyStore.js";
+import { buildWebviewHtml, webviewCsp } from "../extension/vscode/webviewHtml.js";
 import { processTranscriptLine } from "../extension/server/transcriptParser.js";
 import { MAX_NAME_LEN, needsAttention, newlyStuck, sanitizeName, statusText, STUCK_MS, summarize } from "../extension/core/attention.js";
 import { agentSnapshotMessages, formatError, formatSubagent, MAX_ERROR_LEN, permissionDelayFor } from "../extension/server/stateActions.js";
@@ -197,6 +198,24 @@ test("api_error → blocked; yangi user so'rovi → tozalanadi", () => {
   assert.equal(agent.blocked, true);
   processTranscriptLine(store, agent, JSON.stringify({ type: "user", message: { content: "yangi so'rov" } }));
   assert.equal(agent.blocked, false, "yangi navbat xatoni tozalashi kerak");
+});
+
+console.log("Webview HTML (CSP):");
+
+test("webview HTML: qat'iy CSP <head> boshida, tashqi tarmoq yo'q, skriptlar nonce'li", () => {
+  const src = '<!doctype html><html><head><meta charset="UTF-8" /><style>a{}</style><script type="module" crossorigin src="./assets/index.js"></script><link rel="modulepreload" crossorigin href="./assets/three.js"></head><body></body></html>';
+  const out = buildWebviewHtml(src, { toUri: (f) => `https://res.test/${f}`, cspSource: "https://res.test", nonce: "N1", assetBase: "https://res.test/" });
+  const headStart = out.indexOf("<head>") + "<head>".length;
+  assert.ok(out.startsWith('<meta http-equiv="Content-Security-Policy"', headStart), "CSP birinchi element");
+  assert.ok(out.includes('src="https://res.test/assets/index.js"'), "asset URL webview URI'ga aylandi");
+  assert.ok(out.includes('href="https://res.test/assets/three.js"'));
+  const scripts = out.match(/<script\b[^>]*>/g) || [];
+  assert.equal(scripts.length, 2);
+  assert.ok(scripts.every((t) => t.includes('nonce="N1"')), "har skript nonce'li");
+  const csp = webviewCsp("https://res.test", "N1");
+  assert.ok(csp.startsWith("default-src 'none'"));
+  assert.ok(!/\*|https?:\/\/(?!res\.test)/.test(csp.replace(/'[^']*'/g, "")), "faqat o'z manbamiz — wildcard/tashqi host yo'q");
+  assert.ok(!csp.includes("unsafe-eval") && !/script-src[^;]*unsafe-inline/.test(csp), "skriptda unsafe-inline/eval yo'q");
 });
 
 console.log("Hook handler:");
