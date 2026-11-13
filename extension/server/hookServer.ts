@@ -115,11 +115,15 @@ export class HookServer {
 
   private atomicWrite(file: string, content: string): void {
     try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
+      // Faylda Bearer TOKEN bor — faqat egasi o'qisin (0600 / papka 0700). Aks
+      // holda umumiy (multi-user) Linux/macOS'da boshqa lokal foydalanuvchi
+      // tokenni o'qib, soxta hook event yuborishi mumkin edi. (Windows'da POSIX
+      // rejimi e'tiborsiz — u yerda uy papkasi ACL bilan himoyalangan.)
+      fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
       // ATOMIK: temp faylga yozib, so'ng rename — hook-skript hech qachon
       // yarim-yozilgan faylni o'qimaydi (event tushib qolmaydi).
       const tmp = `${file}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, content);
+      fs.writeFileSync(tmp, content, { mode: 0o600 });
       fs.renameSync(tmp, file);
     } catch {
       /* yozib bo'lmasa — hooks ishlamaydi, lekin JSONL zaxira bor */
