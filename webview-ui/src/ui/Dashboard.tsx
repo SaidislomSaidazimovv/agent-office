@@ -342,7 +342,13 @@ export default function Dashboard({ onClose }: { onClose: () => void }) {
     <div
       role="dialog"
       style={{
-        position: "absolute", top: 52, right: 14, width: 560, maxHeight: "82vh", pointerEvents: "auto",
+        position: "absolute", top: 52, right: 14, width: 560, maxWidth: "calc(100% - 28px)", maxHeight: "82vh", pointerEvents: "auto",
+        // HUD ichida agent chip-bar'idan (DOM'da keyin keladi) yuqorida tursin.
+        zIndex: 10,
+        // Tarix/hikoya/hisobot paneli ichkarida `inset: 0` bilan turadi — asosiy
+        // mazmun qisqa bo'lsa (masalan agent yo'q) ular juda past qolardi. Ochiq
+        // bo'lganda konteyner to'liq balandlikni oladi.
+        height: showHistory || showStory || report != null ? "82vh" : undefined,
         display: "flex", flexDirection: "column", overflow: "hidden",
         background: "rgba(16,20,27,0.97)", border: "1px solid rgba(255,255,255,0.12)",
         borderRadius: 14, boxShadow: "0 12px 34px rgba(0,0,0,0.55)", fontFamily: "system-ui",
