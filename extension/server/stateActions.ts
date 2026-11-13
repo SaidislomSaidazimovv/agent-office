@@ -22,7 +22,7 @@ export function agentSnapshotMessages(a: AgentState): ServerMessage[] {
     // qismini yo'qotardi (idle agentda butunlay noto'g'ri qolardi).
     msgs.push({
       type: "agentTokenUsage", id: a.id, inputTokens: a.inputTokens, outputTokens: a.outputTokens, contextWindow: a.contextWindow,
-      model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead,
+      model: a.model, billedInput: a.billedInput, billedCacheWrite: a.billedCacheWrite, billedCacheRead: a.billedCacheRead, costUsd: a.costUsd,
     });
   }
   // Har REAL faol tool uchun bitta start — webview sanog'i server bilan aniq mos

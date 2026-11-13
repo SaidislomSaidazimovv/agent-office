@@ -263,6 +263,10 @@ export interface AgentTokenUsage {
   billedInput?: number;
   billedCacheWrite?: number;
   billedCacheRead?: number;
+  /** Host hisoblagan sessiya xarajati ($) — har API javobi o'z modeli, kesh
+   *  muddati (5m/1h), fast mode va uzun-prompt narxi bilan (core/pricing.ts).
+   *  Bo'lmasa (eski host) webview o'zi taxmin qiladi. */
+  costUsd?: number;
 }
 export interface GitStatus {
   type: "gitStatus";

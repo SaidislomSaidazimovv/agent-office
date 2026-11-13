@@ -208,7 +208,7 @@ interface OfficeState {
   setStuck(id: number, on: boolean): void;
   addSubagent(id: number, key: string, info?: { label?: string; kind?: string }): void;
   clearSubagent(id: number, key: string): void;
-  setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }): void;
+  setTokens(id: number, input: number, output: number, contextWindow?: number, cost?: { model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number; costUsd?: number }): void;
   setCapabilities(readingTools: string[]): void;
   setFolders(folders: { name: string; path: string }[]): void;
   setGitRepos(repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[]): void;
@@ -543,7 +543,8 @@ export const useOffice = create<OfficeState>((set, get) => ({
     const billed: BilledTokens = cost
       ? { input: cost.billedInput ?? 0, cacheWrite: cost.billedCacheWrite ?? 0, cacheRead: cost.billedCacheRead ?? 0, output }
       : a.billed;
-    const costUsd = cost ? estimateCost(model, billed) : a.costUsd;
+    // Host hisoblagan aniq xarajat (har javob o'z narxida); bo'lmasa — zaxira taxmin.
+    const costUsd = cost ? (typeof cost.costUsd === "number" ? cost.costUsd : estimateCost(model, billed)) : a.costUsd;
     set((s) => ({ agents: { ...s.agents, [id]: { ...a, inputTokens: input, outputTokens: output, contextWindow: contextWindow ?? a.contextWindow, model, costUsd, billed } } }));
   },
 

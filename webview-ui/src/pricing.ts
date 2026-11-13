@@ -1,39 +1,26 @@
 // ── Claude model narxlari (xarajat baholagichi) ─────────────
-// Rasmiy Claude API narxlari (per 1M token). Taxmin QILINMAGAN — model
-// hujjatidan olingan. Kesh yozish = kirish×1.25 (5 daq), kesh o'qish = kirish×0.1.
-// Narx eskirishi mumkin — shuning uchun UI'da "~" (taxminiy) belgisi bor.
-export const PRICING_AS_OF = "2026-07"; // narxlar shu sanaga
+// Narx jadvali YAGONA manbada — extension/core/pricing.ts (host ham shuni
+// ishlatadi, rasmiy narxlar sahifasidan). Sessiya xarajatining o'zini HOST
+// hisoblaydi (har javob o'z modeli, 5m/1h kesh, fast mode bilan) va
+// agentTokenUsage.costUsd'da yuboradi; bu yerdagi estimateCost faqat zaxira
+// (costUsd kelmasa) va kesh samaradorligi ko'rsatkichi uchun.
+import { PRICING_AS_OF, rateFor } from "../../extension/core/pricing";
 
-interface Rate { input: number; output: number } // $ / 1M token
-// Model id substring bo'yicha moslanadi (variantlar: -1m, -fast, sanali).
-const RATES: [string, Rate][] = [
-  ["fable", { input: 10, output: 50 }],
-  ["mythos", { input: 10, output: 50 }],
-  ["opus", { input: 5, output: 25 }],   // 4.8 / 4.7 / 4.6 / 4.5
-  ["sonnet", { input: 3, output: 15 }], // 5 / 4.6 / 4.5
-  ["haiku", { input: 1, output: 5 }],   // 4.5
-];
-const DEFAULT: Rate = { input: 5, output: 25 }; // noma'lum → Opus-tier
-
-function rateFor(model: string | undefined): Rate {
-  if (!model) return DEFAULT;
-  const m = model.toLowerCase();
-  for (const [key, r] of RATES) if (m.includes(key)) return r;
-  return DEFAULT;
-}
+export { PRICING_AS_OF };
 
 export interface BilledTokens {
   input: number;      // keshlanmagan kirish
   cacheWrite: number; // kesh yozish (×1.25)
-  cacheRead: number;  // kesh o'qish (×0.1)
+  cacheRead: number;  // kesh o'qish (modelga bog'liq: ×0.025–×0.1)
   output: number;
 }
 
 /** Sessiya davomida jamlangan billing tokenlaridan taxminiy xarajat ($). */
 export function estimateCost(model: string | undefined, t: BilledTokens): number {
   const r = rateFor(model);
+  // Zaxira taxmin: kesh yozish 5 daqiqalik deb olinadi (1h bo'linishi faqat hostda bor).
   const dollars =
-    (t.input * r.input + t.cacheWrite * r.input * 1.25 + t.cacheRead * r.input * 0.1 + t.output * r.output) / 1_000_000;
+    (t.input * r.input + t.cacheWrite * r.input * 1.25 + t.cacheRead * r.input * r.readMul + t.output * r.output) / 1_000_000;
   return dollars;
 }
 
@@ -50,7 +37,7 @@ export interface CacheStats {
 }
 
 /** Kesh samaradorligi — bir sessiya (yoki bir agent) uchun.
- *  Kesh o'qish kirish narxining 10%i, yozish esa 125%i. Ya'ni keshsiz o'sha
+ *  Kesh o'qish kirish narxining modelga bog'liq ulushi (0.025×–0.1×), yozish 125%i. Ya'ni keshsiz o'sha
  *  tokenlar TO'LIQ narxda hisoblanardi — farqi haqiqiy tejamkorlik. */
 export function cacheStats(model: string | undefined, t: BilledTokens): CacheStats {
   const r = rateFor(model);

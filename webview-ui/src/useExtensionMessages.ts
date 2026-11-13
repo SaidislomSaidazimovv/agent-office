@@ -90,7 +90,7 @@ export function useExtensionMessages(): void {
           break;
         case "agentTokenUsage":
           store.setTokens(msg.id, msg.inputTokens, msg.outputTokens, msg.contextWindow, {
-            model: msg.model, billedInput: msg.billedInput, billedCacheWrite: msg.billedCacheWrite, billedCacheRead: msg.billedCacheRead,
+            model: msg.model, billedInput: msg.billedInput, billedCacheWrite: msg.billedCacheWrite, billedCacheRead: msg.billedCacheRead, costUsd: msg.costUsd,
           });
           break;
         case "settingsLoaded":

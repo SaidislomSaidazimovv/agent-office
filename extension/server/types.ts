@@ -78,6 +78,8 @@ export interface AgentState {
   billedInput: number;
   billedCacheWrite: number;
   billedCacheRead: number;
+  /** Sessiya xarajati ($) — har javob alohida narxlanadi (core/pricing.ts). */
+  costUsd: number;
   /** Sessiya modeli (transcript `message.model`dan). */
   model?: string;
   /** Shu model uchun kontekst oynasi (200k yoki 1M). */
@@ -140,6 +142,7 @@ export function createAgentState(
     billedInput: 0,
     billedCacheWrite: 0,
     billedCacheRead: 0,
+    costUsd: 0,
     contextWindow: MAX_CONTEXT_TOKENS,
     seenMsgIds: new Set(),
   };

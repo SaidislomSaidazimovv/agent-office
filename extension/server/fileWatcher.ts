@@ -124,6 +124,7 @@ export class FileWatcher {
     agent.billedInput = 0;
     agent.billedCacheWrite = 0;
     agent.billedCacheRead = 0;
+    agent.costUsd = 0;
     agent.toolCats = {}; // qayta o'qishda tool turkumlari ikki barobar bo'lmasin
     agent.seenMsgIds.clear(); // 0dan qayta o'qiymiz — dedupe ham 0dan
   }

@@ -25,7 +25,7 @@ export type ServerMessage =
   | { type: "subagentToolStart"; id: number; parentToolId: string; toolId: string; status: string; label?: string; kind?: string }
   | { type: "subagentToolDone"; id: number; parentToolId: string; toolId: string }
   | { type: "subagentClear"; id: number; parentToolId: string }
-  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number; model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number }
+  | { type: "agentTokenUsage"; id: number; inputTokens: number; outputTokens: number; contextWindow?: number; model?: string; billedInput?: number; billedCacheWrite?: number; billedCacheRead?: number; costUsd?: number }
   | { type: "gitStatus"; repos: { name: string; branch?: string; changed: number; staged?: number; unstaged?: number; ahead?: number; behind?: number }[] }
   | { type: "workspaceFolders"; folders: { name: string; path: string }[] }
   | { type: "settingsLoaded"; soundEnabled: boolean; extensionVersion: string }

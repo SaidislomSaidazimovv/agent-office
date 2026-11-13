@@ -8,6 +8,7 @@ import {
 } from "../core/constants.js";
 import type { AgentStateStore } from "./agentStateStore.js";
 import { accumulateRole } from "./roleInference.js";
+import { messageCost, type UsageLike } from "../core/pricing.js";
 import { toolCat } from "../core/toolcat.js";
 import { formatError, formatSubagent, formatToolStatus, markWaiting, permissionDelayFor, setActive, setBlocked } from "./stateActions.js";
 import type { AgentState } from "./types.js";
@@ -100,6 +101,9 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
   agent.billedInput += usage.input_tokens || 0;
   agent.billedCacheWrite += usage.cache_creation_input_tokens || 0;
   agent.billedCacheRead += usage.cache_read_input_tokens || 0;
+  // Xarajat — SHU javobning o'z modeli va usage tafsilotlari bilan (5m/1h kesh,
+  // fast mode, Haiku uzun-prompt, US-inference, web search) rasmiy narxda.
+  agent.costUsd += messageCost(model && model !== "<synthetic>" ? model : agent.model, usage as UsageLike);
   store.broadcast({
     type: "agentTokenUsage",
     id: agent.id,
@@ -110,6 +114,7 @@ function emitTokens(store: AgentStateStore, agent: AgentState, message: Record<s
     billedInput: agent.billedInput,
     billedCacheWrite: agent.billedCacheWrite,
     billedCacheRead: agent.billedCacheRead,
+    costUsd: agent.costUsd,
   });
 }
 

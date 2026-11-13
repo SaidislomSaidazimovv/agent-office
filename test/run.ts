@@ -20,7 +20,8 @@ import { budgetCrossing, budgetState } from "../webview-ui/src/budget.js";
 import { agentEfficiency, costVelocity, timeToBudgetMin } from "../webview-ui/src/forecast.js";
 import { buildReport } from "../webview-ui/src/report.js";
 import { buildReportHtml } from "../webview-ui/src/reportHtml.js";
-import { cacheStats } from "../webview-ui/src/pricing.js";
+import { cacheStats, estimateCost } from "../webview-ui/src/pricing.js";
+import { messageCost } from "../extension/core/pricing.js";
 import { matchAgents } from "../webview-ui/src/search.js";
 import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
 import { dailyCost, dayStatFor, historyCsv, modelTotals, projectTotals, rollupCost } from "../webview-ui/src/history.js";
@@ -109,6 +110,54 @@ test("bir xil message.id'li qatorlar (har content-block alohida) usage'ni BIR MA
   processTranscriptLine(store, agent, JSON.stringify({ type: "assistant", message: { id: "msg_B", content: [{ type: "text", text: "x" }], usage: { input_tokens: 1, output_tokens: 5 } } }));
   assert.equal(agent.outputTokens, 305);
   assert.equal(agent.billedInput, 11);
+});
+
+test("narx: rasmiy jadval (2026-11-13) — har toifa, eski/sanali id'lar, kesh o'qish ko'paytuvchisi modelga bog'liq", () => {
+  const M = 1_000_000;
+  const near = (a: number, b: number, msg: string) => assert.ok(Math.abs(a - b) < 1e-9, `${msg}: ${a} != ${b}`);
+  // Opus 5.5: $4 / $5 (5m) / $8 (1h) / $0.20 (o'qish) / $20.
+  near(messageCost("claude-opus-5-5", { input_tokens: M }), 4, "opus-5-5 input");
+  near(messageCost("claude-opus-5-5", { cache_creation_input_tokens: M }), 5, "5m yozish (bo'linish yo'q → 5m)");
+  near(messageCost("claude-opus-5-5", { cache_creation_input_tokens: M, cache_creation: { ephemeral_1h_input_tokens: M } }), 8, "1h yozish");
+  near(messageCost("claude-opus-5-5", { cache_read_input_tokens: M }), 0.2, "opus-5-5 o'qish 0.05×");
+  near(messageCost("claude-opus-5-5", { output_tokens: M }), 20, "opus-5-5 output");
+  // Kesh o'qish ko'paytuvchilari (sahifadagi ustun bilan bir xil).
+  near(messageCost("claude-fable-5-2", { cache_read_input_tokens: M }), 0.2, "fable-5-2 0.025×");
+  near(messageCost("claude-fable-5-1", { cache_read_input_tokens: M }), 0.25, "fable-5-1");
+  near(messageCost("claude-fable-5", { cache_read_input_tokens: M }), 1, "fable-5 0.1×");
+  near(messageCost("claude-sonnet-5-5", { cache_read_input_tokens: M }), 0.1, "sonnet-5-5");
+  near(messageCost("claude-sonnet-5", { cache_read_input_tokens: M }), 0.2, "sonnet-5");
+  near(messageCost("claude-opus-4-8[1m]", { input_tokens: M, cache_read_input_tokens: M }), 5.5, "opus-4-8 [1m]");
+  // Eski va sanali id'lar.
+  near(messageCost("claude-opus-4-5-20251101", { input_tokens: M }), 5, "opus-4-5 sanali");
+  near(messageCost("claude-opus-4-1-20250805", { input_tokens: M, output_tokens: M }), 90, "opus-4-1 $15/$75");
+  near(messageCost("claude-opus-4-20250514", { input_tokens: M }), 15, "opus-4 sanali");
+  near(messageCost("claude-sonnet-4-5-20250929", { input_tokens: M, output_tokens: M }), 18, "sonnet-4-5 $3/$15");
+  near(messageCost("claude-haiku-4-5-20251001", { input_tokens: M, output_tokens: M }), 6, "haiku-4-5 $1/$5");
+  // Fast mode — kesh ko'paytuvchisi fast narx USTIGA; fast'i yo'q modelda e'tiborsiz.
+  near(messageCost("claude-opus-5-5", { input_tokens: M, cache_read_input_tokens: M, speed: "fast" }), 8.4, "opus-5-5 fast");
+  near(messageCost("claude-fable-5-2", { output_tokens: M, speed: "fast" }), 80, "fable-5-2 fast output");
+  near(messageCost("claude-sonnet-5-5", { input_tokens: M, speed: "fast" }), 2, "fast'i yo'q model — standart");
+  // Haiku 5.5: prompt (input+o'qish+yozish) 100k dan oshsa — har so'rov yuqori narxda.
+  near(messageCost("claude-haiku-5-5", { input_tokens: 50_000, cache_read_input_tokens: 40_000, output_tokens: 1000 }), (50_000 * 0.1 + 40_000 * 0.01 + 1000 * 0.5) / M, "haiku-5-5 ≤100k");
+  near(messageCost("claude-haiku-5-5", { input_tokens: 90_000, cache_read_input_tokens: 20_000, output_tokens: 1000 }), (90_000 * 0.5 + 20_000 * 0.05 + 1000 * 2.5) / M, "haiku-5-5 >100k");
+  // US-inference ×1.1, web search $10/1000.
+  near(messageCost("claude-opus-5-5", { input_tokens: M, inference_geo: "us" }), 4.4, "inference_geo us");
+  near(messageCost("claude-opus-5-5", { server_tool_use: { web_search_requests: 3 } }), 0.03, "web search");
+  // Webview zaxira taxmini AYNAN shu jadvaldan foydalanadi (bitta manba).
+  near(estimateCost("claude-opus-5-5", { input: 0, cacheWrite: 0, cacheRead: M, output: 0 }), 0.2, "webview zaxira = host jadvali");
+});
+
+test("host xarajati javob bo'yicha hisoblanadi (har javob o'z modeli) va agentTokenUsage'da yuboriladi", () => {
+  const { store, agent, ev } = setup();
+  const msg = (id: string, model: string, usage: Record<string, unknown>) =>
+    JSON.stringify({ type: "assistant", message: { id, model, content: [{ type: "text", text: "x" }], usage } });
+  processTranscriptLine(store, agent, msg("a", "claude-opus-5-5", { input_tokens: 1_000_000 }));
+  processTranscriptLine(store, agent, msg("a", "claude-opus-5-5", { input_tokens: 1_000_000 })); // dublikat qator
+  processTranscriptLine(store, agent, msg("b", "claude-haiku-4-5", { output_tokens: 1_000_000 }));
+  assert.ok(Math.abs(agent.costUsd - 9) < 1e-9, `4 (opus) + 5 (haiku) = 9, ${agent.costUsd}`);
+  const last = [...ev].reverse().find((e) => e.type === "agentTokenUsage") as { costUsd?: number };
+  assert.ok(Math.abs((last.costUsd ?? 0) - 9) < 1e-9, "costUsd broadcast qilinadi");
 });
 
 test("primeFromStart qayta o'qishda dedupe 0dan boshlanadi (xarajat yo'qolmaydi)", () => {
