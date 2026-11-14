@@ -20,27 +20,27 @@
   },
   "baseline": {
     "empty_day": {
-      "callsMax": 1910,
+      "callsMax": 1216,
       "meshes": 1215,
       "materials": 480
     },
     "agents8_day": {
-      "callsMax": 2276,
+      "callsMax": 1525,
       "meshes": 1508,
       "materials": 544
     },
     "agents8_night": {
-      "callsMax": 2276,
+      "callsMax": 1525,
       "meshes": 1508,
       "materials": 544
     },
     "agents24_day": {
-      "callsMax": 3482,
+      "callsMax": 3293,
       "meshes": 2377,
       "materials": 588
     },
     "agents8_fpv": {
-      "callsMax": 1363,
+      "callsMax": 637,
       "meshes": 1516,
       "materials": 548
     }

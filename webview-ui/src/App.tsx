@@ -185,7 +185,7 @@ const GALLERY = Q.has("gallery");
 function Gallery() {
   const roles = Object.entries(ROLE_PRESETS);
   return (
-    <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.2, 6.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
+    <Canvas shadows="percentage" dpr={[1, 1.5]} camera={{ position: [0, 1.2, 6.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
       <color attach="background" args={["#2a2f38"]} />
       <ambientLight intensity={0.85} />
       <directionalLight position={[3, 6, 4]} intensity={1.1} castShadow />
@@ -267,7 +267,12 @@ export default function App() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
-        shadows
+        // "percentage" = PCFShadowMap. `shadows` (true) R3F'da PCFSoftShadowMap
+        // beradi — three 0.185 uni eskirgan deb PCF'ga almashtiradi va har
+        // Canvas qayta konfiguratsiyasida (App re-render) tur farqi tufayli
+        // shadowMap.needsUpdate=true bo'lib, butun sahna soya o'tishida qayta
+        // chizilardi (+ konsolda ogohlantirish). Ko'rinish o'zgarmaydi.
+        shadows="percentage"
         dpr={dprFor(quality)}
         // preserveDrawingBuffer — 📸 surat olish uchun shart (aks holda toDataURL
         // bo'sh kadr qaytaradi). Narxi kichik: bufer freym oxirida tozalanmaydi.
