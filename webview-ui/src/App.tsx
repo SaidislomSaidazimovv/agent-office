@@ -21,6 +21,7 @@ import Room from "./scene/Room";
 import { ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
+import { StaticBatch } from "./scene/StaticBatch";
 import { useOffice } from "./store";
 import { send } from "./transport";
 import Hud from "./ui/Hud";
@@ -247,6 +248,11 @@ export default function App() {
   // uchun ular doim to'siq. Overflow (10+) agentlarning stollari esa faqat band
   // bo'lganda qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatda tekshirilgan.)
   const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
+  // Stollarning statik ko'rinishi imzosi (StaticBatch qayta qurilishi uchun) —
+  // soya imzosi bilan aynan bir xil holat (o'rindiq + rol + tartibsizlik).
+  const deskSig = useOffice((s) =>
+    shadowSignature(s.order.map((id) => s.agents[id]).filter(Boolean).map((a) => ({ seatIndex: a!.seatIndex, role: a!.role, clutter: clutterLevel(a!.toolCalls) }))),
+  );
   useEffect(() => {
     const base = Array.from({ length: SEAT_COUNT }, (_, i) => i);
     const overflow = order
@@ -317,14 +323,20 @@ export default function App() {
         {/* 10 ta ASOSIY stol DOIM turadi (band bo'lsa yonadi, bo'sh bo'lsa
             o'chiq) — ofis haqiqiy ofisdek to'la ko'rinadi, agent mebel emas,
             ODAM bo'lib "ishga keladi". */}
-        {Array.from({ length: SEAT_COUNT }, (_, i) => {
-          const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
-          return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
-        })}
-        {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
-        {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
-          <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
-        ))}
+        {/* Stollar statik qismi birlashtiriladi (draw call). Stol ko'rinishi faqat
+            band/bo'shlik, rol buyumi va tartibsizlik darajasiga bog'liq (deskSig) —
+            shu o'zgarganda qayta quriladi. Monitor ekrani (tekstura) va porlash
+            (MeshBasic) avtomatik chetda qoladi — holat rangi jonli. */}
+        <StaticBatch deps={[deskSig]}>
+          {Array.from({ length: SEAT_COUNT }, (_, i) => {
+            const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
+            return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
+          })}
+          {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
+          {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
+            <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
+          ))}
+        </StaticBatch>
         {order.map((id) => {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;

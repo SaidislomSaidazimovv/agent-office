@@ -20,34 +20,34 @@
   },
   "baseline": {
     "empty_day": {
-      "callsSteady": 307,
-      "callsMax": 307,
-      "meshes": 1238,
-      "materials": 503
+      "callsSteady": 126,
+      "callsMax": 126,
+      "meshes": 1247,
+      "materials": 512
     },
     "agents8_day": {
-      "callsSteady": 616,
-      "callsMax": 616,
-      "meshes": 1531,
-      "materials": 567
+      "callsSteady": 407,
+      "callsMax": 407,
+      "meshes": 1543,
+      "materials": 579
     },
     "agents8_night": {
-      "callsSteady": 616,
-      "callsMax": 616,
-      "meshes": 1531,
-      "materials": 567
+      "callsSteady": 407,
+      "callsMax": 407,
+      "meshes": 1543,
+      "materials": 579
     },
     "agents24_day": {
-      "callsSteady": 1517,
-      "callsMax": 1517,
-      "meshes": 2400,
-      "materials": 611
+      "callsSteady": 980,
+      "callsMax": 980,
+      "meshes": 2411,
+      "materials": 622
     },
     "agents8_fpv": {
-      "callsSteady": 277,
-      "callsMax": 278,
-      "meshes": 1539,
-      "materials": 571
+      "callsSteady": 197,
+      "callsMax": 199,
+      "meshes": 1551,
+      "materials": 583
     }
   },
   "baselineMeasuredAt": "2026-11-14",
