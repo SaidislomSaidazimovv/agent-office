@@ -36,3 +36,5 @@ dist/cli.js
 !icon.png
 
 # Faqat quyidagilar kiradi: dist/, package.json, README.md, icon.png, LICENSE
+scripts/**
+perf-out/**

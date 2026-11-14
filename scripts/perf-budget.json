@@ -1,0 +1,49 @@
+{
+  "description": "3D perf budget (Sprint 8). target = S8 goal for draw calls per scenario (informational until reached); baseline = last accepted measurement, guarded with regressionTolerance. Counts only — FPS is not measured headless.",
+  "regressionTolerance": 0.05,
+  "target": {
+    "empty_day": {
+      "callsMax": 300
+    },
+    "agents8_day": {
+      "callsMax": 396
+    },
+    "agents8_night": {
+      "callsMax": 396
+    },
+    "agents24_day": {
+      "callsMax": 600
+    },
+    "agents8_fpv": {
+      "callsMax": 396
+    }
+  },
+  "baseline": {
+    "empty_day": {
+      "callsMax": 1910,
+      "meshes": 1215,
+      "materials": 480
+    },
+    "agents8_day": {
+      "callsMax": 2276,
+      "meshes": 1508,
+      "materials": 544
+    },
+    "agents8_night": {
+      "callsMax": 2276,
+      "meshes": 1508,
+      "materials": 544
+    },
+    "agents24_day": {
+      "callsMax": 3482,
+      "meshes": 2377,
+      "materials": 588
+    },
+    "agents8_fpv": {
+      "callsMax": 1363,
+      "meshes": 1516,
+      "materials": 548
+    }
+  },
+  "baselineMeasuredAt": "2026-11-14"
+}
