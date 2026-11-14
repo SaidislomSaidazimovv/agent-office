@@ -22,3 +22,5 @@ _shot*.cjs
 .multi-agent/
 .env
 .env.*
+scripts/
+perf-out/

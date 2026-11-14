@@ -43,3 +43,5 @@ TESTING.md
 
 # test output
 .test-out.cjs
+# 3D perf o'lchov natijalari (scripts/perf-baseline.cjs)
+perf-out/

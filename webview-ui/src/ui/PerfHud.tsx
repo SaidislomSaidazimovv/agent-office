@@ -16,23 +16,40 @@ export const PERF_ENABLED =
 export interface PerfStats {
   fps: number;
   calls: number;
+  /** So'nggi ~500ms oynasidagi HAR kadr bo'yicha min/max draw call. Soya xaritasi
+   *  har N kadrda yangilanadi (ShadowThrottle) va gl.info soya o'tishini ham
+   *  sanaydi: min ≈ faqat sahna, max ≈ sahna + soya. Bitta kadr o'qilsa bu
+   *  tasodifga bog'liq bo'lardi. */
+  callsMin: number;
+  callsMax: number;
   tris: number;
+  trisMax: number;
   meshes: number;
   materials: number;
   geometries: number;
   programs: number;
 }
 
-const stats: PerfStats = { fps: 0, calls: 0, tris: 0, meshes: 0, materials: 0, geometries: 0, programs: 0 };
+const stats: PerfStats = { fps: 0, calls: 0, callsMin: 0, callsMax: 0, tris: 0, trisMax: 0, meshes: 0, materials: 0, geometries: 0, programs: 0 };
 
 /** Canvas ICHIDA turadi — renderer ma'lumotini o'qiydi. */
 export function PerfProbe() {
   const { gl, scene } = useThree();
   const frames = useRef(0);
   const last = useRef(performance.now());
+  // Oyna ichidagi har kadr (gl.info — useFrame paytida OLDINGI kadr qiymati).
+  const win = useRef({ cMin: Infinity, cMax: 0, tMax: 0 });
 
   useFrame(() => {
     frames.current++;
+    const c = gl.info.render.calls;
+    const t = gl.info.render.triangles;
+    if (c > 0) {
+      const w = win.current;
+      if (c < w.cMin) w.cMin = c;
+      if (c > w.cMax) w.cMax = c;
+      if (t > w.tMax) w.tMax = t;
+    }
     const now = performance.now();
     if (now - last.current < 500) return;
 
@@ -43,6 +60,11 @@ export function PerfProbe() {
     // gl.info har render boshida nollanadi → bu o'tgan freym qiymatlari.
     stats.calls = gl.info.render.calls;
     stats.tris = gl.info.render.triangles;
+    const w = win.current;
+    stats.callsMin = Number.isFinite(w.cMin) ? w.cMin : stats.calls;
+    stats.callsMax = Math.max(w.cMax, stats.calls);
+    stats.trisMax = Math.max(w.tMax, stats.tris);
+    win.current = { cMin: Infinity, cMax: 0, tMax: 0 };
     stats.geometries = gl.info.memory.geometries;
     stats.programs = gl.info.programs?.length ?? 0;
 
@@ -86,7 +108,7 @@ export function PerfOverlay() {
       }}
     >
       <div style={{ ...row, fontWeight: 700, color: fpsColor }}><span>FPS</span><span>{s.fps}</span></div>
-      <div style={row}><span>draw calls</span><span>{s.calls}</span></div>
+      <div style={row}><span>draw calls</span><span>{s.callsMin}–{s.callsMax}</span></div>
       <div style={row}><span>uchburchak</span><span>{s.tris.toLocaleString()}</span></div>
       <div style={row}><span>mesh</span><span>{s.meshes}</span></div>
       <div style={row}><span>material</span><span>{s.materials}</span></div>
