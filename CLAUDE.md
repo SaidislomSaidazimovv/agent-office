@@ -46,7 +46,7 @@ Sections in order: 🟢 IN PROGRESS / TODO → 🟡 AWAITING REVIEW → 🟠 BLO
 
 Run all three before every commit.
 
-- **3D perf check (any change to the scene / webview rendering):** `npm run build`, then `node scripts/perf-baseline.cjs --check` (needs `npm i --no-save puppeteer-core` once and Chrome/Edge; `CHROME_PATH` if not in a standard location). It fails if draw calls exceed the baseline in `scripts/perf-budget.json` by more than 5%. When a change intentionally lowers the numbers, refresh the baseline with `--write-baseline` and commit it together with that change. Draw calls are reported as min (scene) – max (scene + shadow pass); FPS is not measured headless.
+- **3D perf check (any change to the scene / webview rendering):** `npm run build`, then `node scripts/perf-baseline.cjs --check` (needs `npm i --no-save puppeteer-core` once and Chrome/Edge; `CHROME_PATH` if not in a standard location). It fails if the steady per-frame draw calls exceed the baseline in `scripts/perf-budget.json` by more than 8% (first person varies ~4% run to run). When a change intentionally lowers the numbers, refresh the baseline with `--write-baseline` and commit it together with that change. Draw calls are reported as min (scene) – max (scene + shadow pass); FPS is not measured headless.
 
 ### Release checklist (only when the user says so)
 
