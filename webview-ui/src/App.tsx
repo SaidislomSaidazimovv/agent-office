@@ -12,7 +12,8 @@ import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
 import { presenceOf } from "./scene/presence";
-import { dprFor, shadowEvery, useSettings } from "./settings";
+import { clutterLevel } from "./scene/clutter";
+import { dprFor, shadowEvery, shadowSignature, useSettings } from "./settings";
 import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
@@ -27,19 +28,52 @@ import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
 import TextOffice from "./ui/TextOffice";
 import { useExtensionMessages } from "./useExtensionMessages";
 
-// Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
-// harakatlanadi, shuning uchun 15Hz soya ko'zga ilinmaydi — lekin har freym
-// butun sahnani soya-o'tishda qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
-function ShadowThrottle({ every }: { every: number }) {
+// Soya xaritasi HODISAGA bog'liq yangilanadi. Soya tashlaydiganlar faqat statik
+// narsalar (mebel, stol buyumlari, layout) — agentlar emas (ularda kontakt-soya
+// bor). Shuning uchun xarita faqat shular o'zgarganda qayta chiziladi: band
+// o'rindiqlar / rol / stol tartibsizligi (shadowSignature) yoki layout. Avval
+// har 4 freymda butun sahna soya o'tishida qayta chizilardi (~+50% draw call).
+// `every` — sekin zaxira yangilanish (o'simlik barglari kabi mayda harakat).
+function ShadowUpdater({ every }: { every: number }) {
   const gl = useThree((s) => s.gl);
   const f = useRef(0);
+  const dirty = useRef(true);
   useEffect(() => {
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
   }, [gl]);
+  useEffect(() => {
+    const sig = (s: ReturnType<typeof useOffice.getState>) =>
+      shadowSignature(s.order.map((id) => s.agents[id]).filter(Boolean).map((a) => ({ seatIndex: a!.seatIndex, role: a!.role, clutter: clutterLevel(a!.toolCalls) })));
+    let last = sig(useOffice.getState());
+    const offOffice = useOffice.subscribe((s) => {
+      const next = sig(s);
+      if (next !== last) {
+        last = next;
+        dirty.current = true;
+      }
+    });
+    const offLayout = useLayout.subscribe(() => {
+      dirty.current = true;
+    });
+    return () => {
+      offOffice();
+      offLayout();
+    };
+  }, []);
   useFrame((state) => {
     updateFrustum(state.camera); // perf culling — har agent shundan foydalanadi
-    if (f.current++ % every === 0) gl.shadowMap.needsUpdate = true;
+    const periodic = ++f.current % every === 0;
+    if (dirty.current || periodic) {
+      gl.shadowMap.needsUpdate = true;
+      if (PERF_ENABLED) {
+        // Faqat ?perf: nechta soya yangilanishi va nima sababdan (o'lchov uchun).
+        const w = window as unknown as { __shadowUpdates?: Record<string, number> };
+        const k = dirty.current ? "event" : "periodic";
+        w.__shadowUpdates = { ...(w.__shadowUpdates ?? {}), [k]: (w.__shadowUpdates?.[k] ?? 0) + 1 };
+      }
+      dirty.current = false;
+    }
   });
   return null;
 }
@@ -240,7 +274,7 @@ export default function App() {
         gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
-        <ShadowThrottle every={shadowEvery(quality)} />
+        <ShadowUpdater every={shadowEvery(quality)} />
         {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>

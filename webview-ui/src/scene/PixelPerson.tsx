@@ -11,7 +11,8 @@ import { visibleObject } from "./visibility";
 // Ulashilgan birlik-kub qutisi: har voxel bo'lagi bitta geometriya + keshlangan
 // material (20 agentda minglab dublikat o'rniga o'nlab noyob obyekt).
 type V3 = [number, number, number];
-// cast default FALSE — 20 agentda ~600 mayda soya-tashlovchi mesh perf'ni yeydi.
+// Agentlar soya TASHLAMAYDI: oyog'i ostida kontakt-soya bor (AgentAvatar), soya
+// xaritasi esa faqat statik sahna o'zgarganda qayta chiziladi (App ShadowUpdater).
 // Faqat tana+bosh (siluet) soya tashlaydi — yerga o'tirtirish uchun yetarli.
 function VB({ p, s, m, cast = false }: { p?: V3; s: V3; m: THREE.Material; cast?: boolean }) {
   return <mesh position={p} scale={s} geometry={UNIT_BOX} material={m} castShadow={cast} />;
@@ -105,18 +106,18 @@ function Hair({ style, color }: { style: HairStyle; color: string }) {
     case "afro":
       // Shar ORQAGA surildi (z=0.1) va kichraytirildi — oldi z≈-0.12'da tugaydi,
       // ko'zlar (z=-0.151) OLDIda qoladi → yuz ko'rinadi (avval afro yuzni yopardi).
-      return (<mesh position={[0, 0.15, 0.1]} castShadow geometry={sphere(0.22, 12, 10)} material={hm2} />);
+      return (<mesh position={[0, 0.15, 0.1]} geometry={sphere(0.22, 12, 10)} material={hm2} />);
     case "curly":
       return (
         <group>
-          <mesh position={[0, 0.15, 0.1]} castShadow geometry={sphere(0.2, 12, 10)} material={hm2} />
-          {[-0.17, 0.17].map((x) => <mesh key={x} position={[x, 0, 0.04]} castShadow geometry={sphere(0.095, 8, 8)} material={hm2} />)}
+          <mesh position={[0, 0.15, 0.1]} geometry={sphere(0.2, 12, 10)} material={hm2} />
+          {[-0.17, 0.17].map((x) => <mesh key={x} position={[x, 0, 0.04]} geometry={sphere(0.095, 8, 8)} material={hm2} />)}
         </group>
       );
     case "spiky":
       return (
         <group>{cap}
-          {[-0.1, 0, 0.1].map((x) => [-0.08, 0.08].map((z) => <mesh key={`${x}_${z}`} position={[x, 0.23, z]} rotation={[0.15 * z, 0, 0.2 * x]} castShadow material={hm}><coneGeometry args={[0.05, 0.13, 4]} /></mesh>))}
+          {[-0.1, 0, 0.1].map((x) => [-0.08, 0.08].map((z) => <mesh key={`${x}_${z}`} position={[x, 0.23, z]} rotation={[0.15 * z, 0, 0.2 * x]} material={hm}><coneGeometry args={[0.05, 0.13, 4]} /></mesh>))}
         </group>
       );
     default:
@@ -335,19 +336,19 @@ export default function PixelPerson({ skin: s, status, pose = "sit", moving = fa
     <group ref={rootRef}>
       <group ref={bodyRef} position={[0, 0.55, 0]}>
         {/* Tos */}
-        <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} cast />
+        <VB p={[0, 0, 0]} s={[0.34, 0.18, 0.26]} m={bottomMat} />
         {/* Oyoqlar (tos pastidan) */}
         {leg(-0.09, hipL, kneeL, ankleL)}
         {leg(0.09, hipR, kneeR, ankleR)}
 
         {/* Yuqori tana */}
         <group ref={upperRef} position={[0, 0.09, 0]}>
-          <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} cast />
+          <VB p={[0, 0.22, 0]} s={[0.36, 0.4, 0.24]} m={topMat} />
           {arm(-0.23, shoL, elbowL)}
           {arm(0.23, shoR, elbowR)}
           <VB p={[0, 0.45, 0]} s={[0.1, 0.08, 0.1]} m={skin} />
           <group ref={headRef} position={[0, 0.62, 0]}>
-            <VB s={[0.3, 0.3, 0.3]} m={skin} cast />
+            <VB s={[0.3, 0.3, 0.3]} m={skin} />
             {/* Yuz tafsilotlari (ko'z/burun/quloq/aksessuar) — faqat high LOD.
                 Kichik yordamchilar (low) uchun ko'rinmaydi → tashlab ketamiz. */}
             {!lod && <>

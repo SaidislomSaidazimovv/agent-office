@@ -29,7 +29,7 @@ import { buildStory, storyMarkdown, toolCat } from "../webview-ui/src/story.js";
 import { compareSessions, dailyCost, dayStatFor, filterDaysByProject, grandTotal, historyCsv, modelTotals, projectTotals, rollupCost, sessionKey } from "../webview-ui/src/history.js";
 import { buildInsights, costSpike, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
-import { dprFor, shadowEvery, useSettings } from "../webview-ui/src/settings.js";
+import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui/src/settings.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1641,6 +1641,16 @@ test("sifat rejimi: tejamkor → past dpr + kamroq soya yangilanishi", () => {
   assert.equal(dprFor("high"), 1);
   assert.ok(dprFor("low") < 1, "tejamkor rejimda piksel zichligi pasayadi");
   assert.ok(shadowEvery("low") > shadowEvery("high"), "tejamkor rejimda soya kamroq yangilanadi");
+  assert.ok(shadowEvery("high") >= 60, "zaxira yangilanish — har freym/4 freym emas (asosiysi hodisaga bog'liq)");
+});
+test("soya imzosi: faqat statik holat (o'rindiq/rol/tartibsizlik) o'zgarsa farq qiladi", () => {
+  const a = [{ seatIndex: 0, role: "qa", clutter: 1 }, { seatIndex: 3, role: undefined, clutter: 0 }];
+  assert.equal(shadowSignature(a), shadowSignature([...a].reverse()), "tartibga bog'liq emas");
+  assert.notEqual(shadowSignature(a), shadowSignature([{ ...a[0], clutter: 2 }, a[1]]), "stol tartibsizligi o'zgardi");
+  assert.notEqual(shadowSignature(a), shadowSignature([{ ...a[0], role: "docs" }, a[1]]), "rol (stol buyumi) o'zgardi");
+  assert.notEqual(shadowSignature(a), shadowSignature([a[0]]), "agent ketdi (stol bo'shadi)");
+  assert.notEqual(shadowSignature(a), shadowSignature([a[0], { ...a[1], seatIndex: 12 }]), "o'rindiq almashdi");
+  assert.equal(shadowSignature([]), "");
 });
 test("toggle/reset/budjet: yaroqsiz budjet → 0 (o'chiq), reset standartga qaytaradi", () => {
   const s = useSettings.getState();
