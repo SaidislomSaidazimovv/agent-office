@@ -34,6 +34,23 @@ import { useExtensionMessages } from "./useExtensionMessages";
 // o'rindiqlar / rol / stol tartibsizligi (shadowSignature) yoki layout. Avval
 // har 4 freymda butun sahna soya o'tishida qayta chizilardi (~+50% draw call).
 // `every` — sekin zaxira yangilanish (o'simlik barglari kabi mayda harakat).
+// Hujjat yashirin (document.hidden) bo'lsa — 3D umuman chizilmaydi; ko'rinishi
+// bilan davom etadi. Holat (agentlar, xarajat, tarix) render'ga bog'liq emas —
+// ular xabarlar va taymerlar bilan yangilanadi, faqat chizish to'xtaydi.
+function PauseWhenHidden() {
+  const setFrameloop = useThree((s) => s.setFrameloop);
+  useEffect(() => {
+    const apply = () => setFrameloop(document.hidden ? "never" : "always");
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => {
+      document.removeEventListener("visibilitychange", apply);
+      setFrameloop("always");
+    };
+  }, [setFrameloop]);
+  return null;
+}
+
 function ShadowUpdater({ every }: { every: number }) {
   const gl = useThree((s) => s.gl);
   const f = useRef(0);
@@ -280,6 +297,7 @@ export default function App() {
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
         <ShadowUpdater every={shadowEvery(quality)} />
+        <PauseWhenHidden />
         {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>
