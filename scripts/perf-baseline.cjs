@@ -198,7 +198,9 @@ async function measure(browser, base, sc) {
   if (WRITE_BASELINE) {
     const budgetFile = path.join(ROOT, "scripts", "perf-budget.json");
     const budget = JSON.parse(fs.readFileSync(budgetFile, "utf8"));
-    budget.baseline = Object.fromEntries(results.map((r) => [r.key, { callsMax: r.calls.max, meshes: r.meshes, materials: r.materials }]));
+    // callsSteady = har oddiy kadr narxi (min). callsMax — eng og'ir kadr (soya
+    // xaritasi yangilangan kadr tushib qolsa) — faqat ma'lumot uchun saqlanadi.
+    budget.baseline = Object.fromEntries(results.map((r) => [r.key, { callsSteady: r.calls.min, callsMax: r.calls.max, meshes: r.meshes, materials: r.materials }]));
     budget.baselineMeasuredAt = new Date().toISOString().slice(0, 10);
     fs.writeFileSync(budgetFile, JSON.stringify(budget, null, 2) + "\n");
     console.log("Baseline yozildi: scripts/perf-budget.json");
@@ -211,13 +213,16 @@ async function measure(browser, base, sc) {
     for (const r of results) {
       const b = budget.baseline && budget.baseline[r.key];
       const t = budget.target && budget.target[r.key];
+      // Taqqoslash BARQAROR kadr narxi (min) bo'yicha: max'ga o'lchov oynasida
+      // soya xaritasining zaxira yangilanishi tushib qolishi tasodifga bog'liq.
       if (b) {
-        const limit = Math.ceil(b.callsMax * (1 + budget.regressionTolerance));
-        const ok = r.calls.max <= limit;
+        const base = typeof b.callsSteady === "number" ? b.callsSteady : b.callsMax;
+        const limit = Math.ceil(base * (1 + budget.regressionTolerance));
+        const ok = r.calls.min <= limit;
         if (!ok) fail = true;
-        console.log(`  ${ok ? "✓" : "✗"} ${r.key}: regressiya — ${r.calls.max} ≤ ${limit} (baseline ${b.callsMax})`);
+        console.log(`  ${ok ? "✓" : "✗"} ${r.key}: regressiya — ${r.calls.min} ≤ ${limit} (baseline ${base}; eng og'ir kadr ${r.calls.max})`);
       }
-      if (t) console.log(`  ${r.calls.max <= t.callsMax ? "✓" : "·"} ${r.key}: maqsad (S8) — ${r.calls.max} / ${t.callsMax}`);
+      if (t) console.log(`  ${r.calls.min <= t.callsSteady ? "✓" : "·"} ${r.key}: maqsad (S8) — ${r.calls.min} / ${t.callsSteady}`);
     }
     if (fail) {
       console.error("\nRegressiya: draw call baseline'dan oshdi.");

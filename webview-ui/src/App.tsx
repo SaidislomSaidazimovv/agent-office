@@ -12,7 +12,8 @@ import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
 import { presenceOf } from "./scene/presence";
-import { dprFor, shadowEvery, useSettings } from "./settings";
+import { clutterLevel } from "./scene/clutter";
+import { dprFor, shadowEvery, shadowSignature, useSettings } from "./settings";
 import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
@@ -20,6 +21,7 @@ import Room from "./scene/Room";
 import { ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
+import { StaticBatch } from "./scene/StaticBatch";
 import { useOffice } from "./store";
 import { send } from "./transport";
 import Hud from "./ui/Hud";
@@ -27,19 +29,69 @@ import { PerfOverlay, PerfProbe, PERF_ENABLED } from "./ui/PerfHud";
 import TextOffice from "./ui/TextOffice";
 import { useExtensionMessages } from "./useExtensionMessages";
 
-// Soya xaritasini HAR FREYM emas, ~4 freymda bir yangilaymiz. Agentlar sekin
-// harakatlanadi, shuning uchun 15Hz soya ko'zga ilinmaydi — lekin har freym
-// butun sahnani soya-o'tishda qayta chizishni yo'q qiladi (asosiy "qotish" sabab).
-function ShadowThrottle({ every }: { every: number }) {
+// Soya xaritasi HODISAGA bog'liq yangilanadi. Soya tashlaydiganlar faqat statik
+// narsalar (mebel, stol buyumlari, layout) — agentlar emas (ularda kontakt-soya
+// bor). Shuning uchun xarita faqat shular o'zgarganda qayta chiziladi: band
+// o'rindiqlar / rol / stol tartibsizligi (shadowSignature) yoki layout. Avval
+// har 4 freymda butun sahna soya o'tishida qayta chizilardi (~+50% draw call).
+// `every` — sekin zaxira yangilanish (o'simlik barglari kabi mayda harakat).
+// Hujjat yashirin (document.hidden) bo'lsa — 3D umuman chizilmaydi; ko'rinishi
+// bilan davom etadi. Holat (agentlar, xarajat, tarix) render'ga bog'liq emas —
+// ular xabarlar va taymerlar bilan yangilanadi, faqat chizish to'xtaydi.
+function PauseWhenHidden() {
+  const setFrameloop = useThree((s) => s.setFrameloop);
+  useEffect(() => {
+    const apply = () => setFrameloop(document.hidden ? "never" : "always");
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => {
+      document.removeEventListener("visibilitychange", apply);
+      setFrameloop("always");
+    };
+  }, [setFrameloop]);
+  return null;
+}
+
+function ShadowUpdater({ every }: { every: number }) {
   const gl = useThree((s) => s.gl);
   const f = useRef(0);
+  const dirty = useRef(true);
   useEffect(() => {
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
   }, [gl]);
+  useEffect(() => {
+    const sig = (s: ReturnType<typeof useOffice.getState>) =>
+      shadowSignature(s.order.map((id) => s.agents[id]).filter(Boolean).map((a) => ({ seatIndex: a!.seatIndex, role: a!.role, clutter: clutterLevel(a!.toolCalls) })));
+    let last = sig(useOffice.getState());
+    const offOffice = useOffice.subscribe((s) => {
+      const next = sig(s);
+      if (next !== last) {
+        last = next;
+        dirty.current = true;
+      }
+    });
+    const offLayout = useLayout.subscribe(() => {
+      dirty.current = true;
+    });
+    return () => {
+      offOffice();
+      offLayout();
+    };
+  }, []);
   useFrame((state) => {
     updateFrustum(state.camera); // perf culling — har agent shundan foydalanadi
-    if (f.current++ % every === 0) gl.shadowMap.needsUpdate = true;
+    const periodic = ++f.current % every === 0;
+    if (dirty.current || periodic) {
+      gl.shadowMap.needsUpdate = true;
+      if (PERF_ENABLED) {
+        // Faqat ?perf: nechta soya yangilanishi va nima sababdan (o'lchov uchun).
+        const w = window as unknown as { __shadowUpdates?: Record<string, number> };
+        const k = dirty.current ? "event" : "periodic";
+        w.__shadowUpdates = { ...(w.__shadowUpdates ?? {}), [k]: (w.__shadowUpdates?.[k] ?? 0) + 1 };
+      }
+      dirty.current = false;
+    }
   });
   return null;
 }
@@ -151,7 +203,7 @@ const GALLERY = Q.has("gallery");
 function Gallery() {
   const roles = Object.entries(ROLE_PRESETS);
   return (
-    <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.2, 6.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
+    <Canvas shadows="percentage" dpr={[1, 1.5]} camera={{ position: [0, 1.2, 6.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
       <color attach="background" args={["#2a2f38"]} />
       <ambientLight intensity={0.85} />
       <directionalLight position={[3, 6, 4]} intensity={1.1} castShadow />
@@ -196,6 +248,11 @@ export default function App() {
   // uchun ular doim to'siq. Overflow (10+) agentlarning stollari esa faqat band
   // bo'lganda qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatda tekshirilgan.)
   const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
+  // Stollarning statik ko'rinishi imzosi (StaticBatch qayta qurilishi uchun) —
+  // soya imzosi bilan aynan bir xil holat (o'rindiq + rol + tartibsizlik).
+  const deskSig = useOffice((s) =>
+    shadowSignature(s.order.map((id) => s.agents[id]).filter(Boolean).map((a) => ({ seatIndex: a!.seatIndex, role: a!.role, clutter: clutterLevel(a!.toolCalls) }))),
+  );
   useEffect(() => {
     const base = Array.from({ length: SEAT_COUNT }, (_, i) => i);
     const overflow = order
@@ -233,14 +290,20 @@ export default function App() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
-        shadows
+        // "percentage" = PCFShadowMap. `shadows` (true) R3F'da PCFSoftShadowMap
+        // beradi — three 0.185 uni eskirgan deb PCF'ga almashtiradi va har
+        // Canvas qayta konfiguratsiyasida (App re-render) tur farqi tufayli
+        // shadowMap.needsUpdate=true bo'lib, butun sahna soya o'tishida qayta
+        // chizilardi (+ konsolda ogohlantirish). Ko'rinish o'zgarmaydi.
+        shadows="percentage"
         dpr={dprFor(quality)}
         // preserveDrawingBuffer — 📸 surat olish uchun shart (aks holda toDataURL
         // bo'sh kadr qaytaradi). Narxi kichik: bufer freym oxirida tozalanmaydi.
         gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance", toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}
         onPointerMissed={() => { select(null); setMoving(null); }}
       >
-        <ShadowThrottle every={shadowEvery(quality)} />
+        <ShadowUpdater every={shadowEvery(quality)} />
+        <PauseWhenHidden />
         {/* Fon rangi Room ichidagi Daylight'da (kun/tun sikli) */}
         {cameraMode === "iso" ? (
           <>
@@ -260,14 +323,20 @@ export default function App() {
         {/* 10 ta ASOSIY stol DOIM turadi (band bo'lsa yonadi, bo'sh bo'lsa
             o'chiq) — ofis haqiqiy ofisdek to'la ko'rinadi, agent mebel emas,
             ODAM bo'lib "ishga keladi". */}
-        {Array.from({ length: SEAT_COUNT }, (_, i) => {
-          const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
-          return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
-        })}
-        {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
-        {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
-          <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
-        ))}
+        {/* Stollar statik qismi birlashtiriladi (draw call). Stol ko'rinishi faqat
+            band/bo'shlik, rol buyumi va tartibsizlik darajasiga bog'liq (deskSig) —
+            shu o'zgarganda qayta quriladi. Monitor ekrani (tekstura) va porlash
+            (MeshBasic) avtomatik chetda qoladi — holat rangi jonli. */}
+        <StaticBatch deps={[deskSig]}>
+          {Array.from({ length: SEAT_COUNT }, (_, i) => {
+            const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
+            return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
+          })}
+          {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
+          {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
+            <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
+          ))}
+        </StaticBatch>
         {order.map((id) => {
           const a = agents[id];
           return a ? <AgentAvatar key={`av-${id}`} agent={a} /> : null;

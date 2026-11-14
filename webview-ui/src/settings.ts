@@ -12,9 +12,25 @@ export type Quality = "high" | "low";
 export function dprFor(q: Quality): number {
   return q === "low" ? 0.7 : 1;
 }
-/** Sifat → soya xaritasi necha freymda bir yangilanadi. */
+/** Sifat → soya xaritasining ZAXIRA yangilanishi (necha freymda bir). Asosiy
+ *  yangilanish hodisaga bog'liq (sahnadagi statik narsa o'zgarganda —
+ *  App.tsx `ShadowUpdater`); bu faqat mayda harakatlarni (o'simlik barglari)
+ *  vaqti-vaqti bilan yangilab turadi. Avval har 4 freymda butun sahna soya
+ *  o'tishida qayta chizilardi (~+50% draw call). */
 export function shadowEvery(q: Quality): number {
-  return q === "low" ? 12 : 4;
+  return q === "low" ? 240 : 120;
+}
+
+/** Soya xaritasini qayta chizishni talab qiladigan statik holat imzosi: har
+ *  band o'rindiq (stol buyumlari — rolga xos buyum, krujka, tartibsizlik
+ *  darajasi shundan chiziladi) va overflow stollar soni. Agentlarning o'zlari
+ *  soya tashlamaydi (oyog'i ostida kontakt-soya bor) — ularning yurishi imzoga
+ *  kirmaydi. Bir xil holat → bir xil satr (tartib barqaror). */
+export function shadowSignature(agents: { seatIndex: number; role?: string; clutter: number }[]): string {
+  return agents
+    .map((a) => `${a.seatIndex}:${a.role ?? ""}:${a.clutter}`)
+    .sort()
+    .join("|");
 }
 
 /** Tizim "kamaytirilgan harakat"ni so'ragan bo'lsa — birinchi ishga tushishda yoqiq. */

@@ -8,6 +8,7 @@ import { fmtCost } from "../pricing";
 import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
+import { StaticBatch } from "./StaticBatch";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
 
@@ -145,7 +146,7 @@ export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow><cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />{M("#b5643c")}</mesh>
-      <group ref={leaves} position={[0, 0.4, 0]}>
+      <group ref={leaves} position={[0, 0.4, 0]} userData={{ noBatch: true }}>
         {[0, 1, 2, 3, 4].map((i) => {
           const a = (i / 5) * Math.PI * 2;
           return <mesh key={i} position={[Math.cos(a) * 0.12, 0.35, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow><coneGeometry args={[0.16, 0.8, 5]} />{M(i % 2 ? "#4a8a52" : "#3c7444")}</mesh>;
@@ -311,8 +312,8 @@ export function WallClock({ p, ry = 0 }: { p: V3; ry?: number }) {
       <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.3, 0.3, 0.06, 22]} />{M("#2a2e35", 0.6)}</mesh>
       <mesh position={[0, 0, 0.035]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.26, 0.26, 0.01, 22]} />{M("#f4f1ea", 0.5)}</mesh>
       {/* Strelkalar markazdan +y (12 tomon) chiqadi; group z bo'ylab buriladi. */}
-      <group ref={hourRef}><Box p={[0, 0.07, 0.05]} s={[0.028, 0.14, 0.012]} c="#23262b" /></group>
-      <group ref={minRef}><Box p={[0, 0.1, 0.052]} s={[0.02, 0.2, 0.012]} c="#3a3f47" /></group>
+      <group ref={hourRef} userData={{ noBatch: true }}><Box p={[0, 0.07, 0.05]} s={[0.028, 0.14, 0.012]} c="#23262b" /></group>
+      <group ref={minRef} userData={{ noBatch: true }}><Box p={[0, 0.1, 0.052]} s={[0.02, 0.2, 0.012]} c="#3a3f47" /></group>
       <mesh position={[0, 0, 0.055]}><cylinderGeometry args={[0.022, 0.022, 0.02, 8]} />{M("#c0392b", 0.4)}</mesh>
     </group>
   );
@@ -406,7 +407,7 @@ export function TV({ p, ry = 0 }: { p: V3; ry?: number }) {
 export function StandingLamp({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   return (
-    <group position={p}>
+    <group position={p} userData={{ noBatch: true }}>
       <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.2, 0.22, 0.08, 12]} />{M("#3a3f48")}</mesh>
       <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.025, 1.7, 8]} />{M("#6a6f78", 0.4)}</mesh>
       <mesh position={[0, 1.75, 0]}><coneGeometry args={[0.28, 0.35, 12, 1, true]} /><meshStandardMaterial color="#f0e6c8" emissive="#fff0c0" emissiveIntensity={lampsOn ? 1.7 : 0.35} side={2} /></mesh>
@@ -428,7 +429,7 @@ export function StandingLamp({ p }: { p: V3 }) {
 export function PendantLight({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   return (
-    <group position={p}>
+    <group position={p} userData={{ noBatch: true }}>
       <mesh position={[0, 2.35, 0]}><cylinderGeometry args={[0.012, 0.012, 0.9, 6]} />{M("#2a2e35")}</mesh>
       {/* Shade — iliq och (lampa abajurıdek), to'q emas */}
       <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#e6dcc8" roughness={0.6} side={2} /></mesh>
@@ -453,7 +454,7 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
   // (pointLight, kechasi) qoladi — bu aynan recessed downlight ko'rinishi.
   const fpv = useOffice((s) => s.cameraMode === "fpv");
   return (
-    <group position={p}>
+    <group position={p} userData={{ noBatch: true }}>
       {fpv && (
         <>
           {/* Ramka */}
@@ -566,8 +567,10 @@ const DISTRICT = {
 } as const;
 
 export default function OfficeDecor() {
+  // Devor rangi (mavzu) o'zgarsa — statik birlashma yangi rang bilan qayta quriladi.
+  const wallColor = useLayout((st) => st.wallColor);
   return (
-    <group>
+    <StaticBatch deps={[wallColor]}>
       {/* ══════ YUQORI QATOR (z[-16,-9.5]) ══════ */}
       {/* Dividerlar */}
       {[-9, -1, 8, 15].map((x) => <DividerZ key={x} x={x} z0={-16} z1={-9.5} />)}
@@ -690,6 +693,6 @@ export default function OfficeDecor() {
       <Rug p={[3.5, 0, -12.5]} w={4.6} d={3.6} c="#3f5e7a" accent="#5c82a0" />
       <Rug p={[19, 0, -12.8]} w={3.4} d={3} c="#4a6b4f" accent="#6a8f70" />
       <Rug p={[19, 0, 13]} w={3.4} d={3} c="#8a4038" accent="#ac5c52" />
-    </group>
+    </StaticBatch>
   );
 }
