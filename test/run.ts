@@ -30,6 +30,8 @@ import { compareSessions, dailyCost, dayStatFor, filterDaysByProject, grandTotal
 import { buildInsights, costSpike, editedFile, fileConflicts } from "../webview-ui/src/insights.js";
 import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui/src/settings.js";
+import * as THREE from "three";
+import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1643,6 +1645,46 @@ test("sifat rejimi: tejamkor → past dpr + kamroq soya yangilanishi", () => {
   assert.ok(shadowEvery("low") > shadowEvery("high"), "tejamkor rejimda soya kamroq yangilanadi");
   assert.ok(shadowEvery("high") >= 60, "zaxira yangilanish — har freym/4 freym emas (asosiysi hodisaga bog'liq)");
 });
+test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
+  const root = new THREE.Group();
+  root.position.set(10, 0, 0); // ildiz o'zi siljigan — geometriya ildiz koordinatasida bo'lishi kerak
+  const mk = (color: string, x: number, extra: Partial<THREE.MeshStandardMaterial> = {}) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color, roughness: 0.9, ...extra }));
+    m.position.set(x, 0.5, 0);
+    m.castShadow = true;
+    root.add(m);
+    return m;
+  };
+  const red = mk("#ff0000", 0);
+  const blue = mk("#0000ff", 3);
+  const glass = mk("#ffffff", 6, { transparent: true, opacity: 0.3 });
+  const tex = mk("#ffffff", 9, { map: new THREE.Texture() });
+  const dyn = new THREE.Group();
+  dyn.userData.noBatch = true;
+  root.add(dyn);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: "#00ff00", roughness: 0.9 }));
+  dyn.add(leaf);
+  const r = batchStatic(root);
+  assert.equal(r.batches.length, 1, "red+blue → bitta birlashma");
+  assert.deepEqual([red.visible, blue.visible], [false, false], "aslilar yashirildi");
+  assert.deepEqual([glass.visible, tex.visible, leaf.visible], [true, true, true], "shaffof/teksturali/dinamik tegilmadi");
+  const b = r.batches[0];
+  assert.equal(b.castShadow, true);
+  assert.equal((b.material as THREE.MeshStandardMaterial).vertexColors, true);
+  const pos = b.geometry.getAttribute("position");
+  const col = b.geometry.getAttribute("color");
+  assert.equal(pos.count, 72, "2 quti × 36 cho'qqi");
+  // Ildiz koordinatasida: qizil quti x∈[-0.5,0.5], ko'k x∈[2.5,3.5] (ildiz siljishi qo'shilmagan).
+  const xs: number[] = [];
+  for (let i = 0; i < pos.count; i++) xs.push(pos.getX(i));
+  assert.ok(Math.abs(Math.min(...xs) + 0.5) < 1e-6 && Math.abs(Math.max(...xs) - 3.5) < 1e-6, `x oralig'i ${Math.min(...xs)}..${Math.max(...xs)}`);
+  const red0 = new THREE.Color("#ff0000");
+  assert.ok(Math.abs(col.getX(0) - red0.r) < 1e-6 && col.getZ(0) === 0, "birinchi quti rangi vertex'da (chiziqli)");
+  unbatch(root, r);
+  assert.equal(root.children.includes(b), false, "birlashma olib tashlandi");
+  assert.deepEqual([red.visible, blue.visible], [true, true], "aslilar qaytdi");
+});
+
 test("soya imzosi: faqat statik holat (o'rindiq/rol/tartibsizlik) o'zgarsa farq qiladi", () => {
   const a = [{ seatIndex: 0, role: "qa", clutter: 1 }, { seatIndex: 3, role: undefined, clutter: 0 }];
   assert.equal(shadowSignature(a), shadowSignature([...a].reverse()), "tartibga bog'liq emas");
