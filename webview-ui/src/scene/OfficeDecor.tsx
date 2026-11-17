@@ -8,6 +8,7 @@ import { fmtCost } from "../pricing";
 import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
+import { DISTRICT, ROOMS, roomZ } from "./officeLayout";
 import { StaticBatch } from "./StaticBatch";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
@@ -555,16 +556,13 @@ function DistrictLight({ p, c, intensity = 9, distance = 14 }: { p: V3; c: strin
 // bej/kul bo'lib ko'rinardi ("generic quti" hissi). Yechim: har xonaga
 // XARAKTERLI, kontrastli, lekin uyg'un pol. Pol rangi BEPUL (nur emas) va
 // KUNDUZi ham ishlaydi — shu bois district identikasining asosi shu.
-const DISTRICT = {
-  server: "#252a31", // ma'lumot g'ori — deyarli qora (yagona dramatik langar)
-  kitchen: "#7fbcae", // retro diner — moviy-yashil
-  meeting: "#41536b", // boardroom — jiddiy shifer-ko'k
-  bathroom: "#c3dde3", // toza kafel — och akva
-  library: "#6d4c30", // sobor — to'q yong'oq yog'och
-  focus: "#8aa88c", // sokin zona — sage yashil
-  lounge: "#b87a52", // uy — terakota
-  glass: "#dde1e8", // shisha xonalar — salqin och (yengillik = ularning identikasi)
-} as const;
+// Ranglar va xona chegaralari — ofis rejasidan (officeLayout.ts).
+function RoomFloor({ k }: { k: string }) {
+  const r = ROOMS.find((x) => x.key === k);
+  if (!r) throw new Error(`unknown room ${k}`);
+  const { z0, z1 } = roomZ(r);
+  return <Floor x0={r.x0} x1={r.x1} z0={z0} z1={z1} c={DISTRICT[r.floor]} />;
+}
 
 export default function OfficeDecor() {
   // Devor rangi (mavzu) o'zgarsa — statik birlashma yangi rang bilan qayta quriladi.
@@ -576,7 +574,7 @@ export default function OfficeDecor() {
       {[-9, -1, 8, 15].map((x) => <DividerZ key={x} x={x} z0={-16} z1={-9.5} />)}
 
       {/* SERVER XONASI [-23,-9] */}
-      <Floor x0={-23} x1={-9} z0={-16} z1={-9.5} c={DISTRICT.server} />
+      <RoomFloor k="server" />
       <WallX x0={-23} x1={-9} z={-9.5} door={2.6} />
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15.4]} />)}
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={`b${x}`} p={[x, 0, -11]} ry={Math.PI} />)}
@@ -585,20 +583,20 @@ export default function OfficeDecor() {
       <DistrictLight p={[-16, 2.2, -12.8]} c="#4fa8ff" intensity={10} distance={15} />
 
       {/* OSHXONA [-9,-1] */}
-      <Floor x0={-9} x1={-1} z0={-16} z1={-9.5} c={DISTRICT.kitchen} />
+      <RoomFloor k="kitchen" />
       <WallX x0={-9} x1={-1} z={-9.5} door={2} />
       <Kitchen p={[-5, 0, -15.5]} />
       {/* Tunda: neon yozuvdan taralayotgan pushti porlash */}
       <DistrictLight p={[-5, 1.9, -14.3]} c="#ff5c9d" intensity={7} distance={11} />
 
       {/* MAJLIS [-1,8] */}
-      <Floor x0={-1} x1={8} z0={-16} z1={-9.5} c={DISTRICT.meeting} />
+      <RoomFloor k="meeting" />
       <WallX x0={-1} x1={8} z={-9.5} door={2} />
       <MeetingTable p={[3.5, 0, -12.5]} />
       <Whiteboard p={[3.5, 0, -15.82]} />
 
       {/* XOJATXONA [8,15] */}
-      <Floor x0={8} x1={15} z0={-16} z1={-9.5} c={DISTRICT.bathroom} />
+      <RoomFloor k="bathroom" />
       <WallX x0={8} x1={15} z={-9.5} door={2} />
       <Stall p={[9.8, 0, -15]} />
       <Stall p={[11.8, 0, -15]} />
@@ -606,7 +604,7 @@ export default function OfficeDecor() {
       <Sink p={[14.4, 0, -15.675]} />
 
       {/* SHISHA XONA A [15,23] */}
-      <Floor x0={15} x1={23} z0={-16} z1={-9.5} c={DISTRICT.glass} />
+      <RoomFloor k="glassA" />
       <GlassWallX x0={15} x1={23} z={-9.5} door={2} />
       <MeetingTable p={[19, 0, -12.8]} r={0.9} />
 
@@ -614,7 +612,7 @@ export default function OfficeDecor() {
       {[-11, -3, 7, 15].map((x) => <DividerZ key={`b${x}`} x={x} z0={9.5} z1={16} />)}
 
       {/* KUTUBXONA [-23,-11] */}
-      <Floor x0={-23} x1={-11} z0={9.5} z1={16} c={DISTRICT.library} />
+      <RoomFloor k="library" />
       <WallX x0={-23} x1={-11} z={9.5} door={2.4} />
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
@@ -623,13 +621,13 @@ export default function OfficeDecor() {
       <DistrictLight p={[-17, 2.2, 13]} c="#ffb463" intensity={10} distance={15} />
 
       {/* FOKUS [-11,-3] */}
-      <Floor x0={-11} x1={-3} z0={9.5} z1={16} c={DISTRICT.focus} />
+      <RoomFloor k="focus" />
       <WallX x0={-11} x1={-3} z={9.5} door={2} />
       <EmptyDesk p={[-7, 0, 14.5]} ry={Math.PI} />
       <Plant p={[-4, 0, 15]} scale={1.0} />
 
       {/* DAM OLISH [-3,7] */}
-      <Floor x0={-3} x1={7} z0={9.5} z1={16} c={DISTRICT.lounge} />
+      <RoomFloor k="lounge" />
       <WallX x0={-3} x1={7} z={9.5} door={2} />
       <Sofa p={[2, 0, 15]} c="#4a5568" />
       <Sofa p={[5.5, 0, 13]} ry={-Math.PI / 2} c="#556070" />
@@ -638,13 +636,13 @@ export default function OfficeDecor() {
       <TV p={[2, 1.7, 15.8]} ry={Math.PI} />
 
       {/* SHISHA XONA B [7,15] — ofis */}
-      <Floor x0={7} x1={15} z0={9.5} z1={16} c={DISTRICT.glass} />
+      <RoomFloor k="glassB" />
       <GlassWallX x0={7} x1={15} z={9.5} door={2} />
       <EmptyDesk p={[9.5, 0, 14.5]} ry={Math.PI} />
       <EmptyDesk p={[12.5, 0, 14.5]} ry={Math.PI} />
 
       {/* SHISHA XONA C [15,23] — majlis */}
-      <Floor x0={15} x1={23} z0={9.5} z1={16} c={DISTRICT.glass} />
+      <RoomFloor k="glassC" />
       <GlassWallX x0={15} x1={23} z={9.5} door={2} />
       <MeetingTable p={[19, 0, 13]} r={0.9} />
 

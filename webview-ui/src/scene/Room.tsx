@@ -4,9 +4,11 @@ import type * as THREE from "three";
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
+import { BUILDING } from "./officeLayout";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
-export const ROOM = { W: 46, D: 32, WH: 3.4 };
+// Bino o'lchami — ofis rejasidan (officeLayout.ts).
+export const ROOM = BUILDING;
 
 // Rangni och/to'q qilish (mavzu devorlari uchun).
 function shade(hex: string, amt: number): string {

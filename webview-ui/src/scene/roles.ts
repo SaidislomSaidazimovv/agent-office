@@ -2,6 +2,8 @@
 // Pixel Agents 6 personajini (JIK-A-4 Metro City) chuqur o'rganib,
 // har birini voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
+import { SEATS, type Seat } from "./officeLayout";
+
 export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
 export type Accessory = "glasses" | "headphones" | "cap" | "beanie" | null;
 
@@ -99,24 +101,8 @@ export function characterFor(role: string | undefined, seatIndex: number, id: nu
   };
 }
 
-export interface Seat { x: number; z: number; ry: number }
-
-// Ish joylari — hamma markazga qaraydi.
-//  • 1-6: asosiy ikki ustun (chap/o'ng, x=±5.5).
-//  • 7-10: markazdagi qo'shimcha stollar (x=±13) — ofis to'ladi (Variant B).
-export const SEATS: Seat[] = [
-  { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
-  { x: -5.5, z: 0, ry: -Math.PI / 2 },
-  { x: -5.5, z: 3.2, ry: -Math.PI / 2 },
-  { x: 5.5, z: -3.2, ry: Math.PI / 2 },
-  { x: 5.5, z: 0, ry: Math.PI / 2 },
-  { x: 5.5, z: 3.2, ry: Math.PI / 2 },
-  // Qo'shimcha stollar (avval "bo'sh stol" edi — endi overflow agentlar shu yerda)
-  { x: -13, z: -3, ry: -Math.PI / 2 },
-  { x: -13, z: 3, ry: -Math.PI / 2 },
-  { x: 13, z: -3, ry: Math.PI / 2 },
-  { x: 13, z: 3, ry: Math.PI / 2 },
-];
+// O'rindiqlar — ofis rejasidan (officeLayout.ts, yagona manba).
+export { SEATS, type Seat } from "./officeLayout";
 
 /** O'rindiq soni — dinamik (SEATS uzunligidan). */
 export const SEAT_COUNT = SEATS.length;
