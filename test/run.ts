@@ -32,7 +32,7 @@ import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui/src/settings.js";
 import * as THREE from "three";
 import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
-import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1669,6 +1669,17 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
   assert.deepEqual(now, old.map(key).sort());
   // O'rindiqlar bino ichida va devorga tegmaydi.
   for (const s of LAYOUT_SEATS) assert.ok(Math.abs(s.x) < FPV_BOUNDS.x && Math.abs(s.z) < ROOM_LINE, `o'rindiq ${s.x},${s.z} ochiq maydonda`);
+});
+
+test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
+  const rects = furnitureRects();
+  assert.equal(rects.length, 26);
+  for (const r of rects) {
+    const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
+    assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
+    const crosses = (line: number) => r.z0 < line && r.z1 > line;
+    assert.ok(!crosses(-ROOM_LINE) && !crosses(ROOM_LINE), `${tag}: xona devorini kesmaydi`);
+  }
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

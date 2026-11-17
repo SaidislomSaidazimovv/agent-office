@@ -103,6 +103,51 @@ export function wallRects(): Rect[] {
   return out;
 }
 
+/** Doimiy mebel to'siqlari (OfficeDecor'dagi joylashuvga mos — mebel u yerda
+ *  chiziladi; S8-5 da xonalar qayta jihozlanganda chizish ham shu ma'lumotga
+ *  o'tadi). Agent va FPV kamera ular orqali o'tmaydi. */
+export function furnitureRects(): Rect[] {
+  const out: Rect[] = [];
+  const r = (x0: number, x1: number, z0: number, z1: number): void => {
+    out.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) });
+  };
+  // Reception
+  r(-1.7, 1.7, 7.0, 8.0);
+  // Server xonasi (rack qatorlari) — orqa qator devorga taqaldi (z=-15.4)
+  r(-22, -10, -16.0, -14.8);
+  r(-22, -10, -11.6, -10.4);
+  // Oshxona — peshtaxta devorga taqaldi (z=-15.5)
+  r(-7.6, -2.4, -16.0, -14.8);
+  // Majlis stoli (yuqori)
+  r(1.9, 5.1, -14.1, -10.9);
+  // Xojatxona
+  r(9, 12.6, -16, -13.8);
+  r(13.2, 15, -16, -14.6);
+  // glassA stol
+  r(18, 20, -13.8, -11.8);
+  // Kutubxona (javonlar + stol) — old qator devorga taqaldi (z=15.68)
+  r(-22.6, -14.4, 15.4, 15.9);
+  r(-22.6, -14.4, 10.4, 11.6);
+  r(-14.8, -12.2, 12, 14);
+  // Fokus stoli
+  r(-7.8, -6.2, 14, 15.2);
+  // Dam olish (divanlar + stol)
+  r(0.5, 3.5, 14.2, 15.8);
+  r(4.6, 6.4, 12, 14);
+  r(1.4, 2.6, 12.4, 13.6);
+  // glassB stollari
+  r(8.7, 10.3, 13.8, 15.2);
+  r(11.7, 13.3, 13.8, 15.2);
+  // glassC stol
+  r(18, 20, 12, 14);
+  // ── Turgan chiroqlar + pol o'simliklari (agent ular ustidan o'tmasin) ──
+  // Hammasi nav-qirralaridan chetda joylashtirilgan (OfficeDecor), shu bois bu
+  // kichik to'siqlar yo'l grafini uzmaydi — faqat "arvohdek o'tishni" to'xtatadi.
+  for (const [x, z] of [[-7, 5], [7, -5]] as [number, number][]) r(x - 0.22, x + 0.22, z - 0.22, z + 0.22); // chiroqlar
+  for (const [x, z] of [[-1.5, 5], [1.5, 5], [-16, 6], [16, 6], [-16, -6], [16, -6]] as [number, number][]) r(x - 0.28, x + 0.28, z - 0.28, z + 0.28); // o'simliklar
+  return out;
+}
+
 /** FPV kamerasi chegarasi (perimetr devoridan 0.6 ichkarida). */
 export const FPV_BOUNDS = { x: BUILDING.W / 2 - 0.6, z: BUILDING.D / 2 - 0.6 } as const;
 
