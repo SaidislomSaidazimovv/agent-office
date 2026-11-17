@@ -3,6 +3,7 @@
 // shular orasida yuradi (eshiklardan xonalarga kiradi).
 
 import { blocked } from "./collision";
+import { ROOM_LINE, ROOMS } from "./officeLayout";
 
 export interface WP {
   x: number;
@@ -37,11 +38,7 @@ for (let i = 0; i < CX.length; i++) {
   }
 }
 
-// Xonalar: [kalit, markaz-x, tomon]
-const ROOMS: [string, number, "top" | "bottom"][] = [
-  ["server", -16, "top"], ["kitchen", -5, "top"], ["meeting", 3.5, "top"], ["bathroom", 11.5, "top"], ["glassA", 19, "top"],
-  ["library", -17, "bottom"], ["focus", -7, "bottom"], ["lounge", 2, "bottom"], ["glassB", 11, "bottom"], ["glassC", 19, "bottom"],
-];
+// Xonalar — ofis rejasidan (officeLayout.ts): kalit, eshik markazi, tomon.
 /** Ikki nuqta orasidagi to'g'ri kesma to'siqsizmi? (agent radiusidan kengroq
  *  zaxira bilan — qirra tanlashda ishonchli bo'lsin). */
 function clearPath(ax: number, az: number, bx: number, bz: number, rad = 0.22): boolean {
@@ -54,8 +51,9 @@ function clearPath(ax: number, az: number, bx: number, bz: number, rad = 0.22): 
   return true;
 }
 
-for (const [key, cx, side] of ROOMS) {
-  const doorZ = side === "top" ? -9.0 : 9.0;
+for (const { key, doorX: cx, side } of ROOMS) {
+  // Eshik tugunu — devor chizig'idan 0.5 ochiq maydon tomonda (avval qo'lda ±9.0).
+  const doorZ = side === "top" ? -(ROOM_LINE - 0.5) : ROOM_LINE - 0.5;
   const inward = side === "top" ? -1 : 1;
   // Ichki tugun: eshikdan ichkariga YURIB, birinchi to'siqgacha eng chuqur bo'sh
   // nuqta. Shunda door→interior kesmasi HAR DOIM to'siqsiz — agent xonaga kirib
@@ -149,7 +147,7 @@ const ROLE_ROOMS: Record<string, string[]> = {
 const BREAK_ROOMS = ["kitchen_i", "lounge_i"];
 
 // Barcha xona ichki nuqtalari (rol noma'lum bo'lsa — istalgan xona).
-const ALL_ROOMS = ROOMS.map(([k]) => `${k}_i`);
+const ALL_ROOMS = ROOMS.map((r) => `${r.key}_i`);
 
 /** Ishni tugatgach birinchi idle safar — tanaffusga (oshxona/lounge). */
 export function breakRoom(): string {

@@ -32,6 +32,7 @@ import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui/src/settings.js";
 import * as THREE from "three";
 import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
+import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1645,6 +1646,31 @@ test("sifat rejimi: tejamkor → past dpr + kamroq soya yangilanishi", () => {
   assert.ok(shadowEvery("low") > shadowEvery("high"), "tejamkor rejimda soya kamroq yangilanadi");
   assert.ok(shadowEvery("high") >= 60, "zaxira yangilanish — har freym/4 freym emas (asosiysi hodisaga bog'liq)");
 });
+test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida, devorlar eski qo'lda yozilgan to'siqlar bilan bir xil", () => {
+  for (const side of ["top", "bottom"] as const) {
+    const row = LAYOUT_ROOMS.filter((r) => r.side === side).sort((a, b) => a.x0 - b.x0);
+    assert.equal(row[0].x0, -BUILDING.W / 2, `${side}: chap chetdan boshlanadi`);
+    assert.equal(row[row.length - 1].x1, BUILDING.W / 2, `${side}: o'ng chetgacha`);
+    for (let i = 1; i < row.length; i++) assert.equal(row[i].x0, row[i - 1].x1, `${side}: ${row[i - 1].key}|${row[i].key} orasida bo'shliq/ustma-ust yo'q`);
+  }
+  for (const r of LAYOUT_ROOMS) {
+    assert.ok(r.doorX - r.doorW / 2 > r.x0 && r.doorX + r.doorW / 2 < r.x1, `${r.key}: eshik xona devori ichida`);
+  }
+  assert.equal(new Set(LAYOUT_ROOMS.map((r) => r.key)).size, LAYOUT_ROOMS.length, "kalitlar noyob");
+  // S8-2 dan oldingi qo'lda yozilgan devor to'siqlari (collision.ts) — aynan shu to'plam qolishi kerak.
+  const T = 0.16;
+  const old: [number, number, number, number][] = [[-23, 23, -16.2, -15.8], [-23, 23, 15.8, 16.2], [-23.2, -22.8, -16, 16], [22.8, 23.2, -16, 16]];
+  for (const [x0, x1, cx, d] of [[-23, -9, -16, 2.6], [-9, -1, -5, 2], [-1, 8, 3.5, 2], [8, 15, 11.5, 2], [15, 23, 19, 2]]) old.push([x0, cx - d / 2, -9.5 - T, -9.5 + T], [cx + d / 2, x1, -9.5 - T, -9.5 + T]);
+  for (const x of [-9, -1, 8, 15]) old.push([x - T, x + T, -16, -9.5]);
+  for (const [x0, x1, cx, d] of [[-23, -11, -17, 2.4], [-11, -3, -7, 2], [-3, 7, 2, 2], [7, 15, 11, 2], [15, 23, 19, 2]]) old.push([x0, cx - d / 2, 9.5 - T, 9.5 + T], [cx + d / 2, x1, 9.5 - T, 9.5 + T]);
+  for (const x of [-11, -3, 7, 15]) old.push([x - T, x + T, 9.5, 16]);
+  const key = (a: number[]) => a.map((v) => v.toFixed(4)).join(",");
+  const now = wallRects().map((r) => key([r.x0, r.x1, r.z0, r.z1])).sort();
+  assert.deepEqual(now, old.map(key).sort());
+  // O'rindiqlar bino ichida va devorga tegmaydi.
+  for (const s of LAYOUT_SEATS) assert.ok(Math.abs(s.x) < FPV_BOUNDS.x && Math.abs(s.z) < ROOM_LINE, `o'rindiq ${s.x},${s.z} ochiq maydonda`);
+});
+
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
   const root = new THREE.Group();
   root.position.set(10, 0, 0); // ildiz o'zi siljigan — geometriya ildiz koordinatasida bo'lishi kerak

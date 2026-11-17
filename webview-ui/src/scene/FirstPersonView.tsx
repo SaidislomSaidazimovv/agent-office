@@ -4,13 +4,15 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useOffice } from "../store";
 import { slide } from "./collision";
+import { FPV_BOUNDS } from "./officeLayout";
 
 // ── Ichki "yurib kuzatish" (birinchi shaxs) + QATTIQ to'qnashuv ──
 // Sichqoncha bilan qarash (bosib lock), WASD yurish. Devor/oyna/mebeldan
 // o'tmaydi (AABB to'siqlar), devor bo'ylab sirg'anadi.
 
-const BOUND_X = 22.4;
-const BOUND_Z = 15.4;
+// Chegara — ofis rejasidan (perimetrdan 0.6 ichkarida).
+const BOUND_X = FPV_BOUNDS.x;
+const BOUND_Z = FPV_BOUNDS.z;
 const EYE = 1.65;
 const SPEED = 4.2;
 const RAD = 0.4;

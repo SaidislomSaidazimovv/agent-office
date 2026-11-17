@@ -1,55 +1,20 @@
+import { type Rect, wallRects } from "./officeLayout";
 import { seatFor } from "./roles";
 
 // ── To'qnashuv (AABB to'siqlar) ──────────────────────────────
 // Devor/oyna/mebel — to'rtburchak to'siqlar. Kamera ham personaj ham
 // bularga uriladi (arvohdek o'tmaydi). Tez: ~120 to'rtburchak, sof math.
 
-export interface Rect {
-  x0: number;
-  x1: number;
-  z0: number;
-  z1: number;
-}
+export type { Rect };
 
 const B: Rect[] = [];
-const T = 0.16; // devor yarim-qalinligi
 function r(x0: number, x1: number, z0: number, z1: number): void {
   B.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) });
 }
 
-// ── Perimetr devorlar ──
-r(-23, 23, -16.2, -15.8);
-r(-23, 23, 15.8, 16.2);
-r(-23.2, -22.8, -16, 16);
-r(22.8, 23.2, -16, 16);
-
-// ── Xona old devorlari (eshik teshigi bilan) + bo'luvchilar ──
-type Room = { x0: number; x1: number; cx: number; door: number };
-const top: Room[] = [
-  { x0: -23, x1: -9, cx: -16, door: 2.6 },
-  { x0: -9, x1: -1, cx: -5, door: 2 },
-  { x0: -1, x1: 8, cx: 3.5, door: 2 },
-  { x0: 8, x1: 15, cx: 11.5, door: 2 },
-  { x0: 15, x1: 23, cx: 19, door: 2 },
-];
-for (const m of top) {
-  r(m.x0, m.cx - m.door / 2, -9.5 - T, -9.5 + T);
-  r(m.cx + m.door / 2, m.x1, -9.5 - T, -9.5 + T);
-}
-for (const x of [-9, -1, 8, 15]) r(x - T, x + T, -16, -9.5);
-
-const bot: Room[] = [
-  { x0: -23, x1: -11, cx: -17, door: 2.4 },
-  { x0: -11, x1: -3, cx: -7, door: 2 },
-  { x0: -3, x1: 7, cx: 2, door: 2 },
-  { x0: 7, x1: 15, cx: 11, door: 2 },
-  { x0: 15, x1: 23, cx: 19, door: 2 },
-];
-for (const m of bot) {
-  r(m.x0, m.cx - m.door / 2, 9.5 - T, 9.5 + T);
-  r(m.cx + m.door / 2, m.x1, 9.5 - T, 9.5 + T);
-}
-for (const x of [-11, -3, 7, 15]) r(x - T, x + T, 9.5, 16);
+// ── Devorlar: perimetr, xona old devorlari (eshik teshigi bilan), bo'luvchilar ──
+// Ofis rejasidan hosil qilinadi (officeLayout.ts — yagona manba).
+B.push(...wallRects());
 
 // ── Agent stollari — DINAMIK (faqat band o'rindiqlar) ──
 // Stol collision'i faqat renderlangan (band) stollar uchun bo'ladi. Aks holda
