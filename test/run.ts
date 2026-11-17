@@ -38,7 +38,7 @@ import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
 import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
-import { characterFor, seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
+import { characterFor, SEATS, seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { displayName, useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
@@ -1802,8 +1802,9 @@ test("nav grafi: self-loop yo'q va HAMMA tugun bog'langan", () => {
   const adj: Record<string, string[]> = {};
   for (const k of Object.keys(NODES)) adj[k] = [];
   for (const [a, b] of EDGES) { adj[a].push(b); adj[b].push(a); }
-  const seen = new Set(["g0_0"]);
-  const q = ["g0_0"];
+  const start = nearestNode(0, 0);
+  const seen = new Set([start]);
+  const q = [start];
   while (q.length) {
     const c = q.shift()!;
     for (const n of adj[c]) if (!seen.has(n)) { seen.add(n); q.push(n); }
@@ -1836,9 +1837,33 @@ test("nav grafi: har qirra to'siqsiz (bo'sh ofis + hamma o'rindiq band)", () => 
 
 test("nav: har xonaga kirish VA undan chiqish yo'li bor", () => {
   for (const key of ROOM_KEYS) {
-    assert.ok(pathBetween("g2_1", `${key}_i`).length > 0, `${key} ichkarisiga yo'l bo'lishi kerak`);
-    assert.ok(pathBetween(`${key}_i`, "g2_1").length > 0, `${key} ichidan CHIQISH yo'li bo'lishi kerak`);
+    assert.ok(pathBetween(nearestNode(0, 0), `${key}_i`).length > 0, `${key} ichkarisiga yo'l bo'lishi kerak`);
+    assert.ok(pathBetween(`${key}_i`, nearestNode(0, 0)).length > 0, `${key} ichidan CHIQISH yo'li bo'lishi kerak`);
   }
+});
+
+test("nav: har o'rindiqdan har xonaga va qaytib — tekislangan yo'lning har qadami to'siqsiz (hamma stol band)", () => {
+  setActiveSeats(SEATS.map((_, i) => i));
+  const clear = (a: { x: number; z: number }, b: { x: number; z: number }) => {
+    const n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.05));
+    for (let i = 0; i <= n; i++) { const t = i / n; if (blocked(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, 0.16)) return false; }
+    return true;
+  };
+  const bad: string[] = [];
+  SEATS.forEach((seat, si) => {
+    const sp = sitPoint(seat);
+    const start = nearestNode(sp.x, sp.z);
+    if (!clear(sp, NODES[start])) bad.push(`seat${si}: stul→${start}`);
+    for (const key of ROOM_KEYS) {
+      for (const [a, b] of [[start, `${key}_i`], [`${key}_i`, start]]) {
+        const p = pathBetween(a, b);
+        if (!p.length) { bad.push(`${a}→${b}: yo'l yo'q`); continue; }
+        for (let i = 0; i + 1 < p.length; i++) if (!clear(p[i], p[i + 1])) bad.push(`${a}→${b} ${i}-qadam`);
+      }
+    }
+  });
+  setActiveSeats([]);
+  assert.deepEqual(bad, []);
 });
 
 // ── Ijtimoiy hayot (uchrashuv) ───────────────────────────────
