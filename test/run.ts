@@ -32,6 +32,9 @@ import type { AgentView as AgentViewT } from "../webview-ui/src/store.js";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui/src/settings.js";
 import * as THREE from "three";
 import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
+import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
+import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
+import { floorGeometry } from "../webview-ui/src/scene/textures.js";
 import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1680,6 +1683,93 @@ test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesi
     const crosses = (line: number) => r.z0 < line && r.z1 > line;
     assert.ok(!crosses(-ROOM_LINE) && !crosses(ROOM_LINE), `${tag}: xona devorini kesmaydi`);
   }
+});
+
+test("nur dog'lari: bitta geometriya, rang×kuch, chegarada kesiladi, tashqaridagi tashlanadi, devor dog'i tik", () => {
+  const g = buildPoolGeometry([
+    { x: 0, y: 0.03, z: 0, r: 2, color: "#ffffff", k: 0.5 },
+    { x: 10, y: 0.03, z: 0, r: 2, color: "#ff0000", k: 1, clip: { x0: 9, x1: 20, z0: -20, z1: 20 } },
+    { x: 50, y: 0.03, z: 0, r: 2, color: "#ffffff", k: 1, clip: { x0: -1, x1: 1, z0: -1, z1: 1 } }, // butunlay tashqarida
+    { x: 0, y: 2, z: -5, r: 1, color: "#00ff00", k: 1, face: "south" },
+  ]);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  const col = g.getAttribute("color");
+  assert.equal(pos.count, 12, "3 ta to'rtburchak (tashqaridagisi tashlandi) × 4 cho'qqi");
+  assert.equal(g.getIndex()!.count, 18);
+  const xs = (q: number) => [0, 1, 2, 3].map((i) => pos.getX(q * 4 + i));
+  // 1) to'liq dog': x ∈ [−2, 2], polda, rang 0.5
+  assert.deepEqual([Math.min(...xs(0)), Math.max(...xs(0))], [-2, 2]);
+  assert.ok([0, 1, 2, 3].every((i) => Math.abs(pos.getY(i) - 0.03) < 1e-6), "polda yotadi");
+  assert.ok(Math.abs(col.getX(0) - 0.5) < 1e-6, "rang × kuch");
+  // 2) kesilgan: chap cheti 9 da (8 emas), gradient joyidan siljimaydi (u = 0.25)
+  assert.deepEqual([Math.min(...xs(1)), Math.max(...xs(1))], [9, 12]);
+  const us = [0, 1, 2, 3].map((i) => uv.getX(4 + i));
+  assert.ok(Math.abs(Math.min(...us) - 0.25) < 1e-6 && Math.abs(Math.max(...us) - 1) < 1e-6, `uv ${us.join(",")}`);
+  // 3) devor dog'i: z o'zgarmas, y bo'yicha tik
+  const zs = [0, 1, 2, 3].map((i) => pos.getZ(8 + i));
+  const ys = [0, 1, 2, 3].map((i) => pos.getY(8 + i));
+  assert.ok(zs.every((z) => z === -5), "devor tekisligida");
+  assert.deepEqual([Math.min(...ys), Math.max(...ys)], [1, 3]);
+});
+
+test("kontakt qorong'iligi: perimetrda faqat ichki tomon, ichki devorda ikki tomon, bino chegarasida kesiladi", () => {
+  const clip = { x0: -10, x1: 10, z0: -5, z1: 5 };
+  const g = buildShadeGeometry([{ rects: [
+    { x0: -10, x1: 10, z0: -5.2, z1: -5 }, // perimetr (orqa devor): faqat +z tomon
+    { x0: -0.16, x1: 0.16, z0: -5, z1: 0 }, // ichki bo'luvchi: −x va +x tomon (+z uchi ham)
+  ], width: 0.5, k: 0.3 }], 0.026, clip);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  const col = g.getAttribute("color");
+  // perimetr: 1 ta (+z); bo'luvchi: −z tomoni chegarada (z0 = clip.z0) → yo'q; +z, −x, +x → 3 ta
+  assert.equal(pos.count, 16, "4 tasma × 4 cho'qqi");
+  for (let i = 0; i < pos.count; i++) {
+    assert.ok(pos.getX(i) >= clip.x0 && pos.getX(i) <= clip.x1 && pos.getZ(i) >= clip.z0 && pos.getZ(i) <= clip.z1, `cho'qqi ${i} bino ichida`);
+    assert.ok(Math.abs(pos.getY(i) - 0.026) < 1e-6, "polda");
+  }
+  // 1-tasma (perimetr +z): devor chetida (z = −5) uv.y = 0, tashqi chekkada (z = −4.5) uv.y = 1
+  for (let i = 0; i < 4; i++) {
+    const z = pos.getZ(i), v = uv.getY(i);
+    assert.ok((Math.abs(z + 5) < 1e-6 && v === 0) || (Math.abs(z + 4.5) < 1e-6 && v === 1), `perimetr tasmasi z=${z} v=${v}`);
+  }
+  assert.ok(Math.abs(col.getX(0) - 0.3) < 1e-6, "qorong'ilik kuchi vertex rangda");
+});
+
+test("pol geometriyasi: UV dunyo koordinatasida (zichlik bir xil), normal va old yuz yuqoriga", () => {
+  const g = floorGeometry(-3, 5, 2, 6, 2);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  for (let i = 0; i < pos.count; i++) {
+    assert.ok(Math.abs(uv.getX(i) - pos.getX(i) / 2) < 1e-6 && Math.abs(uv.getY(i) + pos.getZ(i) / 2) < 1e-6, `cho'qqi ${i}: uv = dunyo / o'lcham`);
+    assert.equal(g.getAttribute("normal").getY(i), 1);
+  }
+  const idx = g.getIndex()!;
+  const p = (k: number) => new THREE.Vector3(pos.getX(idx.getX(k)), pos.getY(idx.getX(k)), pos.getZ(idx.getX(k)));
+  const n = new THREE.Vector3().subVectors(p(1), p(0)).cross(new THREE.Vector3().subVectors(p(2), p(0)));
+  assert.ok(n.y > 0, "uchburchak yuqoriga qaragan (tepadan ko'rinadi)");
+});
+
+test("statik birlashtirish: belgilangan (batchable) tekstura birlashadi, uv saqlanadi; jonli tekstura chetda", () => {
+  const root = new THREE.Group();
+  const safe = new THREE.Texture();
+  safe.userData.batchable = true;
+  const live = new THREE.Texture(); // masalan monitor ekrani — belgisiz
+  const floor = (x: number, map: THREE.Texture) => {
+    const m = new THREE.Mesh(floorGeometry(x, x + 2, 0, 2, 2), new THREE.MeshStandardMaterial({ color: "#a08060", roughness: 0.6, map }));
+    root.add(m);
+    return m;
+  };
+  const a = floor(0, safe), b = floor(4, safe);
+  const c = floor(8, live), d = floor(12, live);
+  const r = batchStatic(root);
+  assert.equal(r.batches.length, 1, "faqat batchable juftlik birlashadi");
+  const batch = r.batches[0];
+  assert.equal((batch.material as THREE.MeshStandardMaterial).map, safe, "birlashma o'sha teksturani ishlatadi");
+  const uv = batch.geometry.getAttribute("uv");
+  assert.ok(uv && uv.count === 12, "uv saqlangan (2 pol × 6 cho'qqi)");
+  assert.deepEqual([a.visible, b.visible, c.visible, d.visible], [false, false, true, true]);
+  unbatch(root, r);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

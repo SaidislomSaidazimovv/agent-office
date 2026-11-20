@@ -21,7 +21,9 @@ function B({ p, s, m, cast = true }: { p?: V3; s: V3; m: THREE.Material; cast?: 
 // Statik (holatga bog'liq bo'lmagan) materiallar — bir marta keshlanadi.
 const DESK_TOP_M = stdMat("#f2efe9", { roughness: 0.4 });
 const DESK_EDGE_M = stdMat("#2a2e35", { roughness: 0.4 });
-const LEG_M = stdMat("#4a4f57", { roughness: 0.4, metalness: 0.6 });
+// Metall qismlar — bo'yalgan (powder-coat) metall: kuchli metalness yorug'likni
+// faqat atrofdan aks ettiradi va kuchsiz atrof-muhit xaritasida qop-qora ko'rinardi.
+const LEG_M = stdMat("#4a4f57", { roughness: 0.45, metalness: 0.25 });
 const MON_M = stdMat("#12151a", { roughness: 0.3 });
 const SCREEN_OFF_M = stdMat("#1b1f27", { roughness: 0.35 }); // o'chiq ekran (bo'sh stol)
 const STAND_M = stdMat("#3a3f47");
@@ -33,8 +35,8 @@ const MUG2_M = stdMat("#c96a4e", { roughness: 0.5 });
 const NOTE_M = stdMat("#ffd60a", { roughness: 0.85 });
 const CHAIR_M = stdMat("#2c313a", { roughness: 0.6 });
 const ARM_M = stdMat("#1c2027");
-const POST_M = stdMat("#8b929c", { roughness: 0.35, metalness: 0.85 });
-const STAR_M = stdMat("#3a3f47", { roughness: 0.4, metalness: 0.6 });
+const POST_M = stdMat("#8b929c", { roughness: 0.35, metalness: 0.5 });
+const STAR_M = stdMat("#3a3f47", { roughness: 0.45, metalness: 0.25 });
 const SCREEN_G = new THREE.PlaneGeometry(0.64, 0.36);
 const GLOW_G = new THREE.PlaneGeometry(0.98, 0.66);
 

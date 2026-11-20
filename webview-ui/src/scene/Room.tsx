@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import type * as THREE from "three";
+import { useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
 import { BUILDING } from "./officeLayout";
+import { FLOOR_TEX_SIZE, floorGeometry, floorTexture } from "./textures";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
 // Bino o'lchami — ofis rejasidan (officeLayout.ts).
@@ -16,6 +18,35 @@ function shade(hex: string, amt: number): string {
   const cl = (v: number) => Math.max(0, Math.min(255, v));
   const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
   return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
+// Atrof-muhit xaritasi (IBL) — three'ning RoomEnvironment sahnasidan BIR MARTA
+// yasaladi (lokal, tarmoq/tekstura fayli yo'q → CSP bilan mos). PBR
+// materiallarga yumshoq to'ldiruvchi yorug'lik va aks beradi: "yassi" ambient
+// o'rnini egallaydi. Kuchi kun/tun bo'yicha (scene.environmentIntensity).
+function EnvironmentLight({ intensity }: { intensity: number }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const tex = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = tex;
+    pmrem.dispose();
+    room.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) (m.material as THREE.Material).dispose();
+    });
+    return () => {
+      if (scene.environment === tex) scene.environment = null;
+      tex.dispose();
+    };
+  }, [gl, scene]);
+  useEffect(() => {
+    scene.environmentIntensity = intensity;
+  }, [scene, intensity]);
+  return null;
 }
 
 // Kun/tun yorug'ligi — parametrlar useDaylight store'dan, real soatdan ~30s'da
@@ -31,18 +62,23 @@ function Daylight() {
   return (
     <>
       <color attach="background" args={[params.sky]} />
+      <EnvironmentLight intensity={params.env} />
       <ambientLight intensity={params.ambient} />
       <hemisphereLight args={["#ffffff", "#c9c2b2", params.hemi]} />
       <directionalLight
-        position={[12, 20, 8]}
+        // Quyosh YONDAN (−x, +z), ~38° balandlik. Iso kamera (+x, +z) tomonida —
+        // avval quyosh ham shu tomonda edi: har soya obyekt ORTIGA yashirinardi
+        // va ko'rinadigan ikki yon yuz bir xil yorug' (yassi) edi. Endi soyalar
+        // obyektning o'ng tomoniga tushadi, +z yuzi yorug', +x yuzi soyada.
+        position={[-8, 13, 14]}
         intensity={params.dirI}
         color={params.dir}
         castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-24}
-        shadow-camera-right={24}
-        shadow-camera-top={18}
-        shadow-camera-bottom={-18}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={24}
+        shadow-camera-bottom={-24}
         shadow-radius={4}
         shadow-normalBias={0.02}
         shadow-bias={-0.0002}
@@ -88,6 +124,8 @@ export default function Room({ mode }: { mode: CameraMode }) {
   // Yon devorlar biroz to'qroq (chuqurlik hissi) — mavzu rangidan hosila.
   const sideWall = wallColor ? shade(wallColor, -10) : "#d2c9b7";
 
+  const baseFloorGeo = useMemo(() => floorGeometry(-W / 2, W / 2, -D / 2, D / 2, FLOOR_TEX_SIZE.concrete), [W, D]);
+  const zoneFloorGeo = useMemo(() => floorGeometry(-15, 15, -7, 7, FLOOR_TEX_SIZE.carpet), []);
   const backM = useRef<THREE.MeshStandardMaterial>(null);
   const frontM = useRef<THREE.MeshStandardMaterial>(null);
   const leftM = useRef<THREE.MeshStandardMaterial>(null);
@@ -125,14 +163,14 @@ export default function Room({ mode }: { mode: CameraMode }) {
           xonani qamraydi (x=±23, z=±16 dan tashqaridagi mebel ham soya beradi). */}
       <Daylight />
 
-      {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#e9e2d2" roughness={0.68} metalness={0.04} />
+      {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan. Naqsh
+          (S8-3): umumiy pol — silliqlangan beton, ish zonasi — gilam plitkasi
+          (mavzu rangi × naqsh; UV dunyo koordinatasida). */}
+      <mesh geometry={baseFloorGeo} receiveShadow>
+        <meshStandardMaterial color="#e9e2d2" roughness={0.68} metalness={0.04} map={floorTexture("concrete")} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
-        <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.6} metalness={0.05} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+      <mesh geometry={zoneFloorGeo} position={[0, 0.012, 0]} receiveShadow>
+        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.95} metalness={0} map={floorTexture("carpet")} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
       {/* ── Perimetr devorlar (4 tomon) — dinamik shaffoflik useFrame'da ── */}

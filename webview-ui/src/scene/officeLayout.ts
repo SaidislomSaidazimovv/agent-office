@@ -37,6 +37,9 @@ export const DISTRICT = {
 } as const;
 export type District = keyof typeof DISTRICT;
 
+/** Pol yuzasi turi (protsedural tekstura — textures.ts). */
+export type FloorKind = "carpet" | "wood" | "tile" | "concrete";
+
 export interface RoomDef {
   /** Barqaror kalit (nav tugunlari: `${key}_d`, `${key}_i`). */
   key: string;
@@ -47,23 +50,26 @@ export interface RoomDef {
   doorX: number;
   doorW: number;
   floor: District;
+  /** Pol yuzasi (naqsh) va uning masshtabi (1 = standart o'lcham). */
+  surface: FloorKind;
+  surfaceScale?: number;
   /** Shisha old devor (aks holda qattiq devor + eshik tavaqasi). */
   glass: boolean;
 }
 
 export const ROOMS: RoomDef[] = [
   // Yuqori qator (z ∈ [−16, −9.5])
-  { key: "server", side: "top", x0: -23, x1: -9, doorX: -16, doorW: 2.6, floor: "server", glass: false },
-  { key: "kitchen", side: "top", x0: -9, x1: -1, doorX: -5, doorW: 2, floor: "kitchen", glass: false },
-  { key: "meeting", side: "top", x0: -1, x1: 8, doorX: 3.5, doorW: 2, floor: "meeting", glass: false },
-  { key: "bathroom", side: "top", x0: 8, x1: 15, doorX: 11.5, doorW: 2, floor: "bathroom", glass: false },
-  { key: "glassA", side: "top", x0: 15, x1: 23, doorX: 19, doorW: 2, floor: "glass", glass: true },
+  { key: "server", side: "top", x0: -23, x1: -9, doorX: -16, doorW: 2.6, floor: "server", surface: "tile", surfaceScale: 2, glass: false },
+  { key: "kitchen", side: "top", x0: -9, x1: -1, doorX: -5, doorW: 2, floor: "kitchen", surface: "tile", glass: false },
+  { key: "meeting", side: "top", x0: -1, x1: 8, doorX: 3.5, doorW: 2, floor: "meeting", surface: "carpet", glass: false },
+  { key: "bathroom", side: "top", x0: 8, x1: 15, doorX: 11.5, doorW: 2, floor: "bathroom", surface: "tile", glass: false },
+  { key: "glassA", side: "top", x0: 15, x1: 23, doorX: 19, doorW: 2, floor: "glass", surface: "carpet", glass: true },
   // Pastki qator (z ∈ [9.5, 16])
-  { key: "library", side: "bottom", x0: -23, x1: -11, doorX: -17, doorW: 2.4, floor: "library", glass: false },
-  { key: "focus", side: "bottom", x0: -11, x1: -3, doorX: -7, doorW: 2, floor: "focus", glass: false },
-  { key: "lounge", side: "bottom", x0: -3, x1: 7, doorX: 2, doorW: 2, floor: "lounge", glass: false },
-  { key: "glassB", side: "bottom", x0: 7, x1: 15, doorX: 11, doorW: 2, floor: "glass", glass: true },
-  { key: "glassC", side: "bottom", x0: 15, x1: 23, doorX: 19, doorW: 2, floor: "glass", glass: true },
+  { key: "library", side: "bottom", x0: -23, x1: -11, doorX: -17, doorW: 2.4, floor: "library", surface: "wood", glass: false },
+  { key: "focus", side: "bottom", x0: -11, x1: -3, doorX: -7, doorW: 2, floor: "focus", surface: "carpet", glass: false },
+  { key: "lounge", side: "bottom", x0: -3, x1: 7, doorX: 2, doorW: 2, floor: "lounge", surface: "wood", glass: false },
+  { key: "glassB", side: "bottom", x0: 7, x1: 15, doorX: 11, doorW: 2, floor: "glass", surface: "carpet", glass: true },
+  { key: "glassC", side: "bottom", x0: 15, x1: 23, doorX: 19, doorW: 2, floor: "glass", surface: "carpet", glass: true },
 ];
 
 /** Xonaning z oralig'i (devor chizig'idan bino chetigacha). */
