@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import type * as THREE from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
@@ -18,6 +19,35 @@ function shade(hex: string, amt: number): string {
   return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
 }
 
+// Atrof-muhit xaritasi (IBL) — three'ning RoomEnvironment sahnasidan BIR MARTA
+// yasaladi (lokal, tarmoq/tekstura fayli yo'q → CSP bilan mos). PBR
+// materiallarga yumshoq to'ldiruvchi yorug'lik va aks beradi: "yassi" ambient
+// o'rnini egallaydi. Kuchi kun/tun bo'yicha (scene.environmentIntensity).
+function EnvironmentLight({ intensity }: { intensity: number }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const tex = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = tex;
+    pmrem.dispose();
+    room.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) (m.material as THREE.Material).dispose();
+    });
+    return () => {
+      if (scene.environment === tex) scene.environment = null;
+      tex.dispose();
+    };
+  }, [gl, scene]);
+  useEffect(() => {
+    scene.environmentIntensity = intensity;
+  }, [scene, intensity]);
+  return null;
+}
+
 // Kun/tun yorug'ligi — parametrlar useDaylight store'dan, real soatdan ~30s'da
 // yangilanadi (soat sekin o'zgargani uchun snap sezilmaydi). Fon rangi ham shundan.
 function Daylight() {
@@ -31,18 +61,23 @@ function Daylight() {
   return (
     <>
       <color attach="background" args={[params.sky]} />
+      <EnvironmentLight intensity={params.env} />
       <ambientLight intensity={params.ambient} />
       <hemisphereLight args={["#ffffff", "#c9c2b2", params.hemi]} />
       <directionalLight
-        position={[12, 20, 8]}
+        // Quyosh YONDAN (−x, +z), ~38° balandlik. Iso kamera (+x, +z) tomonida —
+        // avval quyosh ham shu tomonda edi: har soya obyekt ORTIGA yashirinardi
+        // va ko'rinadigan ikki yon yuz bir xil yorug' (yassi) edi. Endi soyalar
+        // obyektning o'ng tomoniga tushadi, +z yuzi yorug', +x yuzi soyada.
+        position={[-8, 13, 14]}
         intensity={params.dirI}
         color={params.dir}
         castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-24}
-        shadow-camera-right={24}
-        shadow-camera-top={18}
-        shadow-camera-bottom={-18}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={24}
+        shadow-camera-bottom={-24}
         shadow-radius={4}
         shadow-normalBias={0.02}
         shadow-bias={-0.0002}

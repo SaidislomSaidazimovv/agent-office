@@ -11,21 +11,25 @@ export interface DayParams {
   dirI: number;
   dir: string; // yo'naltirilgan yorug'lik rangi (hex)
   hemi: number;
+  /** Atrof-muhit xaritasi (RoomEnvironment, lokal) kuchi — yumshoq hajm va aks. */
+  env: number;
   sky: string; // fon rangi (hex)
   lamps: boolean; // lampalar/monitor porlashi kuchaysinmi
 }
 
-interface Key { h: number; amb: number; dirI: number; dir: [number, number, number]; hemi: number; sky: [number, number, number]; lamps: boolean }
+interface Key { h: number; amb: number; dirI: number; dir: [number, number, number]; hemi: number; env: number; sky: [number, number, number]; lamps: boolean }
 
 // Kalit kadrlar (soat bo'yicha) — orasi silliq interpolatsiya qilinadi.
+// S8-3: yassi "bir tekis" yoritish o'rniga — ambient/hemi past, quyosh kuchli
+// (soya va hajm o'qiladi), yumshoq to'ldirish atrof-muhit xaritasidan (env).
 const KEYS: Key[] = [
-  { h: 0, amb: 0.34, dirI: 0.16, dir: [106, 122, 158], hemi: 0.26, sky: [10, 14, 22], lamps: true },   // tun
-  { h: 6, amb: 0.50, dirI: 0.50, dir: [255, 210, 158], hemi: 0.40, sky: [42, 34, 46], lamps: true },   // tong
-  { h: 8, amb: 0.68, dirI: 0.85, dir: [255, 240, 216], hemi: 0.50, sky: [17, 21, 28], lamps: false },  // ertalab
-  { h: 13, amb: 0.80, dirI: 1.00, dir: [255, 246, 232], hemi: 0.60, sky: [18, 22, 30], lamps: false }, // tush
-  { h: 18, amb: 0.56, dirI: 0.72, dir: [255, 154, 90], hemi: 0.46, sky: [34, 22, 30], lamps: true },   // shom
-  { h: 20, amb: 0.42, dirI: 0.34, dir: [200, 138, 106], hemi: 0.32, sky: [14, 16, 26], lamps: true },  // kech
-  { h: 24, amb: 0.34, dirI: 0.16, dir: [106, 122, 158], hemi: 0.26, sky: [10, 14, 22], lamps: true },  // tun (wrap)
+  { h: 0, amb: 0.30, dirI: 0.14, dir: [106, 122, 158], hemi: 0.22, env: 0.02, sky: [10, 14, 22], lamps: true },   // tun
+  { h: 6, amb: 0.22, dirI: 0.70, dir: [255, 210, 158], hemi: 0.18, env: 0.08, sky: [42, 34, 46], lamps: true },   // tong
+  { h: 8, amb: 0.14, dirI: 1.25, dir: [255, 240, 216], hemi: 0.14, env: 0.13, sky: [17, 21, 28], lamps: false },  // ertalab
+  { h: 13, amb: 0.14, dirI: 1.50, dir: [255, 246, 232], hemi: 0.14, env: 0.15, sky: [18, 22, 30], lamps: false }, // tush
+  { h: 18, amb: 0.20, dirI: 1.00, dir: [255, 154, 90], hemi: 0.16, env: 0.10, sky: [34, 22, 30], lamps: true },   // shom
+  { h: 20, amb: 0.34, dirI: 0.30, dir: [200, 138, 106], hemi: 0.26, env: 0.05, sky: [14, 16, 26], lamps: true },  // kech
+  { h: 24, amb: 0.30, dirI: 0.14, dir: [106, 122, 158], hemi: 0.22, env: 0.02, sky: [10, 14, 22], lamps: true },  // tun (wrap)
 ];
 
 const hex = (c: [number, number, number]): string =>
@@ -43,16 +47,17 @@ export function daylightAt(hour: number): DayParams {
   }
   const t = b.h === a.h ? 0 : (h - a.h) / (b.h - a.h);
   return {
-    ambient: Math.max(0.32, mix(a.amb, b.amb, t)), // minimal yorqinlik clamp
+    ambient: Math.max(0.08, mix(a.amb, b.amb, t)), // minimal yorqinlik clamp
     dirI: mix(a.dirI, b.dirI, t),
     dir: hex(mix3(a.dir, b.dir, t)),
     hemi: mix(a.hemi, b.hemi, t),
+    env: mix(a.env, b.env, t),
     sky: hex(mix3(a.sky, b.sky, t)),
     lamps: t < 0.5 ? a.lamps : b.lamps,
   };
 }
 
-const DAY: DayParams = { ambient: 0.8, dirI: 1.0, dir: "#fff6e8", hemi: 0.6, sky: "#11151c", lamps: false };
+const DAY: DayParams = { ambient: 0.14, dirI: 1.5, dir: "#fff6e8", hemi: 0.14, env: 0.15, sky: "#11151c", lamps: false };
 
 // `?hour=N` — sinov/qo'lda ko'rsatish uchun soatni majburlash.
 function queryHour(): number | null {
