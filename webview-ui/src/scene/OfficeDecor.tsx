@@ -8,7 +8,8 @@ import { fmtCost } from "../pricing";
 import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
-import { BUILDING, DISTRICT, ROOM_LINE, ROOMS, roomZ, WALL_HALF } from "./officeLayout";
+import { ContactShade, type ShadeSet } from "./contactShade";
+import { BUILDING, DISTRICT, PERIM_HALF, ROOM_LINE, ROOMS, roomZ, WALL_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
@@ -563,6 +564,13 @@ const NIGHT_POOLS: Pool[] = [
 ];
 const STANDING_LAMP_POOL: Pool[] = [{ x: 0, y: FLOOR_Y, z: 0, r: 3, color: "#ffd98a", k: 0.2 }];
 
+// Devor tagidagi kontakt qorong'iligi (arzon AO) — ofis rejasidan. Faqat
+// devorlar: mebelning to'qnashuv to'rtburchaklari haqiqiy shaklidan kattaroq
+// (zaxira bilan), ular atrofidagi tasma mebeldan uzoqda "suzib" turgan qorong'i
+// ramka bo'lib chiqdi. Mebelni quyosh soyasi yerga bog'laydi.
+const SHADE_SETS: ShadeSet[] = [{ rects: wallRects(), width: 0.55, k: 0.28 }];
+const INTERIOR = { x0: -BUILDING.W / 2 + PERIM_HALF, x1: BUILDING.W / 2 - PERIM_HALF, z0: -BUILDING.D / 2 + PERIM_HALF, z1: BUILDING.D / 2 - PERIM_HALF };
+
 // ── District palitrasi (0.1.5) ───────────────────────────────
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
 // bej/kul bo'lib ko'rinardi ("generic quti" hissi). Yechim: har xonaga
@@ -682,6 +690,8 @@ export default function OfficeDecor() {
       {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
       {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
       <LightPools pools={NIGHT_POOLS} />
+      {/* Devor tagidagi kontakt qorong'iligi — BITTA mesh */}
+      <ContactShade sets={SHADE_SETS} y={0.026} clip={INTERIOR} />
       {/* Devor soati + qo'shimcha rasmlar (yon devorlarda, ochiq ofisga qaragan) */}
       <WallClock p={[-22.85, 2.35, -6]} ry={Math.PI / 2} />
       <Painting p={[-22.85, 1.6, 6]} ry={Math.PI / 2} c="#5a8c5a" />

@@ -33,6 +33,7 @@ import { dprFor, shadowEvery, shadowSignature, useSettings } from "../webview-ui
 import * as THREE from "three";
 import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
+import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1709,6 +1710,29 @@ test("nur dog'lari: bitta geometriya, rang×kuch, chegarada kesiladi, tashqarida
   const ys = [0, 1, 2, 3].map((i) => pos.getY(8 + i));
   assert.ok(zs.every((z) => z === -5), "devor tekisligida");
   assert.deepEqual([Math.min(...ys), Math.max(...ys)], [1, 3]);
+});
+
+test("kontakt qorong'iligi: perimetrda faqat ichki tomon, ichki devorda ikki tomon, bino chegarasida kesiladi", () => {
+  const clip = { x0: -10, x1: 10, z0: -5, z1: 5 };
+  const g = buildShadeGeometry([{ rects: [
+    { x0: -10, x1: 10, z0: -5.2, z1: -5 }, // perimetr (orqa devor): faqat +z tomon
+    { x0: -0.16, x1: 0.16, z0: -5, z1: 0 }, // ichki bo'luvchi: −x va +x tomon (+z uchi ham)
+  ], width: 0.5, k: 0.3 }], 0.026, clip);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  const col = g.getAttribute("color");
+  // perimetr: 1 ta (+z); bo'luvchi: −z tomoni chegarada (z0 = clip.z0) → yo'q; +z, −x, +x → 3 ta
+  assert.equal(pos.count, 16, "4 tasma × 4 cho'qqi");
+  for (let i = 0; i < pos.count; i++) {
+    assert.ok(pos.getX(i) >= clip.x0 && pos.getX(i) <= clip.x1 && pos.getZ(i) >= clip.z0 && pos.getZ(i) <= clip.z1, `cho'qqi ${i} bino ichida`);
+    assert.ok(Math.abs(pos.getY(i) - 0.026) < 1e-6, "polda");
+  }
+  // 1-tasma (perimetr +z): devor chetida (z = −5) uv.y = 0, tashqi chekkada (z = −4.5) uv.y = 1
+  for (let i = 0; i < 4; i++) {
+    const z = pos.getZ(i), v = uv.getY(i);
+    assert.ok((Math.abs(z + 5) < 1e-6 && v === 0) || (Math.abs(z + 4.5) < 1e-6 && v === 1), `perimetr tasmasi z=${z} v=${v}`);
+  }
+  assert.ok(Math.abs(col.getX(0) - 0.3) < 1e-6, "qorong'ilik kuchi vertex rangda");
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
