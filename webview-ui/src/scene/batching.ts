@@ -11,7 +11,9 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 // Birlashtirilmaydi:
 //  • `userData.noBatch` belgilangan obyekt va uning BUTUN pastki daraxti
 //    (animatsiya, kun/tun, holatga bog'liq narsalar);
-//  • teksturali (map), shaffof, ko'rinmas, ko'p materialli, instanced/skinned mesh;
+//  • teksturali (map) mesh — tekstura `userData.batchable` bo'lmasa (statik pol
+//    teksturalari birlashadi, kalitga tekstura kiradi, uv saqlanadi);
+//  • shaffof, ko'rinmas, ko'p materialli, instanced/skinned mesh;
 //  • MeshStandardMaterial bo'lmagan materiallar.
 // Ko'rinish o'zgarmaydi: vertex rangi × oq material = asl material rangi.
 
@@ -28,10 +30,15 @@ function eligible(m: THREE.Mesh): m is THREE.Mesh<THREE.BufferGeometry, THREE.Me
   const mat = m.material as THREE.Material;
   if ((mat as THREE.MeshStandardMaterial).type !== "MeshStandardMaterial") return false;
   const s = mat as THREE.MeshStandardMaterial;
-  if (s.map || s.emissiveMap || s.alphaMap || s.normalMap || s.roughnessMap || s.metalnessMap || s.aoMap) return false;
+  // Rang teksturasi faqat `userData.batchable` belgilangan bo'lsa (statik pol
+  // teksturalari, textures.ts). Boshqalari (monitor ekrani kabi jonli canvas
+  // teksturalar) birlashmaga "muzlab" qolmasin.
+  if (s.map && !s.map.userData?.batchable) return false;
+  if (s.emissiveMap || s.alphaMap || s.normalMap || s.roughnessMap || s.metalnessMap || s.aoMap) return false;
   if (s.transparent || s.opacity < 1 || !s.visible || s.vertexColors) return false;
   const g = m.geometry;
   if (!g || !g.getAttribute("position") || !g.getAttribute("normal") || Object.keys(g.morphAttributes).length > 0) return false;
+  if (s.map && !g.getAttribute("uv")) return false;
   return true;
 }
 
@@ -41,28 +48,33 @@ function keyOf(m: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>):
   return [
     s.roughness, s.metalness, s.emissive.getHexString(), s.emissiveIntensity, s.toneMapped ? 1 : 0, s.side, s.flatShading ? 1 : 0,
     s.depthWrite ? 1 : 0, s.depthTest ? 1 : 0, s.polygonOffset ? `${s.polygonOffsetFactor},${s.polygonOffsetUnits}` : "-",
-    m.castShadow ? 1 : 0, m.receiveShadow ? 1 : 0,
+    m.castShadow ? 1 : 0, m.receiveShadow ? 1 : 0, s.map ? s.map.uuid : "-",
   ].join("|");
 }
 
-/** Geometriyani ildiz koordinatasiga o'tkazadi; faqat position+normal+color qoladi
- *  (barcha bo'laklar bir xil atributlarga ega bo'lishi shart). */
+/** Geometriyani ildiz koordinatasiga o'tkazadi; faqat position+normal(+uv)+color
+ *  qoladi (bir guruhdagi barcha bo'laklar bir xil atributlarga ega — uv faqat
+ *  teksturali guruhda, kalit teksturani o'z ichiga oladi). */
 function prepared(m: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>, toRoot: THREE.Matrix4): THREE.BufferGeometry {
   const src = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", src.getAttribute("position").clone());
   g.setAttribute("normal", src.getAttribute("normal").clone());
+  if (m.material.map) g.setAttribute("uv", src.getAttribute("uv").clone());
   const mat = new THREE.Matrix4().multiplyMatrices(toRoot, m.matrixWorld);
   g.applyMatrix4(mat);
   // Manfiy determinant (ko'zgu scale) uchburchak aylanishini teskari qiladi —
   // old/orqa yuz almashmasin uchun har uchburchakning 2-3 cho'qqisini almashtiramiz.
   if (mat.determinant() < 0) {
-    for (const name of ["position", "normal"]) {
+    for (const name of Object.keys(g.attributes)) {
       const a = g.getAttribute(name) as THREE.BufferAttribute;
+      const k = a.itemSize;
       for (let i = 0; i < a.count; i += 3) {
-        const x = a.getX(i + 1), y = a.getY(i + 1), z = a.getZ(i + 1);
-        a.setXYZ(i + 1, a.getX(i + 2), a.getY(i + 2), a.getZ(i + 2));
-        a.setXYZ(i + 2, x, y, z);
+        for (let c = 0; c < k; c++) {
+          const t = a.array[(i + 1) * k + c];
+          a.array[(i + 1) * k + c] = a.array[(i + 2) * k + c];
+          a.array[(i + 2) * k + c] = t;
+        }
       }
     }
   }
@@ -115,6 +127,7 @@ export function batchStatic(root: THREE.Object3D): BatchResult {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       vertexColors: true,
+      map: s.map ?? null,
       roughness: s.roughness,
       metalness: s.metalness,
       emissive: s.emissive.clone(),

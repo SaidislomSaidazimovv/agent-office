@@ -34,6 +34,7 @@ import * as THREE from "three";
 import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
+import { floorGeometry } from "../webview-ui/src/scene/textures.js";
 import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1733,6 +1734,42 @@ test("kontakt qorong'iligi: perimetrda faqat ichki tomon, ichki devorda ikki tom
     assert.ok((Math.abs(z + 5) < 1e-6 && v === 0) || (Math.abs(z + 4.5) < 1e-6 && v === 1), `perimetr tasmasi z=${z} v=${v}`);
   }
   assert.ok(Math.abs(col.getX(0) - 0.3) < 1e-6, "qorong'ilik kuchi vertex rangda");
+});
+
+test("pol geometriyasi: UV dunyo koordinatasida (zichlik bir xil), normal va old yuz yuqoriga", () => {
+  const g = floorGeometry(-3, 5, 2, 6, 2);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  for (let i = 0; i < pos.count; i++) {
+    assert.ok(Math.abs(uv.getX(i) - pos.getX(i) / 2) < 1e-6 && Math.abs(uv.getY(i) + pos.getZ(i) / 2) < 1e-6, `cho'qqi ${i}: uv = dunyo / o'lcham`);
+    assert.equal(g.getAttribute("normal").getY(i), 1);
+  }
+  const idx = g.getIndex()!;
+  const p = (k: number) => new THREE.Vector3(pos.getX(idx.getX(k)), pos.getY(idx.getX(k)), pos.getZ(idx.getX(k)));
+  const n = new THREE.Vector3().subVectors(p(1), p(0)).cross(new THREE.Vector3().subVectors(p(2), p(0)));
+  assert.ok(n.y > 0, "uchburchak yuqoriga qaragan (tepadan ko'rinadi)");
+});
+
+test("statik birlashtirish: belgilangan (batchable) tekstura birlashadi, uv saqlanadi; jonli tekstura chetda", () => {
+  const root = new THREE.Group();
+  const safe = new THREE.Texture();
+  safe.userData.batchable = true;
+  const live = new THREE.Texture(); // masalan monitor ekrani — belgisiz
+  const floor = (x: number, map: THREE.Texture) => {
+    const m = new THREE.Mesh(floorGeometry(x, x + 2, 0, 2, 2), new THREE.MeshStandardMaterial({ color: "#a08060", roughness: 0.6, map }));
+    root.add(m);
+    return m;
+  };
+  const a = floor(0, safe), b = floor(4, safe);
+  const c = floor(8, live), d = floor(12, live);
+  const r = batchStatic(root);
+  assert.equal(r.batches.length, 1, "faqat batchable juftlik birlashadi");
+  const batch = r.batches[0];
+  assert.equal((batch.material as THREE.MeshStandardMaterial).map, safe, "birlashma o'sha teksturani ishlatadi");
+  const uv = batch.geometry.getAttribute("uv");
+  assert.ok(uv && uv.count === 12, "uv saqlangan (2 pol × 6 cho'qqi)");
+  assert.deepEqual([a.visible, b.visible, c.visible, d.visible], [false, false, true, true]);
+  unbatch(root, r);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

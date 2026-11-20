@@ -12,6 +12,7 @@ import { ContactShade, type ShadeSet } from "./contactShade";
 import { BUILDING, DISTRICT, PERIM_HALF, ROOM_LINE, ROOMS, roomZ, WALL_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
+import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
 
@@ -37,11 +38,15 @@ function Box({ p, s, c, rough = 0.9 }: { p: V3; s: V3; c: string; rough?: number
   return <mesh position={p} scale={s} geometry={UNIT_BOX} material={stdMat(c, { roughness: rough })} castShadow receiveShadow />;
 }
 
-function Floor({ x0, x1, z0, z1, c }: { x0: number; x1: number; z0: number; z1: number; c: string }) {
+// Xona poli — protsedural naqsh (S8-3) × xona rangi. UV dunyo koordinatasida
+// (floorGeometry): bir xil naqshli pollar StaticBatch'da bitta mesh'ga birlashadi.
+const SURFACE_ROUGH: Record<FloorKind, number> = { carpet: 1, wood: 0.6, tile: 0.4, concrete: 0.75 };
+function Floor({ x0, x1, z0, z1, c, kind, scale = 1 }: { x0: number; x1: number; z0: number; z1: number; c: string; kind: FloorKind; scale?: number }) {
+  const geo = useMemo(() => floorGeometry(x0, x1, z0, z1, FLOOR_TEX_SIZE[kind] * scale), [x0, x1, z0, z1, kind, scale]);
+  useEffect(() => () => geo.dispose(), [geo]);
   return (
-    <mesh position={[(x0 + x1) / 2, 0.02, (z0 + z1) / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[x1 - x0, z1 - z0]} />
-      {M(c, 1)}
+    <mesh position={[0, 0.02, 0]} geometry={geo} receiveShadow>
+      <meshStandardMaterial color={c} roughness={SURFACE_ROUGH[kind]} map={floorTexture(kind)} />
     </mesh>
   );
 }
@@ -581,7 +586,7 @@ function RoomFloor({ k }: { k: string }) {
   const r = ROOMS.find((x) => x.key === k);
   if (!r) throw new Error(`unknown room ${k}`);
   const { z0, z1 } = roomZ(r);
-  return <Floor x0={r.x0} x1={r.x1} z0={z0} z1={z1} c={DISTRICT[r.floor]} />;
+  return <Floor x0={r.x0} x1={r.x1} z0={z0} z1={z1} c={DISTRICT[r.floor]} kind={r.surface} scale={r.surfaceScale} />;
 }
 
 export default function OfficeDecor() {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -6,6 +6,7 @@ import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
 import { BUILDING } from "./officeLayout";
+import { FLOOR_TEX_SIZE, floorGeometry, floorTexture } from "./textures";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
 // Bino o'lchami — ofis rejasidan (officeLayout.ts).
@@ -123,6 +124,8 @@ export default function Room({ mode }: { mode: CameraMode }) {
   // Yon devorlar biroz to'qroq (chuqurlik hissi) — mavzu rangidan hosila.
   const sideWall = wallColor ? shade(wallColor, -10) : "#d2c9b7";
 
+  const baseFloorGeo = useMemo(() => floorGeometry(-W / 2, W / 2, -D / 2, D / 2, FLOOR_TEX_SIZE.concrete), [W, D]);
+  const zoneFloorGeo = useMemo(() => floorGeometry(-15, 15, -7, 7, FLOOR_TEX_SIZE.carpet), []);
   const backM = useRef<THREE.MeshStandardMaterial>(null);
   const frontM = useRef<THREE.MeshStandardMaterial>(null);
   const leftM = useRef<THREE.MeshStandardMaterial>(null);
@@ -160,14 +163,14 @@ export default function Room({ mode }: { mode: CameraMode }) {
           xonani qamraydi (x=±23, z=±16 dan tashqaridagi mebel ham soya beradi). */}
       <Daylight />
 
-      {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#e9e2d2" roughness={0.68} metalness={0.04} />
+      {/* Pol — z-fight bo'lmasin uchun markaziy zona polygonOffset bilan. Naqsh
+          (S8-3): umumiy pol — silliqlangan beton, ish zonasi — gilam plitkasi
+          (mavzu rangi × naqsh; UV dunyo koordinatasida). */}
+      <mesh geometry={baseFloorGeo} receiveShadow>
+        <meshStandardMaterial color="#e9e2d2" roughness={0.68} metalness={0.04} map={floorTexture("concrete")} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
-        <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.6} metalness={0.05} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+      <mesh geometry={zoneFloorGeo} position={[0, 0.012, 0]} receiveShadow>
+        <meshStandardMaterial color={floorColor ?? "#d8c7a8"} roughness={0.95} metalness={0} map={floorTexture("carpet")} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
 
       {/* ── Perimetr devorlar (4 tomon) — dinamik shaffoflik useFrame'da ── */}
