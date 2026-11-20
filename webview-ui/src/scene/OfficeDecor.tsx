@@ -8,7 +8,8 @@ import { fmtCost } from "../pricing";
 import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
-import { DISTRICT, ROOMS, roomZ } from "./officeLayout";
+import { BUILDING, DISTRICT, ROOM_LINE, ROOMS, roomZ, WALL_HALF } from "./officeLayout";
+import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { visiblePoint } from "./visibility";
@@ -415,11 +416,9 @@ export function StandingLamp({ p }: { p: V3 }) {
       {/* Shade ostini yopadigan yorug' disk — ilgari konus OCHIQ edi, ichi
           ko'rinib "tugallanmagandek" turardi. Endi u yerdan nur chiqadi. */}
       <mesh position={[0, 1.6, 0]} rotation={[Math.PI / 2, 0, 0]}><circleGeometry args={[0.25, 16]} /><meshStandardMaterial color="#fff4d0" emissive="#ffe6a0" emissiveIntensity={lampsOn ? 2.2 : 0.6} side={2} toneMapped={false} /></mesh>
-      {/* Tunda yumshoq porlash + haqiqiy nur */}
-      {lampsOn && <>
-        <mesh position={[0, 1.7, 0]}><sphereGeometry args={[0.36, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.22} depthWrite={false} /></mesh>
-        <pointLight position={[0, 1.7, 0]} intensity={7} distance={5.5} decay={2} color="#ffd98a" />
-      </>}
+      {/* Tunda yumshoq porlash + poldagi nur dog'i (pointLight emas — S8-3) */}
+      {lampsOn && <mesh position={[0, 1.7, 0]}><sphereGeometry args={[0.36, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={0.22} depthWrite={false} /></mesh>}
+      <LightPools pools={STANDING_LAMP_POOL} />
     </group>
   );
 }
@@ -438,21 +437,18 @@ export function PendantLight({ p }: { p: V3 }) {
       <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.095, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.6 : 1.5} toneMapped={false} /></mesh>
       {/* Yumshoq halo — kunduz nozik, kechasi kuchli */}
       <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.3, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={lampsOn ? 0.22 : 0.12} depthWrite={false} /></mesh>
-      {lampsOn && <>
-        <pointLight position={[0, 1.78, 0]} intensity={5} distance={5} decay={2} color="#ffd98a" />
-      </>}
     </group>
   );
 }
 
 // Shift yoritgich paneli (recessed office light) — pol lampasi o'rniga. Ofisdek
 // tepadan yoritadi: yassi porlab turgan panel + qora ramka, WH=3.4 shift ostida.
-// Emissive TEKIN (yorug' hisoblanmaydi); haqiqiy pointLight faqat kechasi.
+// Emissive TEKIN (yorug' hisoblanmaydi); kechasi polda nur dog'i (NIGHT_POOLS).
 export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   // Fixtura FAQAT ichkaridan (FPV) ko'rinadi — shift kabi tepadan (iso) yashirin
   // (ilgari oq panel bo'shliqda "osilib" ko'rinardi). Iso'da faqat pol yorug'ligi
-  // (pointLight, kechasi) qoladi — bu aynan recessed downlight ko'rinishi.
+  // (kechasi nur dog'i) qoladi — bu aynan recessed downlight ko'rinishi.
   const fpv = useOffice((s) => s.cameraMode === "fpv");
   return (
     <group position={p} userData={{ noBatch: true }}>
@@ -467,7 +463,6 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
           </mesh>
         </>
       )}
-      {lampsOn && <pointLight position={[0, 2.9, 0]} intensity={6} distance={7.5} decay={2} color="#ffe9c0" />}
     </group>
   );
 }
@@ -542,14 +537,31 @@ function ReadingTable({ p }: { p: V3 }) {
   );
 }
 
-// District tungi nuri — FAQAT kechasi mavjud bo'ladi (kunduzda `null` qaytaradi,
-// ya'ni pointLight umuman yaratilmaydi → kunduzgi perf narxi NOL). Tunda jami
-// 9 pointLight (2 torsher + 4 pendant + 3 district) — xavfsiz chegara.
-function DistrictLight({ p, c, intensity = 9, distance = 14 }: { p: V3; c: string; intensity?: number; distance?: number }) {
-  const lampsOn = useDaylight((s) => s.params.lamps);
-  if (!lampsOn) return null;
-  return <pointLight position={p} color={c} intensity={intensity} distance={distance} decay={2} />;
+// ── Tungi yorug'lik (S8-3) ──
+// Lampalar joylashuvi — BIR ro'yxat: lampaning o'zi ham, poldagi nur dog'i ham
+// shundan chiziladi. Ilgari har lampa kechasi haqiqiy pointLight edi (11 ta).
+const CEILING_PANELS: V3[] = [[-12, 0, -3.2], [-12, 0, 3.2], [12, 0, -3.2], [12, 0, 3.2]];
+const PENDANTS: V3[] = [[-4, 0, -3.2], [4, 0, -3.2], [-4, 0, 3.2], [4, 0, 3.2]];
+const FLOOR_Y = 0.03; // xona pollari (0.02) dan yuqori
+// Dog' kesish chegaralari — ofis rejasidan (devor ichki yuzigacha).
+const OPEN_AREA = { x0: -BUILDING.W / 2, x1: BUILDING.W / 2, z0: -ROOM_LINE + WALL_HALF, z1: ROOM_LINE - WALL_HALF };
+function roomClip(key: string): Pool["clip"] {
+  const r = ROOMS.find((x) => x.key === key)!;
+  const { z0, z1 } = roomZ(r);
+  return { x0: r.x0 + WALL_HALF, x1: r.x1 - WALL_HALF, z0: z0 + WALL_HALF, z1: z1 - WALL_HALF };
 }
+const NIGHT_POOLS: Pool[] = [
+  ...CEILING_PANELS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 4.4, color: "#ffe9c0", k: 0.16, clip: OPEN_AREA })),
+  ...PENDANTS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 3.8, color: "#ffd98a", k: 0.18, clip: OPEN_AREA })),
+  // Server: sovuq ko'k "ma'lumot g'ori" hovuzi
+  { x: -16, y: FLOOR_Y, z: -12.8, r: 6.5, color: "#4fa8ff", k: 0.2, clip: roomClip("server") },
+  // Oshxona: neon yozuvdan pushti porlash — polda va orqa devorda
+  { x: -5, y: FLOOR_Y, z: -13.6, r: 4.2, color: "#ff5c9d", k: 0.16, clip: roomClip("kitchen") },
+  { x: -5, y: 1.9, z: -15.78, r: 3.2, color: "#ff5c9d", k: 0.2, face: "south" },
+  // Kutubxona: to'q yog'och ustida iliq amber "sobor" nuri
+  { x: -17, y: FLOOR_Y, z: 13, r: 6.5, color: "#ffb463", k: 0.2, clip: roomClip("library") },
+];
+const STANDING_LAMP_POOL: Pool[] = [{ x: 0, y: FLOOR_Y, z: 0, r: 3, color: "#ffd98a", k: 0.2 }];
 
 // ── District palitrasi (0.1.5) ───────────────────────────────
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
@@ -579,15 +591,11 @@ export default function OfficeDecor() {
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={x} p={[x, 0, -15.4]} />)}
       {[-21, -19, -17, -15, -13, -11].map((x) => <ServerRack key={`b${x}`} p={[x, 0, -11]} ry={Math.PI} />)}
       <CoolingUnit p={[-22.6, 0, -13]} ry={Math.PI / 2} />
-      {/* Tunda: sovuq ko'k "ma'lumot g'ori" hovuzi */}
-      <DistrictLight p={[-16, 2.2, -12.8]} c="#4fa8ff" intensity={10} distance={15} />
 
       {/* OSHXONA [-9,-1] */}
       <RoomFloor k="kitchen" />
       <WallX x0={-9} x1={-1} z={-9.5} door={2} />
       <Kitchen p={[-5, 0, -15.5]} />
-      {/* Tunda: neon yozuvdan taralayotgan pushti porlash */}
-      <DistrictLight p={[-5, 1.9, -14.3]} c="#ff5c9d" intensity={7} distance={11} />
 
       {/* MAJLIS [-1,8] */}
       <RoomFloor k="meeting" />
@@ -617,8 +625,6 @@ export default function OfficeDecor() {
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
-      {/* Tunda: to'q yog'och ustida iliq amber "sobor" nuri */}
-      <DistrictLight p={[-17, 2.2, 13]} c="#ffb463" intensity={10} distance={15} />
 
       {/* FOKUS [-11,-3] */}
       <RoomFloor k="focus" />
@@ -660,10 +666,7 @@ export default function OfficeDecor() {
       {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
           Markazdagi pendant'larga tegmaydi (x=±4); bular tashqi stollar (x=±13)
           ustida — ilgari u yer yoritilmagan edi. */}
-      <CeilingPanel p={[-12, 0, -3.2]} />
-      <CeilingPanel p={[-12, 0, 3.2]} />
-      <CeilingPanel p={[12, 0, -3.2]} />
-      <CeilingPanel p={[12, 0, 3.2]} />
+      {CEILING_PANELS.map((p) => <CeilingPanel key={p.join()} p={p} />)}
       {/* o'simliklar */}
       <Plant p={[-16, 0, 6]} scale={1.1} />
       <Plant p={[16, 0, 6]} scale={1.1} />
@@ -676,10 +679,9 @@ export default function OfficeDecor() {
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
       {/* Shift chiroqlari — ochiq ofis ustida (kechasi porlaydi) */}
-      <PendantLight p={[-4, 0, -3.2]} />
-      <PendantLight p={[4, 0, -3.2]} />
-      <PendantLight p={[-4, 0, 3.2]} />
-      <PendantLight p={[4, 0, 3.2]} />
+      {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
+      {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
+      <LightPools pools={NIGHT_POOLS} />
       {/* Devor soati + qo'shimcha rasmlar (yon devorlarda, ochiq ofisga qaragan) */}
       <WallClock p={[-22.85, 2.35, -6]} ry={Math.PI / 2} />
       <Painting p={[-22.85, 1.6, 6]} ry={Math.PI / 2} c="#5a8c5a" />
