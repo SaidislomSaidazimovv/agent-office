@@ -23,6 +23,11 @@ export const ROOM_LINE = 9.5;
 export const WALL_HALF = 0.16;
 /** Perimetr devor yarim qalinligi (to'qnashuv uchun). */
 export const PERIM_HALF = 0.2;
+/** CHIZILGAN devor yarim qalinligi (ichki devor 0.24 m, perimetr 0.3 m). To'qnashuv
+ *  qalinligidan (yuqoridagi) kichikroq — u yurish zaxirasi bilan. Devorga
+ *  tegib turadigan detallar (plintus, kontakt qorong'iligi) shu o'lchamdan. */
+export const WALL_VIS_HALF = 0.12;
+export const PERIM_VIS_HALF = 0.15;
 
 /** Xona pol rangi (district identikasi — 0.1.5 palitrasi). */
 export const DISTRICT = {
@@ -85,12 +90,12 @@ export function dividerXs(side: "top" | "bottom"): number[] {
 }
 
 /** Devor/eshik to'siqlari: perimetr, xona old devorlari (eshik teshigi bilan)
- *  va xonalar orasidagi bo'luvchilar. */
-export function wallRects(): Rect[] {
+ *  va xonalar orasidagi bo'luvchilar. Standart — to'qnashuv qalinligi; chizilgan
+ *  yuzaga tegadigan detallar uchun (WALL_VIS_HALF, PERIM_VIS_HALF) beriladi.
+ *  `glassFronts: false` — shisha xonalarning old devorlari tashlanadi. */
+export function wallRects(T = WALL_HALF, P = PERIM_HALF, glassFronts = true): Rect[] {
   const W2 = BUILDING.W / 2;
   const D2 = BUILDING.D / 2;
-  const P = PERIM_HALF;
-  const T = WALL_HALF;
   const out: Rect[] = [
     { x0: -W2, x1: W2, z0: -D2 - P, z1: -D2 + P },
     { x0: -W2, x1: W2, z0: D2 - P, z1: D2 + P },
@@ -98,6 +103,7 @@ export function wallRects(): Rect[] {
     { x0: W2 - P, x1: W2 + P, z0: -D2, z1: D2 },
   ];
   for (const r of ROOMS) {
+    if (!glassFronts && r.glass) continue;
     const { front } = roomZ(r);
     out.push({ x0: r.x0, x1: r.doorX - r.doorW / 2, z0: front - T, z1: front + T });
     out.push({ x0: r.doorX + r.doorW / 2, x1: r.x1, z0: front - T, z1: front + T });

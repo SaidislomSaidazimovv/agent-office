@@ -9,7 +9,8 @@ import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
-import { BUILDING, DISTRICT, PERIM_HALF, ROOM_LINE, ROOMS, roomZ, WALL_HALF, wallRects } from "./officeLayout";
+import { baseboardBoxes, thresholdBoxes } from "./architecture";
+import { BUILDING, DISTRICT, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -24,7 +25,7 @@ const M = (color: string, rough = 0.9) => <meshStandardMaterial color={color} ro
 // Metall/chrome (zamonaviy oyoq-ramkalar uchun)
 const MM = (color: string, rough = 0.35, metal = 0.85) => <meshStandardMaterial color={color} roughness={rough} metalness={metal} />;
 const WALL_H = 2.6;
-const WALL_T = 0.24;
+const WALL_T = WALL_VIS_HALF * 2; // chizilgan ichki devor qalinligi (officeLayout)
 // ── Zamonaviy palitra ──
 const WALL_C = "#e6e3dd"; // toza och kul-oq devor
 const DOORW = "#3a3f47"; // matte charcoal eshik
@@ -79,6 +80,8 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
       <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={wc} />
       <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
       <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
+      {/* Rom tepasi (S8-4) — ilgari faqat yon romlar bor edi, tepada devor rangi turardi */}
+      <Box p={[cx, openH + 0.05, z]} s={[door + 0.1, 0.1, WALL_T + 0.06]} c={FRAME} />
       {/* Tavaqa deyarli tekis ochiladi (devorga taqaladi) — yo'lakka chiqib
           turmaydi, agent undan "arvohdek" o'tmaydi. Yo'lak tomon 0.1 siljigan
           (devor bilan z-fight bo'lmasin). */}
@@ -109,7 +112,15 @@ function DividerZ({ x, z0, z1 }: { x: number; z0: number; z1: number }) {
 }
 
 // Shisha devor (X bo'ylab, eshik teshigi bilan)
-function GlassPanel({ p, s }: { p: V3; s: V3 }) {
+// Matli (frosted) xavfsizlik chizig'i balandligi — real ofislarda shisha devorda
+// ko'z darajasida majburiy (odam shishaga urilib ketmasin).
+const FROST_Y = 1.15;
+// `full` — devor bo'lagi (pastki rels + matli chiziq); false — eshik ustidagi
+// kichik shisha (transom), unga ikkalasi ham kerak emas.
+function GlassPanel({ p, s, full = true }: { p: V3; s: V3; full?: boolean }) {
+  // Vertikal profillar — shisha bo'laklari ≤1.5 m (haqiqiy shisha devor kabi)
+  const panes = Math.max(1, Math.ceil(s[0] / 1.5));
+  const mullions = Array.from({ length: panes - 1 }, (_, i) => -s[0] / 2 + (s[0] / panes) * (i + 1));
   return (
     <group position={p}>
       <mesh>
@@ -117,18 +128,67 @@ function GlassPanel({ p, s }: { p: V3; s: V3 }) {
         <meshStandardMaterial color="#bfe0ff" transparent opacity={0.16} roughness={0.08} metalness={0.1} />
       </mesh>
       <Box p={[0, s[1] / 2 - 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c={FRAME} />
+      {mullions.map((x) => <Box key={x} p={[x, 0, 0]} s={[0.04, s[1], s[2] + 0.02]} c={FRAME} />)}
+      {full && (
+        <>
+          {/* Pastki rels (plintus o'rnida) */}
+          <Box p={[0, -s[1] / 2 + 0.04, 0]} s={[s[0] + 0.02, 0.08, s[2] + 0.02]} c={FRAME} />
+          {/* Matli chiziq — shaffof emas (statik birlashmaga qo'shiladi) */}
+          <Box p={[0, FROST_Y - p[1], 0]} s={[s[0], 0.07, s[2] + 0.01]} c="#e4e9ed" rough={0.7} />
+        </>
+      )}
     </group>
   );
 }
 function GlassWallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
   const cx = (x0 + x1) / 2;
   const seg = Math.max(0.01, (x1 - x0 - door) / 2);
+  const openH = WALL_H - 0.3;
+  const swing = z < 0 ? 1 : -1; // markazga (yo'lakka) ochilsin — WallX bilan bir xil
+  const W = door * 0.94;
   return (
     <group>
       <GlassPanel p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, 0.08]} />
       <GlassPanel p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, 0.08]} />
-      <Box p={[cx - door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, 0.14]} c={FRAME} />
-      <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, 0.14]} c={FRAME} />
+      <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, 0.14]} c={FRAME} />
+      <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, 0.14]} c={FRAME} />
+      {/* Eshik ustidagi shisha (transom) va rom tepasi */}
+      <GlassPanel p={[cx, openH + 0.15, z]} s={[door, 0.3, 0.08]} full={false} />
+      <Box p={[cx, openH + 0.03, z]} s={[door + 0.1, 0.06, 0.14]} c={FRAME} />
+      {/* Oynali eshik tavaqasi (S8-4) — ingichka rom + shisha, deyarli tekis ochilgan */}
+      <group position={[cx - door / 2, openH / 2, z + 0.1 * swing]} rotation={[0, -2.8 * swing, 0]}>
+        <mesh position={[W / 2, 0, 0]}>
+          <boxGeometry args={[W - 0.08, openH - 0.12, 0.02]} />
+          <meshStandardMaterial color="#bfe0ff" transparent opacity={0.18} roughness={0.08} metalness={0.1} />
+        </mesh>
+        <Box p={[0.03, 0, 0]} s={[0.06, openH - 0.04, 0.05]} c={FRAME} />
+        <Box p={[W - 0.03, 0, 0]} s={[0.06, openH - 0.04, 0.05]} c={FRAME} />
+        <Box p={[W / 2, (openH - 0.04) / 2 - 0.03, 0]} s={[W, 0.06, 0.05]} c={FRAME} />
+        <Box p={[W / 2, -(openH - 0.04) / 2 + 0.05, 0]} s={[W, 0.1, 0.05]} c={FRAME} />
+        <Box p={[W / 2, FROST_Y - openH / 2, 0]} s={[W - 0.12, 0.07, 0.03]} c="#e4e9ed" rough={0.7} />
+        <Box p={[W - 0.14, -0.05, 0.05 * swing]} s={[0.04, 0.4, 0.04]} c="#c8ccd2" rough={0.35} />
+      </group>
+    </group>
+  );
+}
+
+// Akustik reykali devor (S8-4) — to'q namatli taglik ustida ingichka vertikal
+// yog'och reykalar, bo'luvchi devorning +x yuzida (iso kameraga qaragan tomon).
+// (Birinchi urinish — 3×2 kvadrat panellar oraliq bilan — DERAZAga o'xshab qoldi;
+// derazalar rad etilgan.) Shaffof emas — statik birlashmaga tushadi.
+const SLAT_W = 2.0; // taglik eni (z bo'ylab)
+const SLAT_H = 1.8; // balandligi
+function AcousticPanels({ x, zc, felt, wood }: { x: number; zc: number; felt: string; wood: string }) {
+  const face = x + WALL_T / 2; // devor yuzi
+  const yc = 0.35 + SLAT_H / 2;
+  const n = 14;
+  const step = SLAT_W / n;
+  return (
+    <group>
+      <Box p={[face + 0.01, yc, zc]} s={[0.02, SLAT_H, SLAT_W]} c={felt} rough={1} />
+      {Array.from({ length: n }, (_, i) => (
+        <Box key={i} p={[face + 0.035, yc, zc - SLAT_W / 2 + step * (i + 0.5)]} s={[0.03, SLAT_H, 0.05]} c={wood} rough={0.7} />
+      ))}
     </group>
   );
 }
@@ -429,20 +489,31 @@ export function StandingLamp({ p }: { p: V3 }) {
   );
 }
 
-// Shift chirog'i (pendant) — ochiq ofis ustida osilgan. Bulb KUNDUZ ham porlaydi
-// (ilgari to'q konus + o'chiq bulb → "qora uzunchoq" ko'rinardi). Shade iliq och
-// rangda, bulb har doim yorug' (toneMapped=false → haqiqatan porlaydi).
+// Osma chiziqli LED chiroq (S8-4) — stol qatorlari bo'ylab (z), shiftdan ikki
+// trosda osilgan. Ilgari bitta qisqa sim + konus + shar edi: 1.78 m da (kalla
+// balandligida) turar, sim shiftga yetmasdi (2.8 m da tugardi) — iso'da havoda
+// "suzib" turgan cho'p, FPV'da ko'z oldida bo'lardi.
+const LAMP_Y = 2.7; // korpus balandligi (stol ustidan ~1.9 m)
+const LAMP_L = 1.6; // uzunligi
 export function PendantLight({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
+  const cable = BUILDING.WH - LAMP_Y - 0.03;
   return (
-    <group position={p} userData={{ noBatch: true }}>
-      <mesh position={[0, 2.35, 0]}><cylinderGeometry args={[0.012, 0.012, 0.9, 6]} />{M("#2a2e35")}</mesh>
-      {/* Shade — iliq och (lampa abajurıdek), to'q emas */}
-      <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#e6dcc8" roughness={0.6} side={2} /></mesh>
-      {/* Bulb — kunduz ham yonib turadi */}
-      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.095, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.6 : 1.5} toneMapped={false} /></mesh>
-      {/* Yumshoq halo — kunduz nozik, kechasi kuchli */}
-      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.3, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={lampsOn ? 0.22 : 0.12} depthWrite={false} /></mesh>
+    <group position={p}>
+      {/* Korpus va troslar — statik (birlashmaga tushadi). Soya TASHLAMAYDI:
+          derazasiz binoda shift chirog'idan ~3 m uzoqqa tushgan "quyosh" soyasi
+          polda yolg'iz suzib yurgan chiziq bo'lib ko'rinardi. */}
+      <mesh position={[0, LAMP_Y, 0]} scale={[0.14, 0.05, LAMP_L]} geometry={UNIT_BOX} material={stdMat("#2a2e35", { roughness: 0.4 })} receiveShadow />
+      {[-0.6, 0.6].map((z) => (
+        <mesh key={z} position={[0, LAMP_Y + 0.03 + cable / 2, z]}><cylinderGeometry args={[0.006, 0.006, cable, 5]} />{M("#4a4f57", 0.5)}</mesh>
+      ))}
+      {/* Diffuzor — kun/tunga bog'liq porlash (birlashmaga tushmaydi) */}
+      <group userData={{ noBatch: true }}>
+        <mesh position={[0, LAMP_Y - 0.03, 0]}>
+          <boxGeometry args={[0.1, 0.012, LAMP_L - 0.06]} />
+          <meshStandardMaterial color="#fff8ec" emissive="#fff0d0" emissiveIntensity={lampsOn ? 2.4 : 1.1} toneMapped={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -549,12 +620,12 @@ function ReadingTable({ p }: { p: V3 }) {
 const CEILING_PANELS: V3[] = [[-12, 0, -3.2], [-12, 0, 3.2], [12, 0, -3.2], [12, 0, 3.2]];
 const PENDANTS: V3[] = [[-4, 0, -3.2], [4, 0, -3.2], [-4, 0, 3.2], [4, 0, 3.2]];
 const FLOOR_Y = 0.03; // xona pollari (0.02) dan yuqori
-// Dog' kesish chegaralari — ofis rejasidan (devor ichki yuzigacha).
-const OPEN_AREA = { x0: -BUILDING.W / 2, x1: BUILDING.W / 2, z0: -ROOM_LINE + WALL_HALF, z1: ROOM_LINE - WALL_HALF };
+// Dog' kesish chegaralari — ofis rejasidan (CHIZILGAN devor yuzigacha).
+const OPEN_AREA = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -ROOM_LINE + WALL_VIS_HALF, z1: ROOM_LINE - WALL_VIS_HALF };
 function roomClip(key: string): Pool["clip"] {
   const r = ROOMS.find((x) => x.key === key)!;
   const { z0, z1 } = roomZ(r);
-  return { x0: r.x0 + WALL_HALF, x1: r.x1 - WALL_HALF, z0: z0 + WALL_HALF, z1: z1 - WALL_HALF };
+  return { x0: r.x0 + WALL_VIS_HALF, x1: r.x1 - WALL_VIS_HALF, z0: z0 + WALL_VIS_HALF, z1: z1 - WALL_VIS_HALF };
 }
 const NIGHT_POOLS: Pool[] = [
   ...CEILING_PANELS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 4.4, color: "#ffe9c0", k: 0.16, clip: OPEN_AREA })),
@@ -569,12 +640,19 @@ const NIGHT_POOLS: Pool[] = [
 ];
 const STANDING_LAMP_POOL: Pool[] = [{ x: 0, y: FLOOR_Y, z: 0, r: 3, color: "#ffd98a", k: 0.2 }];
 
+// Bino ichki chegarasi — CHIZILGAN perimetr devor yuzigacha.
+const INTERIOR = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -BUILDING.D / 2 + PERIM_VIS_HALF, z1: BUILDING.D / 2 - PERIM_VIS_HALF };
 // Devor tagidagi kontakt qorong'iligi (arzon AO) — ofis rejasidan. Faqat
 // devorlar: mebelning to'qnashuv to'rtburchaklari haqiqiy shaklidan kattaroq
 // (zaxira bilan), ular atrofidagi tasma mebeldan uzoqda "suzib" turgan qorong'i
 // ramka bo'lib chiqdi. Mebelni quyosh soyasi yerga bog'laydi.
-const SHADE_SETS: ShadeSet[] = [{ rects: wallRects(), width: 0.55, k: 0.28 }];
-const INTERIOR = { x0: -BUILDING.W / 2 + PERIM_HALF, x1: BUILDING.W / 2 - PERIM_HALF, z0: -BUILDING.D / 2 + PERIM_HALF, z1: BUILDING.D / 2 - PERIM_HALF };
+// Chizilgan devor yuzidan boshlanadi (to'qnashuv qalinligidan emas — aks holda
+// devor bilan qorong'i tasma orasida ~4 sm yorug' chiziq qolardi).
+const SHADE_SETS: ShadeSet[] = [{ rects: wallRects(WALL_VIS_HALF, PERIM_VIS_HALF), width: 0.55, k: 0.28 }];
+// Plintus (qattiq devorlar — shisha old devorlarda pastki rels bor) va eshik ostonalari.
+const BASEBOARD_C = "#6f6a63";
+const BASEBOARDS = baseboardBoxes(wallRects(WALL_VIS_HALF, PERIM_VIS_HALF, false), INTERIOR);
+const THRESHOLDS = thresholdBoxes();
 
 // ── District palitrasi (0.1.5) ───────────────────────────────
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
@@ -615,6 +693,7 @@ export default function OfficeDecor() {
       <WallX x0={-1} x1={8} z={-9.5} door={2} />
       <MeetingTable p={[3.5, 0, -12.5]} />
       <Whiteboard p={[3.5, 0, -15.82]} />
+      <AcousticPanels x={-1} zc={-12.75} felt="#2f3a44" wood="#a0784e" />
 
       {/* XOJATXONA [8,15] */}
       <RoomFloor k="bathroom" />
@@ -644,6 +723,7 @@ export default function OfficeDecor() {
       <WallX x0={-11} x1={-3} z={9.5} door={2} />
       <EmptyDesk p={[-7, 0, 14.5]} ry={Math.PI} />
       <Plant p={[-4, 0, 15]} scale={1.0} />
+      <AcousticPanels x={-11} zc={12.75} felt="#3a463c" wood="#b08a5e" />
 
       {/* DAM OLISH [-3,7] */}
       <RoomFloor k="lounge" />
@@ -695,6 +775,9 @@ export default function OfficeDecor() {
       {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
       {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
       <LightPools pools={NIGHT_POOLS} />
+      {/* Plintus + eshik ostonalari (statik — birlashmaga qo'shiladi) */}
+      {BASEBOARDS.map((b, i) => <Box key={`bb${i}`} p={b.p} s={b.s} c={BASEBOARD_C} rough={0.6} />)}
+      {THRESHOLDS.map((b, i) => <Box key={`th${i}`} p={b.p} s={b.s} c="#9aa0a8" rough={0.35} />)}
       {/* Devor tagidagi kontakt qorong'iligi — BITTA mesh */}
       <ContactShade sets={SHADE_SETS} y={0.026} clip={INTERIOR} />
       {/* Devor soati + qo'shimcha rasmlar (yon devorlarda, ochiq ofisga qaragan) */}

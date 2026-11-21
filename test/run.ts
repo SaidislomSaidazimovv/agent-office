@@ -35,7 +35,8 @@ import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
-import { BUILDING, FPV_BOUNDS, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { BUILDING, FPV_BOUNDS, PERIM_VIS_HALF, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1770,6 +1771,32 @@ test("statik birlashtirish: belgilangan (batchable) tekstura birlashadi, uv saql
   assert.ok(uv && uv.count === 12, "uv saqlangan (2 pol × 6 cho'qqi)");
   assert.deepEqual([a.visible, b.visible, c.visible, d.visible], [false, false, true, true]);
   unbatch(root, r);
+});
+
+test("arxitektura: plintus devor yuziga yopishgan, faqat bino ichida; shisha old devorda yo'q; har eshikda ostona", () => {
+  const clip = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -BUILDING.D / 2 + PERIM_VIS_HALF, z1: BUILDING.D / 2 - PERIM_VIS_HALF };
+  const solid = wallRects(WALL_VIS_HALF, PERIM_VIS_HALF, false);
+  const all = wallRects(WALL_VIS_HALF, PERIM_VIS_HALF, true);
+  const glassRooms = LAYOUT_ROOMS.filter((r) => r.glass).length;
+  assert.equal(all.length - solid.length, glassRooms * 2, "har shisha xona old devorining 2 bo'lagi tashlandi");
+  const boards = baseboardBoxes(solid, clip);
+  assert.ok(boards.length > 0);
+  for (const b of boards) {
+    const [x, , z] = b.p;
+    const [sx, , sz] = b.s;
+    // Bino ichida
+    assert.ok(x - sx / 2 >= clip.x0 - 0.021 && x + sx / 2 <= clip.x1 + 0.021 && z - sz / 2 >= clip.z0 - 0.021 && z + sz / 2 <= clip.z1 + 0.021, `plintus ${x},${z} bino ichida`);
+    // Biror devor yuziga tegib turadi (yupqa tomoni devor yuzida)
+    const touches = solid.some((r) =>
+      (sz === 0.02 && (Math.abs(z - 0.01 - r.z1) < 1e-6 || Math.abs(z + 0.01 - r.z0) < 1e-6) && x >= r.x0 - 1e-6 && x <= r.x1 + 1e-6) ||
+      (sx === 0.02 && (Math.abs(x - 0.01 - r.x1) < 1e-6 || Math.abs(x + 0.01 - r.x0) < 1e-6) && z >= r.z0 - 1e-6 && z <= r.z1 + 1e-6));
+    assert.ok(touches, `plintus ${x},${z} devor yuziga yopishgan`);
+  }
+  // Perimetr devorining tashqi yuzida plintus yo'q
+  assert.ok(!boards.some((b) => b.p[2] < -BUILDING.D / 2), "bino tashqarisida plintus yo'q");
+  const th = thresholdBoxes();
+  assert.equal(th.length, LAYOUT_ROOMS.length, "har eshikda ostona");
+  for (const [i, r] of LAYOUT_ROOMS.entries()) assert.ok(Math.abs(th[i].p[0] - r.doorX) < 1e-9 && Math.abs(th[i].s[0] - r.doorW) < 1e-9);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
