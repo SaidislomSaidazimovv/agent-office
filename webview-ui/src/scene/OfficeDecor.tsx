@@ -172,6 +172,27 @@ function GlassWallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number
   );
 }
 
+// Akustik reykali devor (S8-4) — to'q namatli taglik ustida ingichka vertikal
+// yog'och reykalar, bo'luvchi devorning +x yuzida (iso kameraga qaragan tomon).
+// (Birinchi urinish — 3×2 kvadrat panellar oraliq bilan — DERAZAga o'xshab qoldi;
+// derazalar rad etilgan.) Shaffof emas — statik birlashmaga tushadi.
+const SLAT_W = 2.0; // taglik eni (z bo'ylab)
+const SLAT_H = 1.8; // balandligi
+function AcousticPanels({ x, zc, felt, wood }: { x: number; zc: number; felt: string; wood: string }) {
+  const face = x + WALL_T / 2; // devor yuzi
+  const yc = 0.35 + SLAT_H / 2;
+  const n = 14;
+  const step = SLAT_W / n;
+  return (
+    <group>
+      <Box p={[face + 0.01, yc, zc]} s={[0.02, SLAT_H, SLAT_W]} c={felt} rough={1} />
+      {Array.from({ length: n }, (_, i) => (
+        <Box key={i} p={[face + 0.035, yc, zc - SLAT_W / 2 + step * (i + 0.5)]} s={[0.03, SLAT_H, 0.05]} c={wood} rough={0.7} />
+      ))}
+    </group>
+  );
+}
+
 // ── Jihozlar ──
 export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   const leaves = useRef<THREE.Group>(null);
@@ -672,6 +693,7 @@ export default function OfficeDecor() {
       <WallX x0={-1} x1={8} z={-9.5} door={2} />
       <MeetingTable p={[3.5, 0, -12.5]} />
       <Whiteboard p={[3.5, 0, -15.82]} />
+      <AcousticPanels x={-1} zc={-12.75} felt="#2f3a44" wood="#a0784e" />
 
       {/* XOJATXONA [8,15] */}
       <RoomFloor k="bathroom" />
@@ -701,6 +723,7 @@ export default function OfficeDecor() {
       <WallX x0={-11} x1={-3} z={9.5} door={2} />
       <EmptyDesk p={[-7, 0, 14.5]} ry={Math.PI} />
       <Plant p={[-4, 0, 15]} scale={1.0} />
+      <AcousticPanels x={-11} zc={12.75} felt="#3a463c" wood="#b08a5e" />
 
       {/* DAM OLISH [-3,7] */}
       <RoomFloor k="lounge" />
