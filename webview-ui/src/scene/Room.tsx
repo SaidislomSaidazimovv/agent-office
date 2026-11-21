@@ -126,6 +126,8 @@ export default function Room({ mode }: { mode: CameraMode }) {
 
   const baseFloorGeo = useMemo(() => floorGeometry(-W / 2, W / 2, -D / 2, D / 2, FLOOR_TEX_SIZE.concrete), [W, D]);
   const zoneFloorGeo = useMemo(() => floorGeometry(-15, 15, -7, 7, FLOOR_TEX_SIZE.carpet), []);
+  // Shift — dunyo UV'li tekislik (0.6 m panel to'ri uchun; tekstura faqat FPV'da).
+  const ceilingGeo = useMemo(() => floorGeometry(-W / 2, W / 2, -D / 2, D / 2, FLOOR_TEX_SIZE.tile * 2), [W, D]);
   const backM = useRef<THREE.MeshStandardMaterial>(null);
   const frontM = useRef<THREE.MeshStandardMaterial>(null);
   const leftM = useRef<THREE.MeshStandardMaterial>(null);
@@ -138,14 +140,22 @@ export default function Room({ mode }: { mode: CameraMode }) {
         const m = r.current;
         if (m) { m.opacity = 1; m.transparent = false; m.depthWrite = true; }
       }
-      // FPV'da ichkaridan yuqoriga qaralganda shift QATTIQ ko'rinsin.
-      if (ceilM.current) { ceilM.current.opacity = 1; ceilM.current.transparent = false; ceilM.current.depthWrite = true; }
+      // FPV'da ichkaridan yuqoriga qaralganda shift QATTIQ ko'rinsin — va
+      // osma shift panellari to'ri (S8-4) bilan.
+      const c = ceilM.current;
+      if (c) {
+        c.opacity = 1; c.transparent = false; c.depthWrite = true;
+        if (!c.map) { c.map = floorTexture("tile"); c.needsUpdate = true; }
+      }
       return;
     }
     // Shift — iso'da kamera DOIM undan yuqorida (tashqi yuzi bizga qaragan) →
     // devorlardagi "near" holat kabi hamisha GHOST. Shunda ofis yopiq bino'dek
     // ko'rinadi va lampalar shiftga o'rnashadi, lekin ichi baribir ko'rinadi.
     if (ceilM.current) { ceilM.current.opacity = CEIL_GHOST; ceilM.current.transparent = true; ceilM.current.depthWrite = false; }
+    // Iso'da panel to'ri yo'q: yarim shaffof shift orqali butun sahna ustida xira
+    // setka bo'lib ko'rinardi. (Rejim almashganda bir marta qayta kompilyatsiya.)
+    if (ceilM.current && ceilM.current.map) { ceilM.current.map = null; ceilM.current.needsUpdate = true; }
     const cx = camera.position.x, cz = camera.position.z;
     // Devor FAQAT kamera uning TASHQARISIGA (±D/2 / ±W/2) o'tganda shaffof
     // bo'ladi (tashqi yuzi ko'ringanda). Aks holda ichki yuzi ko'rinadi → qattiq
@@ -194,8 +204,7 @@ export default function Room({ mode }: { mode: CameraMode }) {
       {/* Shift (tepa yuza) — devorlar kabi dollhouse: iso'da GHOST (ichini
           ko'rasiz), FPV'da qattiq. raycast=null → butun ichkini qoplasa ham
           agent/stol bosishlariga xalaqit bermaydi (bosish undan o'tib ketadi). */}
-      <mesh position={[0, WH, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-        <planeGeometry args={[W, D]} />
+      <mesh position={[0, WH, 0]} geometry={ceilingGeo} raycast={() => null}>
         <meshStandardMaterial ref={ceilM} color="#eae4d6" roughness={1} side={2} transparent opacity={CEIL_GHOST} depthWrite={false} />
       </mesh>
     </group>

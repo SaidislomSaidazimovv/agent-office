@@ -468,20 +468,31 @@ export function StandingLamp({ p }: { p: V3 }) {
   );
 }
 
-// Shift chirog'i (pendant) — ochiq ofis ustida osilgan. Bulb KUNDUZ ham porlaydi
-// (ilgari to'q konus + o'chiq bulb → "qora uzunchoq" ko'rinardi). Shade iliq och
-// rangda, bulb har doim yorug' (toneMapped=false → haqiqatan porlaydi).
+// Osma chiziqli LED chiroq (S8-4) — stol qatorlari bo'ylab (z), shiftdan ikki
+// trosda osilgan. Ilgari bitta qisqa sim + konus + shar edi: 1.78 m da (kalla
+// balandligida) turar, sim shiftga yetmasdi (2.8 m da tugardi) — iso'da havoda
+// "suzib" turgan cho'p, FPV'da ko'z oldida bo'lardi.
+const LAMP_Y = 2.7; // korpus balandligi (stol ustidan ~1.9 m)
+const LAMP_L = 1.6; // uzunligi
 export function PendantLight({ p }: { p: V3 }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
+  const cable = BUILDING.WH - LAMP_Y - 0.03;
   return (
-    <group position={p} userData={{ noBatch: true }}>
-      <mesh position={[0, 2.35, 0]}><cylinderGeometry args={[0.012, 0.012, 0.9, 6]} />{M("#2a2e35")}</mesh>
-      {/* Shade — iliq och (lampa abajurıdek), to'q emas */}
-      <mesh position={[0, 1.85, 0]}><coneGeometry args={[0.24, 0.22, 16, 1, true]} /><meshStandardMaterial color="#e6dcc8" roughness={0.6} side={2} /></mesh>
-      {/* Bulb — kunduz ham yonib turadi */}
-      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.095, 10, 10]} /><meshStandardMaterial color="#fff4d6" emissive="#ffdf9e" emissiveIntensity={lampsOn ? 2.6 : 1.5} toneMapped={false} /></mesh>
-      {/* Yumshoq halo — kunduz nozik, kechasi kuchli */}
-      <mesh position={[0, 1.78, 0]}><sphereGeometry args={[0.3, 10, 8]} /><meshBasicMaterial color="#ffe9b0" transparent opacity={lampsOn ? 0.22 : 0.12} depthWrite={false} /></mesh>
+    <group position={p}>
+      {/* Korpus va troslar — statik (birlashmaga tushadi). Soya TASHLAMAYDI:
+          derazasiz binoda shift chirog'idan ~3 m uzoqqa tushgan "quyosh" soyasi
+          polda yolg'iz suzib yurgan chiziq bo'lib ko'rinardi. */}
+      <mesh position={[0, LAMP_Y, 0]} scale={[0.14, 0.05, LAMP_L]} geometry={UNIT_BOX} material={stdMat("#2a2e35", { roughness: 0.4 })} receiveShadow />
+      {[-0.6, 0.6].map((z) => (
+        <mesh key={z} position={[0, LAMP_Y + 0.03 + cable / 2, z]}><cylinderGeometry args={[0.006, 0.006, cable, 5]} />{M("#4a4f57", 0.5)}</mesh>
+      ))}
+      {/* Diffuzor — kun/tunga bog'liq porlash (birlashmaga tushmaydi) */}
+      <group userData={{ noBatch: true }}>
+        <mesh position={[0, LAMP_Y - 0.03, 0]}>
+          <boxGeometry args={[0.1, 0.012, LAMP_L - 0.06]} />
+          <meshStandardMaterial color="#fff8ec" emissive="#fff0d0" emissiveIntensity={lampsOn ? 2.4 : 1.1} toneMapped={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
