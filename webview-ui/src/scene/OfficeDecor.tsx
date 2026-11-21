@@ -80,6 +80,8 @@ function WallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; doo
       <Box p={[cx, WALL_H - 0.15, z]} s={[door, 0.3, WALL_T]} c={wc} />
       <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
       <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, WALL_T + 0.06]} c={FRAME} />
+      {/* Rom tepasi (S8-4) — ilgari faqat yon romlar bor edi, tepada devor rangi turardi */}
+      <Box p={[cx, openH + 0.05, z]} s={[door + 0.1, 0.1, WALL_T + 0.06]} c={FRAME} />
       {/* Tavaqa deyarli tekis ochiladi (devorga taqaladi) — yo'lakka chiqib
           turmaydi, agent undan "arvohdek" o'tmaydi. Yo'lak tomon 0.1 siljigan
           (devor bilan z-fight bo'lmasin). */}
@@ -110,7 +112,15 @@ function DividerZ({ x, z0, z1 }: { x: number; z0: number; z1: number }) {
 }
 
 // Shisha devor (X bo'ylab, eshik teshigi bilan)
-function GlassPanel({ p, s }: { p: V3; s: V3 }) {
+// Matli (frosted) xavfsizlik chizig'i balandligi — real ofislarda shisha devorda
+// ko'z darajasida majburiy (odam shishaga urilib ketmasin).
+const FROST_Y = 1.15;
+// `full` — devor bo'lagi (pastki rels + matli chiziq); false — eshik ustidagi
+// kichik shisha (transom), unga ikkalasi ham kerak emas.
+function GlassPanel({ p, s, full = true }: { p: V3; s: V3; full?: boolean }) {
+  // Vertikal profillar — shisha bo'laklari ≤1.5 m (haqiqiy shisha devor kabi)
+  const panes = Math.max(1, Math.ceil(s[0] / 1.5));
+  const mullions = Array.from({ length: panes - 1 }, (_, i) => -s[0] / 2 + (s[0] / panes) * (i + 1));
   return (
     <group position={p}>
       <mesh>
@@ -118,18 +128,46 @@ function GlassPanel({ p, s }: { p: V3; s: V3 }) {
         <meshStandardMaterial color="#bfe0ff" transparent opacity={0.16} roughness={0.08} metalness={0.1} />
       </mesh>
       <Box p={[0, s[1] / 2 - 0.03, 0]} s={[s[0] + 0.02, 0.06, s[2] + 0.02]} c={FRAME} />
+      {mullions.map((x) => <Box key={x} p={[x, 0, 0]} s={[0.04, s[1], s[2] + 0.02]} c={FRAME} />)}
+      {full && (
+        <>
+          {/* Pastki rels (plintus o'rnida) */}
+          <Box p={[0, -s[1] / 2 + 0.04, 0]} s={[s[0] + 0.02, 0.08, s[2] + 0.02]} c={FRAME} />
+          {/* Matli chiziq — shaffof emas (statik birlashmaga qo'shiladi) */}
+          <Box p={[0, FROST_Y - p[1], 0]} s={[s[0], 0.07, s[2] + 0.01]} c="#e4e9ed" rough={0.7} />
+        </>
+      )}
     </group>
   );
 }
 function GlassWallX({ x0, x1, z, door = 2 }: { x0: number; x1: number; z: number; door?: number }) {
   const cx = (x0 + x1) / 2;
   const seg = Math.max(0.01, (x1 - x0 - door) / 2);
+  const openH = WALL_H - 0.3;
+  const swing = z < 0 ? 1 : -1; // markazga (yo'lakka) ochilsin — WallX bilan bir xil
+  const W = door * 0.94;
   return (
     <group>
       <GlassPanel p={[cx - (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, 0.08]} />
       <GlassPanel p={[cx + (door / 2 + seg / 2), WALL_H / 2, z]} s={[seg, WALL_H, 0.08]} />
-      <Box p={[cx - door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, 0.14]} c={FRAME} />
-      <Box p={[cx + door / 2, (WALL_H - 0.3) / 2, z]} s={[0.1, WALL_H - 0.3, 0.14]} c={FRAME} />
+      <Box p={[cx - door / 2, openH / 2, z]} s={[0.1, openH, 0.14]} c={FRAME} />
+      <Box p={[cx + door / 2, openH / 2, z]} s={[0.1, openH, 0.14]} c={FRAME} />
+      {/* Eshik ustidagi shisha (transom) va rom tepasi */}
+      <GlassPanel p={[cx, openH + 0.15, z]} s={[door, 0.3, 0.08]} full={false} />
+      <Box p={[cx, openH + 0.03, z]} s={[door + 0.1, 0.06, 0.14]} c={FRAME} />
+      {/* Oynali eshik tavaqasi (S8-4) — ingichka rom + shisha, deyarli tekis ochilgan */}
+      <group position={[cx - door / 2, openH / 2, z + 0.1 * swing]} rotation={[0, -2.8 * swing, 0]}>
+        <mesh position={[W / 2, 0, 0]}>
+          <boxGeometry args={[W - 0.08, openH - 0.12, 0.02]} />
+          <meshStandardMaterial color="#bfe0ff" transparent opacity={0.18} roughness={0.08} metalness={0.1} />
+        </mesh>
+        <Box p={[0.03, 0, 0]} s={[0.06, openH - 0.04, 0.05]} c={FRAME} />
+        <Box p={[W - 0.03, 0, 0]} s={[0.06, openH - 0.04, 0.05]} c={FRAME} />
+        <Box p={[W / 2, (openH - 0.04) / 2 - 0.03, 0]} s={[W, 0.06, 0.05]} c={FRAME} />
+        <Box p={[W / 2, -(openH - 0.04) / 2 + 0.05, 0]} s={[W, 0.1, 0.05]} c={FRAME} />
+        <Box p={[W / 2, FROST_Y - openH / 2, 0]} s={[W - 0.12, 0.07, 0.03]} c="#e4e9ed" rough={0.7} />
+        <Box p={[W - 0.14, -0.05, 0.05 * swing]} s={[0.04, 0.4, 0.04]} c="#c8ccd2" rough={0.35} />
+      </group>
     </group>
   );
 }
