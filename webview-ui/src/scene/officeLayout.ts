@@ -123,7 +123,9 @@ export function wallRects(T = WALL_HALF, P = PERIM_HALF, glassFronts = true): Re
 export type FurnitureType =
   | "reception" | "plant"
   // S8-5: ochiq maydon jihozlari
-  | "collabTable" | "standBoard" | "coffeePoint" | "printer" | "lockers" | "phoneBooth" | "planter" | "plantGroup";
+  | "collabTable" | "standBoard" | "coffeePoint" | "printer" | "lockers" | "phoneBooth" | "planter" | "plantGroup"
+  // S8-5: xona jihozlari (yuqori qator)
+  | "fridge" | "kitchenAppliances" | "kitchenIsland" | "bistroTable" | "credenza" | "handDryer" | "cableTray" | "ups";
 
 export interface FurnitureItem {
   type: FurnitureType;
@@ -133,6 +135,8 @@ export interface FurnitureItem {
   ry?: number;
   /** Faqat ko'rinish masshtabi (oyoq izi o'zgarmaydi). */
   scale?: number;
+  /** Xona jihozi bo'lsa — qaysi xonada (test: xona ichida turadimi). */
+  room?: string;
 }
 
 /** Oyoq izi yarim o'lchamlari (aylanmagan holatda). null — to'siq emas. */
@@ -147,6 +151,14 @@ export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null>
   phoneBooth: { hx: 0.6, hz: 0.6 },
   planter: { hx: 1.3, hz: 0.22 },
   plantGroup: { hx: 0.7, hz: 0.7 },
+  fridge: { hx: 0.4, hz: 0.35 },
+  kitchenAppliances: null, // peshtaxta ustida
+  kitchenIsland: { hx: 1.2, hz: 0.95 }, // orol 2.2×0.9 + bar stullari (+z)
+  bistroTable: { hx: 0.85, hz: 0.85 }, // dumaloq stol + 2 stul
+  credenza: { hx: 0.8, hz: 0.23 },
+  handDryer: null, // devorda
+  cableTray: null, // javonlar ustida
+  ups: { hx: 0.3, hz: 0.35 },
 };
 
 export const OPEN_FURNITURE: FurnitureItem[] = [
@@ -181,6 +193,28 @@ export const OPEN_FURNITURE: FurnitureItem[] = [
   { type: "plantGroup", x: -21.9, z: 8.4 },
   { type: "plantGroup", x: 21.9, z: -8.4 },
   { type: "plantGroup", x: 21.9, z: 8.4 },
+];
+
+// ── Xona jihozlari — MA'LUMOT (S8-5) ──
+// (Xonalardagi eski mebel hali furnitureRects()'dagi qo'lda yozilgan
+// to'rtburchaklarda; yangi qo'shilganlari shu ro'yxatda.)
+export const ROOM_FURNITURE: FurnitureItem[] = [
+  // Oshxona [-9,-1]: muzlatkich, peshtaxta ustidagi jihozlar, orol + bar stullari, 2 ta ovqat stoli
+  { type: "fridge", x: -8.45, z: -15.5, room: "kitchen" },
+  { type: "kitchenAppliances", x: -5, z: -15.5, room: "kitchen" },
+  { type: "kitchenIsland", x: -5, z: -12.5, room: "kitchen" },
+  // (z −13.3 — orqaroqda: old devor iso kameraga yaqin va xonaning old ~2 m'ini to'sadi)
+  { type: "bistroTable", x: -7.9, z: -13.3, room: "kitchen" },
+  { type: "bistroTable", x: -2.1, z: -13.3, room: "kitchen" },
+  // Majlis [-1,8]: kredensa + devor ekrani (o'chiq)
+  { type: "credenza", x: 6.6, z: -15.6, room: "meeting" },
+  // Hojatxona [8,15]: qo'l quritgich
+  { type: "handDryer", x: 12.95, z: -15.8, room: "bathroom" },
+  // Server [-23,-9]: javonlar ustida kabel lotoklari, qator oxirida UPS
+  { type: "cableTray", x: -16, z: -15.4, room: "server" },
+  { type: "cableTray", x: -16, z: -11, room: "server" },
+  { type: "ups", x: -9.6, z: -15.45, room: "server" },
+  { type: "ups", x: -9.6, z: -11.0, room: "server" },
 ];
 
 /** Buyum oyoq izi (aylanishni hisobga olgan AABB); to'siq bo'lmasa null. */
@@ -229,8 +263,8 @@ export function furnitureRects(): Rect[] {
   r(11.7, 13.3, 13.8, 15.2);
   // glassC stol
   r(18, 20, 12, 14);
-  // Ochiq maydon mebeli — ma'lumotdan (OPEN_FURNITURE, oyoq izi FOOTPRINT).
-  for (const it of OPEN_FURNITURE) {
+  // Ochiq maydon va xona jihozlari — ma'lumotdan (oyoq izi FOOTPRINT).
+  for (const it of [...OPEN_FURNITURE, ...ROOM_FURNITURE]) {
     const rect = itemRect(it);
     if (rect) out.push(rect);
   }

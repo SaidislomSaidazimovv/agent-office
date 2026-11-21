@@ -35,7 +35,7 @@ import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
-import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1678,7 +1678,7 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
 test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
   const rects = furnitureRects();
   // Xonalardagi qo'lda yozilgan 17 ta + ochiq maydon jihozlari (ma'lumotdan).
-  assert.equal(rects.length, 17 + OPEN_FURNITURE.filter((it) => FOOTPRINT[it.type]).length);
+  assert.equal(rects.length, 17 + [...OPEN_FURNITURE, ...ROOM_FURNITURE].filter((it) => FOOTPRINT[it.type]).length);
   for (const r of rects) {
     const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
     assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
@@ -1849,6 +1849,32 @@ test("ochiq maydon jihozlari: bir-biriga, o'rindiqlarga va overflow zonasiga teg
     const door = { x0: room.doorX - room.doorW / 2, x1: room.doorX + room.doorW / 2, z0: zf - 0.6, z1: zf + 0.6 };
     for (const { it, r } of rects) assert.ok(!hit(r, door), `${it.type}@${it.x},${it.z} ${room.key} eshigini to'sadi`);
   }
+});
+
+test("xona jihozlari: o'z xonasi ichida; eski mebelga, bir-biriga va eshik oldiga tegmaydi", () => {
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const items = ROOM_FURNITURE.map((it) => ({ it, r: itemRect(it) }));
+  // Eski (qo'lda yozilgan) to'siqlar — barcha to'siqlardan ma'lumotdagilarni ayirib
+  const dataRects = new Set([...OPEN_FURNITURE, ...ROOM_FURNITURE].map((it) => JSON.stringify(itemRect(it))));
+  const legacy = furnitureRects().filter((r) => !dataRects.has(JSON.stringify(r)));
+  for (const { it, r } of items) {
+    const room = LAYOUT_ROOMS.find((x) => x.key === it.room);
+    assert.ok(room, `${it.type}: xona kaliti (${it.room}) bor`);
+    // Markaz (to'siqsizlar uchun ham) xona ichida
+    const D2 = BUILDING.D / 2;
+    const [z0, z1] = room!.side === "top" ? [-D2, -ROOM_LINE] : [ROOM_LINE, D2];
+    assert.ok(it.x > room!.x0 && it.x < room!.x1 && it.z > z0 && it.z < z1, `${it.type}@${it.x},${it.z} ${it.room} ichida`);
+    if (!r) continue;
+    const inner = { x0: room!.x0 + WALL_VIS_HALF, x1: room!.x1 - WALL_VIS_HALF, z0: z0 + (room!.side === "top" ? PERIM_VIS_HALF : WALL_VIS_HALF), z1: z1 - (room!.side === "top" ? WALL_VIS_HALF : PERIM_VIS_HALF) };
+    assert.ok(r.x0 >= inner.x0 - 1e-6 && r.x1 <= inner.x1 + 1e-6 && r.z0 >= inner.z0 - 1e-6 && r.z1 <= inner.z1 + 1e-6, `${it.type}@${it.x},${it.z} oyoq izi devorlar ichida`);
+    for (const l of legacy) assert.ok(!hit(r, l), `${it.type}@${it.x},${it.z} eski mebelga (${JSON.stringify(l)}) tegadi`);
+    // Eshik oldi (xona ichki tomoni) bo'sh
+    const zf = room!.side === "top" ? -ROOM_LINE - 0.7 : ROOM_LINE + 0.7;
+    const door = { x0: room!.doorX - room!.doorW / 2, x1: room!.doorX + room!.doorW / 2, z0: zf - 0.6, z1: zf + 0.6 };
+    assert.ok(!hit(r, door), `${it.type}@${it.x},${it.z} ${it.room} eshigini ichkaridan to'sadi`);
+  }
+  const rs = items.filter((x) => x.r) as { it: (typeof ROOM_FURNITURE)[number]; r: { x0: number; x1: number; z0: number; z1: number } }[];
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) assert.ok(!hit(rs[i].r, rs[j].r), `${rs[i].it.type} ↔ ${rs[j].it.type}`);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

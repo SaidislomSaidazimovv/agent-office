@@ -10,7 +10,7 @@ import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
 import { baseboardBoxes, thresholdBoxes } from "./architecture";
-import { BUILDING, CLUSTERS, DESK_W, type DeskCluster, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
+import { BUILDING, CLUSTERS, DESK_W, type DeskCluster, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -708,6 +708,107 @@ function PlantGroup({ p }: { p: V3 }) {
   );
 }
 
+// ── S8-5: xona jihozlari (yuqori qator) ──
+const STEEL_C = "#c8ccd2";
+function Fridge({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.95, 0]} s={[0.8, 1.9, 0.7]} c="#e4e6e8" rough={0.35} />
+      <Box p={[0, 1.25, 0.352]} s={[0.78, 0.006, 0.004]} c="#9aa0a8" rough={0.5} />
+      <Box p={[0, 0.95, 0.352]} s={[0.006, 1.86, 0.004]} c="#9aa0a8" rough={0.5} />
+      {[-0.06, 0.06].map((x) => <Box key={x} p={[x, 1.1, 0.37]} s={[0.025, 0.5, 0.03]} c={STEEL_C} rough={0.3} />)}
+    </group>
+  );
+}
+// Peshtaxta ustidagi jihozlar (Kitchen komponenti bilan bir xil markaz, lokal x bo'yicha)
+function KitchenAppliances({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const top = 0.955;
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      {/* Mikroto'lqinli pech */}
+      <Box p={[1.3, top + 0.16, -0.1]} s={[0.5, 0.32, 0.38]} c="#2a2e35" rough={0.4} />
+      <Box p={[1.22, top + 0.16, 0.092]} s={[0.3, 0.2, 0.006]} c="#11151a" rough={0.2} />
+      <Box p={[1.48, top + 0.16, 0.092]} s={[0.08, 0.2, 0.006]} c="#4a4f57" rough={0.4} />
+      {/* Kofe mashinasi */}
+      <Box p={[0.4, top + 0.2, -0.12]} s={[0.3, 0.4, 0.34]} c="#1f2329" rough={0.35} />
+      <Box p={[0.4, top + 0.03, 0.05]} s={[0.18, 0.02, 0.12]} c="#4a4f57" rough={0.4} />
+      {/* Choynak */}
+      <mesh position={[-0.3, top + 0.1, -0.1]} castShadow geometry={cyl(0.08, 0.1, 0.2, 12)} material={stdMat(STEEL_C, { roughness: 0.3, metalness: 0.5 })} />
+    </group>
+  );
+}
+function KitchenIsland({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.45, 0]} s={[2.2, 0.9, 0.9]} c="#e8e6e0" rough={0.5} />
+      <Box p={[0, 0.93, 0.05]} s={[2.3, 0.06, 1.05]} c="#20242b" rough={0.3} />
+      {/* Bar stullari — +z tomonda (oyoq uchun peshtaxta 15 sm chiqib turadi) */}
+      {[-0.7, 0, 0.7].map((x) => (
+        <group key={x} position={[x, 0, 0.8]}>
+          <mesh position={[0, 0.7, 0]} castShadow geometry={cyl(0.17, 0.17, 0.05, 14)} material={stdMat("#b87a52", { roughness: 0.6 })} />
+          <mesh position={[0, 0.35, 0]} geometry={cyl(0.025, 0.025, 0.68, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+          <mesh position={[0, 0.015, 0]} geometry={cyl(0.19, 0.19, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+        </group>
+      ))}
+    </group>
+  );
+}
+function BistroTable({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <mesh position={[0, 0.74, 0]} castShadow geometry={cyl(0.42, 0.42, 0.04, 20)} material={stdMat("#f2efe9", { roughness: 0.4 })} />
+      <mesh position={[0, 0.37, 0]} geometry={cyl(0.04, 0.04, 0.72, 8)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      <mesh position={[0, 0.015, 0]} geometry={cyl(0.26, 0.26, 0.03, 16)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      {[-0.6, 0.6].map((x) => <group key={x} position={[x, 0, 0]} rotation={[0, x < 0 ? Math.PI / 2 : -Math.PI / 2, 0]}><ModChair /></group>)}
+    </group>
+  );
+}
+// Kredensa + devorga o'rnatilgan ekran (o'chiq — soxta tasvir yo'q)
+function Credenza({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.36, 0]} s={[1.6, 0.72, 0.45]} c="#3a3f47" rough={0.5} />
+      {[-0.4, 0.4].map((x) => <Box key={x} p={[x, 0.38, 0.227]} s={[0.006, 0.62, 0.004]} c="#22262c" rough={0.6} />)}
+      <Box p={[0, 0.735, 0]} s={[1.62, 0.03, 0.47]} c={OAK} rough={0.6} />
+      {/* Ekran: ochroq hoshiya — usiz o'chiq ekran devorda qora teshik/eshikdek ko'rinardi */}
+      <Box p={[0, 1.55, -0.205]} s={[1.56, 0.96, 0.04]} c="#7a7f87" rough={0.4} />
+      <Box p={[0, 1.55, -0.18]} s={[1.4, 0.8, 0.02]} c="#262c35" rough={0.2} />
+    </group>
+  );
+}
+function HandDryer({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.25, 0.06]} s={[0.28, 0.32, 0.12]} c="#eef2f4" rough={0.3} />
+      <Box p={[0, 1.12, 0.1]} s={[0.18, 0.03, 0.05]} c="#9aa0a8" rough={0.4} />
+      {/* axlat qutisi */}
+      <mesh position={[0.45, 0.25, 0.2]} castShadow geometry={cyl(0.16, 0.14, 0.5, 14)} material={stdMat("#9aa0a8", { roughness: 0.4, metalness: 0.3 })} />
+    </group>
+  );
+}
+// Kabel lotogi — javon qatori ustida (havoda suzmaydi: javonlarga tayangan)
+function CableTray({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const L = 11;
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 2.08, 0]} s={[L, 0.03, 0.3]} c="#9aa0a8" rough={0.4} />
+      {[-0.15, 0.15].map((z) => <Box key={z} p={[0, 2.13, z]} s={[L, 0.08, 0.015]} c="#9aa0a8" rough={0.4} />)}
+      {/* kabel to'plami */}
+      <Box p={[0, 2.12, -0.04]} s={[L - 0.1, 0.05, 0.08]} c="#2f5d8a" rough={0.7} />
+      <Box p={[0, 2.12, 0.06]} s={[L - 0.1, 0.04, 0.06]} c="#c9a227" rough={0.7} />
+    </group>
+  );
+}
+function Ups({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.55, 0]} s={[0.55, 1.1, 0.65]} c="#1f2329" rough={0.4} />
+      <Box p={[0, 0.85, 0.327]} s={[0.22, 0.12, 0.006]} c="#0d1a12" rough={0.2} />
+      {[-0.1, 0, 0.1].map((y) => <Box key={y} p={[0, 0.4 + y, 0.327]} s={[0.4, 0.02, 0.006]} c="#3a3f47" rough={0.5} />)}
+    </group>
+  );
+}
+
 /** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
 function FurniturePiece({ it }: { it: FurnitureItem }) {
   const p: V3 = [it.x, 0, it.z];
@@ -722,6 +823,14 @@ function FurniturePiece({ it }: { it: FurnitureItem }) {
     case "phoneBooth": return <PhoneBooth p={p} ry={it.ry} />;
     case "planter": return <Planter p={p} ry={it.ry} />;
     case "plantGroup": return <PlantGroup p={p} />;
+    case "fridge": return <Fridge p={p} ry={it.ry} />;
+    case "kitchenAppliances": return <KitchenAppliances p={p} ry={it.ry} />;
+    case "kitchenIsland": return <KitchenIsland p={p} ry={it.ry} />;
+    case "bistroTable": return <BistroTable p={p} ry={it.ry} />;
+    case "credenza": return <Credenza p={p} ry={it.ry} />;
+    case "handDryer": return <HandDryer p={p} ry={it.ry} />;
+    case "cableTray": return <CableTray p={p} ry={it.ry} />;
+    case "ups": return <Ups p={p} ry={it.ry} />;
   }
 }
 
@@ -931,6 +1040,8 @@ export default function OfficeDecor() {
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
       {/* Ochiq maydon mebeli — ofis rejasidan (OPEN_FURNITURE; to'siqlar ham shundan) */}
       {OPEN_FURNITURE.map((it, i) => <FurniturePiece key={`of${i}`} it={it} />)}
+      {/* Xona jihozlari — ofis rejasidan (ROOM_FURNITURE) */}
+      {ROOM_FURNITURE.map((it, i) => <FurniturePiece key={`rf${i}`} it={it} />)}
       {/* Agent stollari 4 ta klasterda (officeLayout CLUSTERS → SEATS) —
           Workstation chizadi. Shift panellari markaziy zona va yon tomonlarda
           (klasterlar ustida osma chiziqli lampalar bor). */}
