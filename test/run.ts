@@ -1800,6 +1800,34 @@ test("arxitektura: plintus devor yuziga yopishgan, faqat bino ichida; shisha old
   for (const [i, r] of LAYOUT_ROOMS.entries()) assert.ok(Math.abs(th[i].p[0] - r.doorX) < 1e-9 && Math.abs(th[i].s[0] - r.doorW) < 1e-9);
 });
 
+test("o'rindiqlar: 24 ta klaster o'rindig'i; stol+stul devor/mebelga tegmaydi; birinchi 10 overflow ham bo'sh joyda", () => {
+  assert.equal(LAYOUT_SEATS.length, 24);
+  // Stol + stul egallagan joy (lokal x ±0.8, z −0.45..+1.0) — aylantirilgan AABB
+  const foot = (s: { x: number; z: number; ry: number }) => {
+    const c = Math.cos(s.ry), sn = Math.sin(s.ry);
+    const xs: number[] = [], zs: number[] = [];
+    for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) { xs.push(s.x + lx * c + lz * sn); zs.push(s.z - lx * sn + lz * c); }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+  };
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const obstacles = [...wallRects(), ...furnitureRects()];
+  for (const [i, s] of LAYOUT_SEATS.entries()) {
+    const f = foot(s);
+    const o = obstacles.find((r) => hit(f, r));
+    assert.ok(!o, `o'rindiq ${i} (${s.x},${s.z}) to'siqqa tegadi: ${JSON.stringify(o)}`);
+  }
+  // Overflow (S8-6 gacha eski qatorlar) klaster va mebelga tegmasin. Faqat 2 qator
+  // (10 ta): 3-qator (z = −9.2) xona devoriga tegadi — mavjud muammo, S8-6 da
+  // overflow uchun maxsus zona bilan hal qilinadi.
+  const seatFeet = LAYOUT_SEATS.map(foot);
+  for (let k = 0; k < 10; k++) {
+    const s = seatFor(LAYOUT_SEATS.length + k);
+    const f = foot(s);
+    assert.ok(!obstacles.some((r) => hit(f, r)), `overflow ${k} to'siqqa tegadi`);
+    assert.ok(!seatFeet.some((r) => hit(f, r)), `overflow ${k} klasterga tegadi`);
+  }
+});
+
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
   const root = new THREE.Group();
   root.position.set(10, 0, 0); // ildiz o'zi siljigan — geometriya ildiz koordinatasida bo'lishi kerak
@@ -1873,12 +1901,13 @@ test("toggle/reset/budjet: yaroqsiz budjet → 0 (o'chiq), reset standartga qayt
 
 console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");
 test("band overflow stol bloklangan; BO'SH o'rindiq fantom devor yasamaydi", () => {
-  setActiveSeats([0, 5, 13]); // faqat shu o'rindiqlar band
-  const occupied = seatFor(13);
+  const OV = SEATS.length; // overflow — asosiy o'rindiqlardan keyingilar
+  setActiveSeats([0, 5, OV + 3]); // faqat shu o'rindiqlar band
+  const occupied = seatFor(OV + 3);
   assert.ok(blocked(occupied.x, occupied.z, 0.16), "band overflow stol bloklangan bo'lishi kerak");
   assert.ok(!blocked(sitPoint(occupied).x, sitPoint(occupied).z, 0.16), "sit nuqtasi ochiq");
-  // Band bo'lmagan overflow o'rindiq (masalan 15) — fantom devor bo'lmasin
-  const empty = seatFor(15);
+  // Band bo'lmagan overflow o'rindiq — fantom devor bo'lmasin
+  const empty = seatFor(OV + 5);
   assert.ok(!blocked(empty.x, empty.z, 0.16), "BO'SH o'rindiq bloklamasligi kerak (fantom devor yo'q)");
 });
 test("asosiy band o'rindiq: stol bloklangan, sit ochiq", () => {

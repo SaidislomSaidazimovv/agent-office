@@ -10,7 +10,7 @@ import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
 import { baseboardBoxes, thresholdBoxes } from "./architecture";
-import { BUILDING, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
+import { BUILDING, CLUSTERS, DESK_W, type DeskCluster, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -495,11 +495,11 @@ export function StandingLamp({ p }: { p: V3 }) {
 // "suzib" turgan cho'p, FPV'da ko'z oldida bo'lardi.
 const LAMP_Y = 2.7; // korpus balandligi (stol ustidan ~1.9 m)
 const LAMP_L = 1.6; // uzunligi
-export function PendantLight({ p }: { p: V3 }) {
+export function PendantLight({ p, ry = 0 }: { p: V3; ry?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   const cable = BUILDING.WH - LAMP_Y - 0.03;
   return (
-    <group position={p}>
+    <group position={p} rotation={[0, ry, 0]}>
       {/* Korpus va troslar — statik (birlashmaga tushadi). Soya TASHLAMAYDI:
           derazasiz binoda shift chirog'idan ~3 m uzoqqa tushgan "quyosh" soyasi
           polda yolg'iz suzib yurgan chiziq bo'lib ko'rinardi. */}
@@ -531,8 +531,10 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
     <group position={p} userData={{ noBatch: true }}>
       {fpv && (
         <>
-          {/* Ramka */}
-          <Box p={[0, 3.3, 0]} s={[w + 0.14, 0.05, d + 0.14]} c="#2a2e35" rough={0.4} />
+          {/* Ramka — panel USTIDA (pastdan faqat chekkasi ko'rinadi). Ilgari
+              panel ostida edi va porlovchi yuzani pastdan to'liq yopib, FPV'da
+              qora plita bo'lib ko'rinardi. Soya tashlamaydi (shift chirog'i). */}
+          <mesh position={[0, 3.37, 0]} scale={[w + 0.14, 0.04, d + 0.14]} geometry={UNIT_BOX} material={stdMat("#2a2e35", { roughness: 0.4 })} />
           {/* Porlab turgan panel */}
           <mesh position={[0, 3.34, 0]}>
             <boxGeometry args={[w, 0.05, d]} />
@@ -540,6 +542,20 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
           </mesh>
         </>
       )}
+    </group>
+  );
+}
+
+// Stol klasteri ajratkichi (S8-5) — qatorlar orasida, stol ustidan 0.43 m baland
+// matoli ekran + alyumin qirra. Monitorlar orqama-orqa uning ikki tomonida.
+function ClusterDivider({ c }: { c: DeskCluster }) {
+  const len = c.cols * DESK_W - 0.06;
+  const y0 = 0.72; // stol usti (Workstation DESK_TOP)
+  const h = 0.43;
+  return (
+    <group position={[c.cx, 0, c.cz]}>
+      <Box p={[0, y0 + h / 2, 0]} s={[len, h, 0.02]} c="#5f6b73" rough={1} />
+      <Box p={[0, y0 + h + 0.01, 0]} s={[len + 0.02, 0.02, 0.03]} c="#b8bcc2" rough={0.35} />
     </group>
   );
 }
@@ -638,8 +654,10 @@ function ReadingTable({ p }: { p: V3 }) {
 // ── Tungi yorug'lik (S8-3) ──
 // Lampalar joylashuvi — BIR ro'yxat: lampaning o'zi ham, poldagi nur dog'i ham
 // shundan chiziladi. Ilgari har lampa kechasi haqiqiy pointLight edi (11 ta).
-const CEILING_PANELS: V3[] = [[-12, 0, -3.2], [-12, 0, 3.2], [12, 0, -3.2], [12, 0, 3.2]];
-const PENDANTS: V3[] = [[-4, 0, -3.2], [4, 0, -3.2], [-4, 0, 3.2], [4, 0, 3.2]];
+// S8-5: osma chiziqli lampalar — har stol klasteri ustida 2 ta, qatorlar bo'ylab
+// (x); shift panellari — markaziy zona va yon tomonlar.
+const PENDANTS: V3[] = CLUSTERS.flatMap((c): V3[] => [[c.cx - 1.2, 0, c.cz], [c.cx + 1.2, 0, c.cz]]);
+const CEILING_PANELS: V3[] = [[-6, 0, 0], [6, 0, 0], [-19.5, 0, 0], [19.5, 0, 0]];
 const FLOOR_Y = 0.03; // xona pollari (0.02) dan yuqori
 // Dog' kesish chegaralari — ofis rejasidan (CHIZILGAN devor yuzigacha).
 const OPEN_AREA = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -ROOM_LINE + WALL_VIS_HALF, z1: ROOM_LINE - WALL_VIS_HALF };
@@ -650,7 +668,7 @@ function roomClip(key: string): Pool["clip"] {
 }
 const NIGHT_POOLS: Pool[] = [
   ...CEILING_PANELS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 4.4, color: "#ffe9c0", k: 0.16, clip: OPEN_AREA })),
-  ...PENDANTS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 3.8, color: "#ffd98a", k: 0.18, clip: OPEN_AREA })),
+  ...PENDANTS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 3.2, color: "#ffd98a", k: 0.14, clip: OPEN_AREA })),
   // Server: sovuq ko'k "ma'lumot g'ori" hovuzi
   { x: -16, y: FLOOR_Y, z: -12.8, r: 6.5, color: "#4fa8ff", k: 0.2, clip: roomClip("server") },
   // Oshxona: neon yozuvdan pushti porlash — polda va orqa devorda
@@ -769,18 +787,18 @@ export default function OfficeDecor() {
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
       {/* Ochiq maydon mebeli — ofis rejasidan (OPEN_FURNITURE; to'siqlar ham shundan) */}
       {OPEN_FURNITURE.map((it, i) => <FurniturePiece key={`of${i}`} it={it} />)}
-      {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
-          Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
-      {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
-          Markazdagi pendant'larga tegmaydi (x=±4); bular tashqi stollar (x=±13)
-          ustida — ilgari u yer yoritilmagan edi. */}
+      {/* Agent stollari 4 ta klasterda (officeLayout CLUSTERS → SEATS) —
+          Workstation chizadi. Shift panellari markaziy zona va yon tomonlarda
+          (klasterlar ustida osma chiziqli lampalar bor). */}
       {CEILING_PANELS.map((p) => <CeilingPanel key={p.join()} p={p} />)}
 
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
       {/* Shift chiroqlari — ochiq ofis ustida (kechasi porlaydi) */}
-      {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
+      {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} ry={Math.PI / 2} />)}
+      {/* Stol klasterlari o'rtasidagi ajratkich ekranlar (o'rindiqlar Workstation'da) */}
+      {CLUSTERS.map((c) => <ClusterDivider key={`${c.cx},${c.cz}`} c={c} />)}
       {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
       <LightPools pools={NIGHT_POOLS} />
       {/* Plintus + eshik ostonalari (statik — birlashmaga qo'shiladi) */}

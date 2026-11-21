@@ -211,18 +211,36 @@ export interface Seat {
   ry: number;
 }
 
-// Ish joylari — hamma markazga qaraydi.
-//  • 1-6: asosiy ikki ustun (chap/o'ng, x=±5.5).
-//  • 7-10: markazdagi qo'shimcha stollar (x=±13).
-export const SEATS: Seat[] = [
-  { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
-  { x: -5.5, z: 0, ry: -Math.PI / 2 },
-  { x: -5.5, z: 3.2, ry: -Math.PI / 2 },
-  { x: 5.5, z: -3.2, ry: Math.PI / 2 },
-  { x: 5.5, z: 0, ry: Math.PI / 2 },
-  { x: 5.5, z: 3.2, ry: Math.PI / 2 },
-  { x: -13, z: -3, ry: -Math.PI / 2 },
-  { x: -13, z: 3, ry: -Math.PI / 2 },
-  { x: 13, z: -3, ry: Math.PI / 2 },
-  { x: 13, z: 3, ry: Math.PI / 2 },
+// ── Ish joylari: stol klasterlari (S8-5) ──
+// Har klaster — 3 ustun × 2 qator stol, qatorlar bir-biriga qaragan, o'rtada
+// ajratkich ekran (monitorlar orqama-orqa). Stol 1.5 m (x), chuqurligi 0.8 m.
+//  • A qator (ry = π): stol cz − 0.4 da, odam cz − 1.02 da, +z ga (kameraga) qaraydi;
+//  • B qator (ry = 0): stol cz + 0.4 da, odam cz + 1.02 da, −z ga qaraydi.
+// Klaster egallagan joy: x cx ± 2.25, z cz ± ~1.4. Markaz (x ±9.7) — hamkorlik
+// zonasi va (S8-6 gacha) overflow o'rindiqlari uchun bo'sh qoldirilgan.
+export interface DeskCluster {
+  cx: number;
+  cz: number;
+  cols: number;
+}
+export const DESK_W = 1.5;
+export const CLUSTERS: DeskCluster[] = [
+  { cx: -12.5, cz: -3.5, cols: 3 },
+  { cx: -12.5, cz: 3.5, cols: 3 },
+  { cx: 12.5, cz: -3.5, cols: 3 },
+  { cx: 12.5, cz: 3.5, cols: 3 },
 ];
+/** Klasterlardan o'rindiqlar: indeks = klaster × 6 + qator × 3 + ustun — birinchi
+ *  agentlar bir klasterda yonma-yon o'tiradi. */
+function clusterSeats(cl: DeskCluster[]): Seat[] {
+  const out: Seat[] = [];
+  for (const c of cl) {
+    for (const [dz, ry] of [[-0.4, Math.PI], [0.4, 0]] as const) {
+      for (let i = 0; i < c.cols; i++) {
+        out.push({ x: c.cx + (i - (c.cols - 1) / 2) * DESK_W, z: c.cz + dz, ry });
+      }
+    }
+  }
+  return out;
+}
+export const SEATS: Seat[] = clusterSeats(CLUSTERS);
