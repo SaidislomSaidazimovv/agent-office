@@ -35,7 +35,7 @@ import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
-import { BUILDING, FPV_BOUNDS, PERIM_VIS_HALF, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1677,8 +1677,8 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
 
 test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
   const rects = furnitureRects();
-  // 24: ochiq maydondagi ikki ko'rinmas "torsher" to'sig'i (S8-5) olib tashlandi.
-  assert.equal(rects.length, 24);
+  // Xonalardagi qo'lda yozilgan 17 ta + ochiq maydon jihozlari (ma'lumotdan).
+  assert.equal(rects.length, 17 + OPEN_FURNITURE.filter((it) => FOOTPRINT[it.type]).length);
   for (const r of rects) {
     const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
     assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
@@ -1825,6 +1825,29 @@ test("o'rindiqlar: 24 ta klaster o'rindig'i; stol+stul devor/mebelga tegmaydi; b
     const f = foot(s);
     assert.ok(!obstacles.some((r) => hit(f, r)), `overflow ${k} to'siqqa tegadi`);
     assert.ok(!seatFeet.some((r) => hit(f, r)), `overflow ${k} klasterga tegadi`);
+  }
+});
+
+test("ochiq maydon jihozlari: bir-biriga, o'rindiqlarga va overflow zonasiga tegmaydi; eshik oldi bo'sh", () => {
+  const rects = OPEN_FURNITURE.map((it) => ({ it, r: itemRect(it) })).filter((x) => x.r) as { it: (typeof OPEN_FURNITURE)[number]; r: { x0: number; x1: number; z0: number; z1: number } }[];
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+    assert.ok(!hit(rects[i].r, rects[j].r), `${rects[i].it.type}@${rects[i].it.x},${rects[i].it.z} ↔ ${rects[j].it.type}@${rects[j].it.x},${rects[j].it.z}`);
+  }
+  // O'rindiq (stol + stul) va overflow qatorlari (S8-6 gacha, 2 qator) bilan to'qnashmaydi
+  const foot = (s: { x: number; z: number; ry: number }) => {
+    const c = Math.cos(s.ry), sn = Math.sin(s.ry);
+    const xs: number[] = [], zs: number[] = [];
+    for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) { xs.push(s.x + lx * c + lz * sn); zs.push(s.z - lx * sn + lz * c); }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+  };
+  const seats = [...LAYOUT_SEATS, ...Array.from({ length: 10 }, (_, k) => seatFor(LAYOUT_SEATS.length + k))];
+  for (const { it, r } of rects) for (const s of seats) assert.ok(!hit(r, foot(s)), `${it.type}@${it.x},${it.z} o'rindiqqa (${s.x},${s.z}) tegadi`);
+  // Eshik oldi: har eshik markazidan 1.2 m ichida jihoz yo'q (o'tish erkin)
+  for (const room of LAYOUT_ROOMS) {
+    const zf = room.side === "top" ? -ROOM_LINE + 0.6 : ROOM_LINE - 0.6;
+    const door = { x0: room.doorX - room.doorW / 2, x1: room.doorX + room.doorW / 2, z0: zf - 0.6, z1: zf + 0.6 };
+    for (const { it, r } of rects) assert.ok(!hit(r, door), `${it.type}@${it.x},${it.z} ${room.key} eshigini to'sadi`);
   }
 });
 

@@ -194,13 +194,15 @@ function AcousticPanels({ x, zc, felt, wood }: { x: number; zc: number; felt: st
 }
 
 // ── Jihozlar ──
-export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
+// `still` — tebranmaydi: barglar statik birlashmaga tushadi (o'simlik guruhlarida —
+// har tebranadigan o'simlik 6 ta alohida draw call).
+export function Plant({ p, scale = 1, still = false }: { p: V3; scale?: number; still?: boolean }) {
   const leaves = useRef<THREE.Group>(null);
   const ph = useMemo(() => Math.random() * Math.PI * 2, []); // har o'simlik boshqa fazada
   // Yumshoq shamol tebranishi — barglar tuvak ustidan (y=0.4) chayqaladi.
   useFrame((state) => {
     const g = leaves.current;
-    if (!g) return;
+    if (!g || still) return;
     // Kamaytirilgan harakat — barglar tik turadi (bir marta nolga qaytariladi).
     if (useSettings.getState().reducedMotion) {
       if (g.rotation.z !== 0 || g.rotation.x !== 0) { g.rotation.z = 0; g.rotation.x = 0; }
@@ -214,7 +216,7 @@ export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow><cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />{M("#b5643c")}</mesh>
-      <group ref={leaves} position={[0, 0.4, 0]} userData={{ noBatch: true }}>
+      <group ref={leaves} position={[0, 0.4, 0]} userData={still ? undefined : { noBatch: true }}>
         {[0, 1, 2, 3, 4].map((i) => {
           const a = (i / 5) * Math.PI * 2;
           return <mesh key={i} position={[Math.cos(a) * 0.12, 0.35, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow><coneGeometry args={[0.16, 0.8, 5]} />{M(i % 2 ? "#4a8a52" : "#3c7444")}</mesh>;
@@ -572,12 +574,154 @@ function Reception({ p, ry = 0 }: { p: V3; ry?: number }) {
     </group>
   );
 }
+// ── S8-5: ochiq maydon jihozlari (lokal old tomoni +z; aylanish rejadan) ──
+const METAL = "#8b929c";
+const DARK = "#2a2e35";
+const CAB = "#d9d6cf"; // shkaf korpusi (stol shkafchalari bilan bir xil)
+const OAK = "#a0784e";
+function CollabTable({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.05, 0]} s={[2.4, 0.05, 0.9]} c="#e8e4dc" rough={0.4} />
+      <Box p={[0, 1.02, 0]} s={[2.42, 0.02, 0.92]} c={DARK} rough={0.4} />
+      {[-0.85, 0.85].map((x) => <Box key={x} p={[x, 0.51, 0]} s={[0.08, 1.0, 0.6]} c="#4a4f57" rough={0.45} />)}
+      <Box p={[0, 0.25, 0]} s={[1.7, 0.04, 0.04]} c="#4a4f57" rough={0.45} />
+      {/* Bar stullari — har tomonda 3 ta */}
+      {[-0.78, 0.78].flatMap((z) => [-0.75, 0, 0.75].map((x) => (
+        <group key={`${x},${z}`} position={[x, 0, z]}>
+          <mesh position={[0, 0.76, 0]} castShadow geometry={cyl(0.18, 0.18, 0.05, 14)} material={stdMat("#3a3f47", { roughness: 0.6 })} />
+          <mesh position={[0, 0.38, 0]} geometry={cyl(0.025, 0.025, 0.72, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+          <mesh position={[0, 0.015, 0]} geometry={cyl(0.2, 0.2, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+        </group>
+      )))}
+    </group>
+  );
+}
+// Mobil stend-up doska — toza (ofisda "soxta faoliyat" ko'rsatilmaydi).
+function StandBoard({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.35, -0.006]} s={[1.66, 1.06, 0.02]} c="#b8bcc2" rough={0.35} />
+      <Box p={[0, 1.35, 0.006]} s={[1.6, 1.0, 0.012]} c="#f4f4f2" rough={0.3} />
+      {[-0.85, 0.85].map((x) => (
+        <group key={x}>
+          <Box p={[x, 0.9, 0]} s={[0.04, 1.8, 0.04]} c={METAL} rough={0.35} />
+          <Box p={[x, 0.025, 0]} s={[0.06, 0.04, 0.46]} c="#4a4f57" rough={0.45} />
+        </group>
+      ))}
+      <Box p={[0, 0.83, 0.05]} s={[1.2, 0.03, 0.08]} c="#b8bcc2" rough={0.35} />
+    </group>
+  );
+}
+function CoffeePoint({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.45, 0]} s={[2.0, 0.9, 0.6]} c={CAB} rough={0.5} />
+      {[-0.33, 0.33].map((x) => <Box key={x} p={[x, 0.45, 0.302]} s={[0.006, 0.8, 0.004]} c="#8a8f96" rough={0.6} />)}
+      <Box p={[0, 0.92, 0]} s={[2.04, 0.04, 0.64]} c="#3a3f47" rough={0.3} />
+      {/* Kofe mashinasi */}
+      <Box p={[-0.55, 1.15, -0.05]} s={[0.32, 0.42, 0.36]} c="#1f2329" rough={0.35} />
+      <Box p={[-0.55, 1.24, 0.135]} s={[0.22, 0.1, 0.01]} c="#4a4f57" rough={0.4} />
+      <Box p={[-0.55, 0.96, 0.08]} s={[0.2, 0.02, 0.14]} c="#4a4f57" rough={0.4} />
+      {/* Krujkalar */}
+      {[0.05, 0.22, 0.39].map((x) => <mesh key={x} position={[x, 0.99, 0.08]} castShadow geometry={cyl(0.045, 0.04, 0.1, 12)} material={stdMat("#f2efe9", { roughness: 0.5 })} />)}
+      {/* Devordagi tokcha */}
+      <Box p={[0, 1.75, -0.17]} s={[1.6, 0.04, 0.26]} c={OAK} rough={0.6} />
+      {[-0.5, -0.3, 0.45].map((x, i) => <mesh key={x} position={[x, 1.85, -0.17]} geometry={cyl(0.06, 0.06, 0.16, 12)} material={stdMat(["#c8a47a", "#e8e4dc", "#5a7a8c"][i], { roughness: 0.5 })} />)}
+    </group>
+  );
+}
+function PrinterCorner({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[-0.3, 0.33, 0]} s={[0.7, 0.66, 0.6]} c={CAB} rough={0.5} />
+      <Box p={[-0.3, 0.88, 0]} s={[0.62, 0.44, 0.52]} c="#e8e8e6" rough={0.5} />
+      <Box p={[-0.3, 1.105, -0.05]} s={[0.62, 0.01, 0.4]} c="#3a3f47" rough={0.4} />
+      <Box p={[-0.3, 0.8, 0.28]} s={[0.4, 0.02, 0.1]} c="#c8ccd2" rough={0.4} />
+      <Box p={[-0.05, 1.0, 0.262]} s={[0.12, 0.08, 0.01]} c="#1b1f27" rough={0.3} />
+      {/* Yonidagi baland shkaf */}
+      <Box p={[0.45, 0.7, 0]} s={[0.6, 1.4, 0.6]} c="#cfccc4" rough={0.5} />
+      <Box p={[0.45, 0.7, 0.302]} s={[0.006, 1.3, 0.004]} c="#8a8f96" rough={0.6} />
+    </group>
+  );
+}
+function Lockers({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const cols = 6, rows = 3, W = 3.0, H = 1.8;
+  const out: JSX.Element[] = [];
+  for (let c = 1; c < cols; c++) out.push(<Box key={`v${c}`} p={[-W / 2 + (W / cols) * c, 0.9, 0.226]} s={[0.006, H - 0.02, 0.004]} c="#8a8f96" rough={0.6} />);
+  for (let r = 1; r < rows; r++) out.push(<Box key={`h${r}`} p={[0, 0.08 + ((H - 0.08) / rows) * r, 0.226]} s={[W - 0.02, 0.006, 0.004]} c="#8a8f96" rough={0.6} />);
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    out.push(<Box key={`k${c},${r}`} p={[-W / 2 + (W / cols) * (c + 0.8), 0.08 + ((H - 0.08) / rows) * (r + 0.5), 0.236]} s={[0.02, 0.08, 0.015]} c="#5a5f66" rough={0.4} />);
+  }
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.94, 0]} s={[W, H - 0.08, 0.45]} c="#c9ccd0" rough={0.5} />
+      <Box p={[0, 0.04, 0.01]} s={[W, 0.08, 0.44]} c="#3a3f47" rough={0.5} />
+      <Box p={[0, 1.81, 0]} s={[W + 0.02, 0.02, 0.47]} c="#9aa0a8" rough={0.4} />
+      {out}
+    </group>
+  );
+}
+function PhoneBooth({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const felt = "#4c5f70";
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.1, -0.525]} s={[1.1, 2.2, 0.05]} c={felt} rough={1} />
+      {[-0.525, 0.525].map((x) => <Box key={x} p={[x, 1.1, 0]} s={[0.05, 2.2, 1.1]} c={felt} rough={1} />)}
+      <Box p={[0, 2.225, 0]} s={[1.12, 0.05, 1.12]} c={DARK} rough={0.4} />
+      <Box p={[0, 0.03, 0]} s={[1.1, 0.06, 1.1]} c="#3a3f47" rough={0.5} />
+      {/* Ichki yorug'lik chizig'i (doimiy) */}
+      <mesh position={[0, 2.19, 0]} scale={[0.6, 0.01, 0.1]} geometry={UNIT_BOX} material={stdMat("#fff8ec", { emissive: "#fff0d0", emissiveIntensity: 0.9 })} />
+      {/* Ichkarida: tokcha-stol va stul */}
+      <Box p={[0, 0.95, -0.36]} s={[0.9, 0.04, 0.32]} c={OAK} rough={0.6} />
+      <mesh position={[0, 0.6, 0.05]} castShadow geometry={cyl(0.17, 0.17, 0.05, 14)} material={stdMat("#3a3f47", { roughness: 0.6 })} />
+      <mesh position={[0, 0.3, 0.05]} geometry={cyl(0.025, 0.025, 0.58, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+      {/* Old tomoni — oynali eshik */}
+      {[-0.53, 0.53].map((x) => <Box key={`f${x}`} p={[x, 1.1, 0.53]} s={[0.04, 2.2, 0.04]} c={DARK} rough={0.4} />)}
+      <mesh position={[0, 1.12, 0.53]}>
+        <boxGeometry args={[1.02, 2.1, 0.02]} />
+        <meshStandardMaterial color="#bfe0ff" transparent opacity={0.2} roughness={0.08} metalness={0.1} />
+      </mesh>
+      <Box p={[0.4, 1.05, 0.56]} s={[0.03, 0.35, 0.03]} c="#c8ccd2" rough={0.35} />
+    </group>
+  );
+}
+// Uzun past gultuvak — klaster bilan markaz orasida ajratkich (lokal x bo'ylab).
+function Planter({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.25, 0]} s={[2.6, 0.5, 0.4]} c="#3a3f47" rough={0.6} />
+      <Box p={[0, 0.5, 0]} s={[2.5, 0.02, 0.32]} c="#4a3a2a" rough={1} />
+      {[-0.95, -0.32, 0.32, 0.95].map((x, i) => (
+        <mesh key={x} position={[x, 0.68, 0]} castShadow geometry={sphere(0.26 + (i % 2) * 0.04, 8, 6)} material={stdMat(i % 2 ? "#5c8a52" : "#4f7d4a", { roughness: 0.9 })} />
+      ))}
+    </group>
+  );
+}
+function PlantGroup({ p }: { p: V3 }) {
+  return (
+    <group>
+      <Plant p={[p[0] - 0.3, 0, p[2] - 0.25]} scale={1.2} still />
+      <Plant p={[p[0] + 0.35, 0, p[2] - 0.1]} scale={0.9} still />
+      <Plant p={[p[0], 0, p[2] + 0.35]} scale={0.75} still />
+    </group>
+  );
+}
+
 /** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
 function FurniturePiece({ it }: { it: FurnitureItem }) {
   const p: V3 = [it.x, 0, it.z];
   switch (it.type) {
     case "reception": return <Reception p={p} ry={it.ry} />;
     case "plant": return <Plant p={p} scale={it.scale} />;
+    case "collabTable": return <CollabTable p={p} ry={it.ry} />;
+    case "standBoard": return <StandBoard p={p} ry={it.ry} />;
+    case "coffeePoint": return <CoffeePoint p={p} ry={it.ry} />;
+    case "printer": return <PrinterCorner p={p} ry={it.ry} />;
+    case "lockers": return <Lockers p={p} ry={it.ry} />;
+    case "phoneBooth": return <PhoneBooth p={p} ry={it.ry} />;
+    case "planter": return <Planter p={p} ry={it.ry} />;
+    case "plantGroup": return <PlantGroup p={p} />;
   }
 }
 
@@ -793,7 +937,9 @@ export default function OfficeDecor() {
       {CEILING_PANELS.map((p) => <CeilingPanel key={p.join()} p={p} />)}
 
       {/* Devor rasmlari */}
-      <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
+      {/* Telefon kabinalari chap devorda — bu rasm ular orqasidan chiqib turardi;
+          server xonasi old devoriga (yo'lak tomoni, kameraga qaragan) ko'chdi. */}
+      <Painting p={[-12, 1.6, -9.36]} ry={0} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
       {/* Shift chiroqlari — ochiq ofis ustida (kechasi porlaydi) */}
       {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} ry={Math.PI / 2} />)}

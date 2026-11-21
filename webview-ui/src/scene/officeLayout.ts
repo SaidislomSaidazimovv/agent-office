@@ -120,7 +120,10 @@ export function wallRects(T = WALL_HALF, P = PERIM_HALF, glassFronts = true): Re
 // qo'shilsa yoki ko'chirilsa to'siq o'zi moslashadi. (Ilgari to'siqlar qo'lda
 // alohida yozilgan edi va ikki "torsher" to'sig'i (−7,5)/(7,−5) hech qanday
 // chizilgan narsasiz qolib ketgan — agentlar ko'rinmas to'siqni aylanardi.)
-export type FurnitureType = "reception" | "plant";
+export type FurnitureType =
+  | "reception" | "plant"
+  // S8-5: ochiq maydon jihozlari
+  | "collabTable" | "standBoard" | "coffeePoint" | "printer" | "lockers" | "phoneBooth" | "planter" | "plantGroup";
 
 export interface FurnitureItem {
   type: FurnitureType;
@@ -136,6 +139,14 @@ export interface FurnitureItem {
 export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null> = {
   reception: { hx: 1.7, hz: 0.5 },
   plant: { hx: 0.28, hz: 0.28 },
+  collabTable: { hx: 1.45, hz: 1.0 }, // stol 2.4×0.9 + bar stullari
+  standBoard: { hx: 0.85, hz: 0.25 },
+  coffeePoint: { hx: 1.0, hz: 0.33 },
+  printer: { hx: 0.8, hz: 0.33 },
+  lockers: { hx: 1.5, hz: 0.25 },
+  phoneBooth: { hx: 0.6, hz: 0.6 },
+  planter: { hx: 1.3, hz: 0.22 },
+  plantGroup: { hx: 0.7, hz: 0.7 },
 };
 
 export const OPEN_FURNITURE: FurnitureItem[] = [
@@ -146,6 +157,30 @@ export const OPEN_FURNITURE: FurnitureItem[] = [
   { type: "plant", x: 16, z: -6, scale: 1.1 },
   { type: "plant", x: -1.5, z: 5, scale: 0.9 },
   { type: "plant", x: 1.5, z: 5, scale: 0.9 },
+  // ── S8-5: ochiq maydon jihozlari ──
+  // (Markaz x ±5.4, z −4.5..−8.4 — S8-6 gacha overflow qatorlari uchun bo'sh.)
+  // Hamkorlik zonasi — markazda
+  { type: "collabTable", x: 0, z: 1.5 },
+  { type: "standBoard", x: 3.4, z: 1.5, ry: -Math.PI / 2 },
+  // Kofe nuqtasi va printer burchagi — yuqori xonalar devori yonida (eshiklardan chetda)
+  { type: "coffeePoint", x: 6.5, z: -9.05 },
+  { type: "printer", x: -7.5, z: -9.05 },
+  // Lokerlar va telefon kabinalari — chap devor (iso kameraga qaragan uzoq devor;
+  // o'ng devor yaqin tomonda — u yerda faqat orqasi ko'rinardi). Lokerlar devor
+  // soati (z −6, 2.35 m) ostida, rasmlar (z 0 va 6) bilan to'qnashmaydi.
+  { type: "lockers", x: -22.6, z: -4.4, ry: Math.PI / 2 },
+  { type: "phoneBooth", x: -22.2, z: -1.3, ry: Math.PI / 2 },
+  { type: "phoneBooth", x: -22.2, z: 1.3, ry: Math.PI / 2 },
+  // Ajratkich gultuvaklar — klasterlar bilan markaz orasida
+  { type: "planter", x: -8.6, z: -3.5, ry: Math.PI / 2 },
+  { type: "planter", x: -8.6, z: 3.5, ry: Math.PI / 2 },
+  { type: "planter", x: 8.6, z: -3.5, ry: Math.PI / 2 },
+  { type: "planter", x: 8.6, z: 3.5, ry: Math.PI / 2 },
+  // O'simlik guruhlari — ochiq maydon burchaklarida
+  { type: "plantGroup", x: -21.9, z: -8.4 },
+  { type: "plantGroup", x: -21.9, z: 8.4 },
+  { type: "plantGroup", x: 21.9, z: -8.4 },
+  { type: "plantGroup", x: 21.9, z: 8.4 },
 ];
 
 /** Buyum oyoq izi (aylanishni hisobga olgan AABB); to'siq bo'lmasa null. */
