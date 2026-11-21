@@ -5,7 +5,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { useLayout } from "../layoutStore";
 import type { CameraMode } from "../store";
 import { useDaylight } from "./daylight";
-import { BUILDING } from "./officeLayout";
+import { BUILDING, PERIM_VIS_HALF } from "./officeLayout";
 import { FLOOR_TEX_SIZE, floorGeometry, floorTexture } from "./textures";
 
 // ── Ofis xonasi — dollhouse (yopiq bino, iso'da near-devorlar yashirin) ──
@@ -175,19 +175,19 @@ export default function Room({ mode }: { mode: CameraMode }) {
 
       {/* ── Perimetr devorlar (4 tomon) — dinamik shaffoflik useFrame'da ── */}
       <mesh position={[0, WH / 2, -D / 2]} receiveShadow>
-        <boxGeometry args={[W, WH, 0.3]} />
+        <boxGeometry args={[W, WH, PERIM_VIS_HALF * 2]} />
         <meshStandardMaterial ref={backM} color={wallMat} roughness={1} transparent opacity={SOLID} />
       </mesh>
       <mesh position={[0, WH / 2, D / 2]} receiveShadow>
-        <boxGeometry args={[W, WH, 0.3]} />
+        <boxGeometry args={[W, WH, PERIM_VIS_HALF * 2]} />
         <meshStandardMaterial ref={frontM} color={wallMat} roughness={1} transparent opacity={GHOST} depthWrite={false} />
       </mesh>
       <mesh position={[-W / 2, WH / 2, 0]} receiveShadow>
-        <boxGeometry args={[0.3, WH, D]} />
+        <boxGeometry args={[PERIM_VIS_HALF * 2, WH, D]} />
         <meshStandardMaterial ref={leftM} color={sideWall} roughness={1} transparent opacity={SOLID} />
       </mesh>
       <mesh position={[W / 2, WH / 2, 0]} receiveShadow>
-        <boxGeometry args={[0.3, WH, D]} />
+        <boxGeometry args={[PERIM_VIS_HALF * 2, WH, D]} />
         <meshStandardMaterial ref={rightM} color={sideWall} roughness={1} transparent opacity={GHOST} depthWrite={false} />
       </mesh>
 

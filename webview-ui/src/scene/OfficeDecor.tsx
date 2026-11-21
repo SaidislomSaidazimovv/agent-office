@@ -9,7 +9,8 @@ import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
-import { BUILDING, DISTRICT, PERIM_HALF, ROOM_LINE, ROOMS, roomZ, WALL_HALF, wallRects } from "./officeLayout";
+import { baseboardBoxes, thresholdBoxes } from "./architecture";
+import { BUILDING, DISTRICT, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -24,7 +25,7 @@ const M = (color: string, rough = 0.9) => <meshStandardMaterial color={color} ro
 // Metall/chrome (zamonaviy oyoq-ramkalar uchun)
 const MM = (color: string, rough = 0.35, metal = 0.85) => <meshStandardMaterial color={color} roughness={rough} metalness={metal} />;
 const WALL_H = 2.6;
-const WALL_T = 0.24;
+const WALL_T = WALL_VIS_HALF * 2; // chizilgan ichki devor qalinligi (officeLayout)
 // ── Zamonaviy palitra ──
 const WALL_C = "#e6e3dd"; // toza och kul-oq devor
 const DOORW = "#3a3f47"; // matte charcoal eshik
@@ -549,12 +550,12 @@ function ReadingTable({ p }: { p: V3 }) {
 const CEILING_PANELS: V3[] = [[-12, 0, -3.2], [-12, 0, 3.2], [12, 0, -3.2], [12, 0, 3.2]];
 const PENDANTS: V3[] = [[-4, 0, -3.2], [4, 0, -3.2], [-4, 0, 3.2], [4, 0, 3.2]];
 const FLOOR_Y = 0.03; // xona pollari (0.02) dan yuqori
-// Dog' kesish chegaralari — ofis rejasidan (devor ichki yuzigacha).
-const OPEN_AREA = { x0: -BUILDING.W / 2, x1: BUILDING.W / 2, z0: -ROOM_LINE + WALL_HALF, z1: ROOM_LINE - WALL_HALF };
+// Dog' kesish chegaralari — ofis rejasidan (CHIZILGAN devor yuzigacha).
+const OPEN_AREA = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -ROOM_LINE + WALL_VIS_HALF, z1: ROOM_LINE - WALL_VIS_HALF };
 function roomClip(key: string): Pool["clip"] {
   const r = ROOMS.find((x) => x.key === key)!;
   const { z0, z1 } = roomZ(r);
-  return { x0: r.x0 + WALL_HALF, x1: r.x1 - WALL_HALF, z0: z0 + WALL_HALF, z1: z1 - WALL_HALF };
+  return { x0: r.x0 + WALL_VIS_HALF, x1: r.x1 - WALL_VIS_HALF, z0: z0 + WALL_VIS_HALF, z1: z1 - WALL_VIS_HALF };
 }
 const NIGHT_POOLS: Pool[] = [
   ...CEILING_PANELS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 4.4, color: "#ffe9c0", k: 0.16, clip: OPEN_AREA })),
@@ -569,12 +570,19 @@ const NIGHT_POOLS: Pool[] = [
 ];
 const STANDING_LAMP_POOL: Pool[] = [{ x: 0, y: FLOOR_Y, z: 0, r: 3, color: "#ffd98a", k: 0.2 }];
 
+// Bino ichki chegarasi — CHIZILGAN perimetr devor yuzigacha.
+const INTERIOR = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -BUILDING.D / 2 + PERIM_VIS_HALF, z1: BUILDING.D / 2 - PERIM_VIS_HALF };
 // Devor tagidagi kontakt qorong'iligi (arzon AO) — ofis rejasidan. Faqat
 // devorlar: mebelning to'qnashuv to'rtburchaklari haqiqiy shaklidan kattaroq
 // (zaxira bilan), ular atrofidagi tasma mebeldan uzoqda "suzib" turgan qorong'i
 // ramka bo'lib chiqdi. Mebelni quyosh soyasi yerga bog'laydi.
-const SHADE_SETS: ShadeSet[] = [{ rects: wallRects(), width: 0.55, k: 0.28 }];
-const INTERIOR = { x0: -BUILDING.W / 2 + PERIM_HALF, x1: BUILDING.W / 2 - PERIM_HALF, z0: -BUILDING.D / 2 + PERIM_HALF, z1: BUILDING.D / 2 - PERIM_HALF };
+// Chizilgan devor yuzidan boshlanadi (to'qnashuv qalinligidan emas — aks holda
+// devor bilan qorong'i tasma orasida ~4 sm yorug' chiziq qolardi).
+const SHADE_SETS: ShadeSet[] = [{ rects: wallRects(WALL_VIS_HALF, PERIM_VIS_HALF), width: 0.55, k: 0.28 }];
+// Plintus (qattiq devorlar — shisha old devorlarda pastki rels bor) va eshik ostonalari.
+const BASEBOARD_C = "#6f6a63";
+const BASEBOARDS = baseboardBoxes(wallRects(WALL_VIS_HALF, PERIM_VIS_HALF, false), INTERIOR);
+const THRESHOLDS = thresholdBoxes();
 
 // ── District palitrasi (0.1.5) ───────────────────────────────
 // Muammo: eski pol ranglari hammasi och pastel edi — iso kameradan bir xil
@@ -695,6 +703,9 @@ export default function OfficeDecor() {
       {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
       {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
       <LightPools pools={NIGHT_POOLS} />
+      {/* Plintus + eshik ostonalari (statik — birlashmaga qo'shiladi) */}
+      {BASEBOARDS.map((b, i) => <Box key={`bb${i}`} p={b.p} s={b.s} c={BASEBOARD_C} rough={0.6} />)}
+      {THRESHOLDS.map((b, i) => <Box key={`th${i}`} p={b.p} s={b.s} c="#9aa0a8" rough={0.35} />)}
       {/* Devor tagidagi kontakt qorong'iligi — BITTA mesh */}
       <ContactShade sets={SHADE_SETS} y={0.026} clip={INTERIOR} />
       {/* Devor soati + qo'shimcha rasmlar (yon devorlarda, ochiq ofisga qaragan) */}
