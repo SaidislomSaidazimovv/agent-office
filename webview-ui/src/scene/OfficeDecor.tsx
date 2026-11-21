@@ -10,7 +10,7 @@ import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
 import { baseboardBoxes, thresholdBoxes } from "./architecture";
-import { BUILDING, DISTRICT, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
+import { BUILDING, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -544,6 +544,27 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
   );
 }
 
+// ── Ochiq maydon mebeli (ma'lumotdan) ──
+function Reception({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.5, 0]} s={[3.2, 1.0, 0.8]} c="#eceae4" rough={0.5} />
+      <Box p={[0, 0.5, 0.42]} s={[2.9, 0.7, 0.02]} c={ACCENT} rough={0.6} />
+      <Box p={[0, 1.06, 0]} s={[3.5, 0.07, 1.05]} c="#20242b" rough={0.3} />
+      {/* logo bloklari */}
+      {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
+    </group>
+  );
+}
+/** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
+function FurniturePiece({ it }: { it: FurnitureItem }) {
+  const p: V3 = [it.x, 0, it.z];
+  switch (it.type) {
+    case "reception": return <Reception p={p} ry={it.ry} />;
+    case "plant": return <Plant p={p} scale={it.scale} />;
+  }
+}
+
 // ── YANGI: server rack ──
 function ServerRack({ p, ry = 0 }: { p: V3; ry?: number }) {
   const lights = useMemo(() => {
@@ -746,27 +767,14 @@ export default function OfficeDecor() {
       <MeetingTable p={[19, 0, 13]} r={0.9} />
 
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
-      {/* Reception */}
-      <group position={[0, 0, 7.5]}>
-        <Box p={[0, 0.5, 0]} s={[3.2, 1.0, 0.8]} c="#eceae4" rough={0.5} />
-        <Box p={[0, 0.5, 0.42]} s={[2.9, 0.7, 0.02]} c={ACCENT} rough={0.6} />
-        <Box p={[0, 1.06, 0]} s={[3.5, 0.07, 1.05]} c="#20242b" rough={0.3} />
-        {/* logo bloklari */}
-        {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
-      </group>
+      {/* Ochiq maydon mebeli — ofis rejasidan (OPEN_FURNITURE; to'siqlar ham shundan) */}
+      {OPEN_FURNITURE.map((it, i) => <FurniturePiece key={`of${i}`} it={it} />)}
       {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
           Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
       {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
           Markazdagi pendant'larga tegmaydi (x=±4); bular tashqi stollar (x=±13)
           ustida — ilgari u yer yoritilmagan edi. */}
       {CEILING_PANELS.map((p) => <CeilingPanel key={p.join()} p={p} />)}
-      {/* o'simliklar */}
-      <Plant p={[-16, 0, 6]} scale={1.1} />
-      <Plant p={[16, 0, 6]} scale={1.1} />
-      <Plant p={[-16, 0, -6]} scale={1.1} />
-      <Plant p={[16, 0, -6]} scale={1.1} />
-      <Plant p={[-1.5, 0, 5]} scale={0.9} />
-      <Plant p={[1.5, 0, 5]} scale={0.9} />
 
       {/* Devor rasmlari */}
       <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />

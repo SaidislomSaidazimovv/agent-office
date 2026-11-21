@@ -115,6 +115,50 @@ export function wallRects(T = WALL_HALF, P = PERIM_HALF, glassFronts = true): Re
   return out;
 }
 
+// ── Ochiq maydon mebeli — MA'LUMOT (S8-5) ──
+// Chizish (OfficeDecor) ham, to'qnashuv/navigatsiya ham shu ro'yxatdan: mebel
+// qo'shilsa yoki ko'chirilsa to'siq o'zi moslashadi. (Ilgari to'siqlar qo'lda
+// alohida yozilgan edi va ikki "torsher" to'sig'i (−7,5)/(7,−5) hech qanday
+// chizilgan narsasiz qolib ketgan — agentlar ko'rinmas to'siqni aylanardi.)
+export type FurnitureType = "reception" | "plant";
+
+export interface FurnitureItem {
+  type: FurnitureType;
+  x: number;
+  z: number;
+  /** Aylanish (radian, y o'qi). */
+  ry?: number;
+  /** Faqat ko'rinish masshtabi (oyoq izi o'zgarmaydi). */
+  scale?: number;
+}
+
+/** Oyoq izi yarim o'lchamlari (aylanmagan holatda). null — to'siq emas. */
+export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null> = {
+  reception: { hx: 1.7, hz: 0.5 },
+  plant: { hx: 0.28, hz: 0.28 },
+};
+
+export const OPEN_FURNITURE: FurnitureItem[] = [
+  { type: "reception", x: 0, z: 7.5 },
+  { type: "plant", x: -16, z: 6, scale: 1.1 },
+  { type: "plant", x: 16, z: 6, scale: 1.1 },
+  { type: "plant", x: -16, z: -6, scale: 1.1 },
+  { type: "plant", x: 16, z: -6, scale: 1.1 },
+  { type: "plant", x: -1.5, z: 5, scale: 0.9 },
+  { type: "plant", x: 1.5, z: 5, scale: 0.9 },
+];
+
+/** Buyum oyoq izi (aylanishni hisobga olgan AABB); to'siq bo'lmasa null. */
+export function itemRect(it: FurnitureItem): Rect | null {
+  const fp = FOOTPRINT[it.type];
+  if (!fp) return null;
+  const ry = it.ry ?? 0;
+  const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry));
+  const hx = fp.hx * c + fp.hz * sn;
+  const hz = fp.hx * sn + fp.hz * c;
+  return { x0: it.x - hx, x1: it.x + hx, z0: it.z - hz, z1: it.z + hz };
+}
+
 /** Doimiy mebel to'siqlari (OfficeDecor'dagi joylashuvga mos — mebel u yerda
  *  chiziladi; S8-5 da xonalar qayta jihozlanganda chizish ham shu ma'lumotga
  *  o'tadi). Agent va FPV kamera ular orqali o'tmaydi. */
@@ -123,8 +167,6 @@ export function furnitureRects(): Rect[] {
   const r = (x0: number, x1: number, z0: number, z1: number): void => {
     out.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) });
   };
-  // Reception
-  r(-1.7, 1.7, 7.0, 8.0);
   // Server xonasi (rack qatorlari) — orqa qator devorga taqaldi (z=-15.4)
   r(-22, -10, -16.0, -14.8);
   r(-22, -10, -11.6, -10.4);
@@ -152,11 +194,11 @@ export function furnitureRects(): Rect[] {
   r(11.7, 13.3, 13.8, 15.2);
   // glassC stol
   r(18, 20, 12, 14);
-  // ── Turgan chiroqlar + pol o'simliklari (agent ular ustidan o'tmasin) ──
-  // Hammasi nav-qirralaridan chetda joylashtirilgan (OfficeDecor), shu bois bu
-  // kichik to'siqlar yo'l grafini uzmaydi — faqat "arvohdek o'tishni" to'xtatadi.
-  for (const [x, z] of [[-7, 5], [7, -5]] as [number, number][]) r(x - 0.22, x + 0.22, z - 0.22, z + 0.22); // chiroqlar
-  for (const [x, z] of [[-1.5, 5], [1.5, 5], [-16, 6], [16, 6], [-16, -6], [16, -6]] as [number, number][]) r(x - 0.28, x + 0.28, z - 0.28, z + 0.28); // o'simliklar
+  // Ochiq maydon mebeli — ma'lumotdan (OPEN_FURNITURE, oyoq izi FOOTPRINT).
+  for (const it of OPEN_FURNITURE) {
+    const rect = itemRect(it);
+    if (rect) out.push(rect);
+  }
   return out;
 }
 

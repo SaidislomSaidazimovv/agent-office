@@ -1677,7 +1677,8 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
 
 test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
   const rects = furnitureRects();
-  assert.equal(rects.length, 26);
+  // 24: ochiq maydondagi ikki ko'rinmas "torsher" to'sig'i (S8-5) olib tashlandi.
+  assert.equal(rects.length, 24);
   for (const r of rects) {
     const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
     assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
