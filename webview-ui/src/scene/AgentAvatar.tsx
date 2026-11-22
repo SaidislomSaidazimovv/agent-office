@@ -10,7 +10,7 @@ import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } 
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
-import { type CharSkin, characterFor, energyFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
+import { type CharSkin, characterFor, energyFor, isStandingSeat, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
 
@@ -119,8 +119,11 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     return () => clearTimeout(t);
   }, [hotNow]);
 
-  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
-  const sit = useRef<WP>({ ...sitPoint(seat) });
+  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda).
+  // 60 dan ortiq agent stolsiz — hamkorlik zonasida o'z joyida TIK turadi (S8-6).
+  const standing = isStandingSeat(agent.seatIndex);
+  const targetOf = (st: boolean, s: typeof seat): WP => (st ? { x: s.x, z: s.z } : { ...sitPoint(s) });
+  const sit = useRef<WP>(targetOf(standing, seat));
 
   const group = useRef<THREE.Group>(null);
   const pos = useRef<WP>({ ...sit.current });
@@ -128,11 +131,25 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const curNode = useRef(nearestNode(sit.current.x, sit.current.z)); // joriy graf tuguni
   const pendingNode = useRef<string | null>(null);
   const pause = useRef(0);
-  const seated = useRef(true);
+  const seated = useRef(!standing);
+  const atSpot = useRef(standing); // tik turuvchi o'z joyida (yo'nalishini tutadi)
   const movingRef = useRef(false);
   const prevDesired = useRef(true);
   const stuck = useRef(0);
   const speedRef = useRef(0); // haqiqiy yurish tezligi (oyoq sirg'anmasin uchun)
+  // O'rindiq almashsa (ko'chirish / qayta taqsimlash) — yangi joyga boramiz. Ilgari
+  // sit faqat birinchi renderda hisoblanardi: stol yangi joyda chizilar, agent
+  // esa ESKI joyiga qaytib o'tirardi.
+  useEffect(() => {
+    const next = targetOf(standing, seat);
+    if (next.x === sit.current.x && next.z === sit.current.z) return;
+    sit.current = next;
+    seated.current = false;
+    atSpot.current = false;
+    if (path.current.length > 1) path.current = path.current.slice(0, 1); // joriy qadamni tugatib qayta rejalaydi
+    pendingNode.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.seatIndex]);
   const firstIdleTrip = useRef(false); // ishdan endi bo'shadi → tanaffusga
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
@@ -195,9 +212,10 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     // olamiz → yo'llar faqat eshiklardan o'tadi, devor/mebeldan emas.
     if (path.current.length === 0) {
       const atSeat = Math.hypot(p.x - sit.current.x, p.z - sit.current.z) < 0.25;
+      atSpot.current = desiredSit && atSeat && standing;
       if (desiredSit) {
         if (atSeat) {
-          seated.current = true;
+          seated.current = !standing; // stolsiz agent o'tirmaydi — tik turadi
         } else {
           const target = nearestNode(sit.current.x, sit.current.z);
           const route = pathBetween(curNode.current, target);
@@ -312,7 +330,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     movingRef.current = moving;
     if (!moving) speedRef.current *= Math.max(0, 1 - dt * 6); // to'xtaganda so'nadi
 
-    if (seated.current) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
+    if (seated.current || (atSpot.current && !moving)) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
     g.position.x = p.x;
     g.position.z = p.z;
 

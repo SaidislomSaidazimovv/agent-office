@@ -324,6 +324,9 @@ export interface DeskCluster {
   cx: number;
   cz: number;
   cols: number;
+  /** Stollar qaysi o'q bo'ylab tiziladi: "x" (standart — qatorlar ±z ga qaraydi)
+   *  yoki "z" (qatorlar ±x ga qaraydi). */
+  axis?: "x" | "z";
 }
 export const DESK_W = 1.5;
 export const CLUSTERS: DeskCluster[] = [
@@ -337,12 +340,73 @@ export const CLUSTERS: DeskCluster[] = [
 function clusterSeats(cl: DeskCluster[]): Seat[] {
   const out: Seat[] = [];
   for (const c of cl) {
-    for (const [dz, ry] of [[-0.4, Math.PI], [0.4, 0]] as const) {
-      for (let i = 0; i < c.cols; i++) {
-        out.push({ x: c.cx + (i - (c.cols - 1) / 2) * DESK_W, z: c.cz + dz, ry });
+    if ((c.axis ?? "x") === "x") {
+      for (const [dz, ry] of [[-0.4, Math.PI], [0.4, 0]] as const) {
+        for (let i = 0; i < c.cols; i++) {
+          out.push({ x: c.cx + (i - (c.cols - 1) / 2) * DESK_W, z: c.cz + dz, ry });
+        }
+      }
+    } else {
+      // Stollar z bo'ylab; A qator (ry = −π/2) cx − 0.4 da, +x ga qaraydi;
+      // B qator (ry = +π/2) cx + 0.4 da, −x ga qaraydi.
+      for (const [dx, ry] of [[-0.4, -Math.PI / 2], [0.4, Math.PI / 2]] as const) {
+        for (let i = 0; i < c.cols; i++) {
+          out.push({ x: c.cx + dx, z: c.cz + (i - (c.cols - 1) / 2) * DESK_W, ry });
+        }
       }
     }
   }
   return out;
 }
 export const SEATS: Seat[] = clusterSeats(CLUSTERS);
+
+// ── Ortiqcha (overflow) o'rindiqlar (S8-6) ──
+// 24 tadan ortiq agent uchun 36 ta stol: markazda (overflow uchun S8-5 da bo'sh
+// qoldirilgan joy) va ikki yon tomonda — telefon kabinalari va lokerlar oldida.
+// To'qnashuvsizligi test bilan kafolatlanadi. Jami stol: 60.
+export const OVERFLOW_CLUSTERS: DeskCluster[] = [
+  { cx: 0, cz: -6.45, cols: 6 },
+  { cx: -18.2, cz: 0, cols: 6, axis: "z" },
+  { cx: 18.2, cz: 0, cols: 6, axis: "z" },
+];
+export const OVERFLOW_SEATS: Seat[] = clusterSeats(OVERFLOW_CLUSTERS);
+/** Barcha stollar (asosiy + ortiqcha), indeks bo'yicha. */
+export const DESK_SEATS: Seat[] = [...SEATS, ...OVERFLOW_SEATS];
+
+/** O'rindiq (stol + stul) egallagan joy — aylantirilgan AABB (lokal x ±0.8,
+ *  z −0.45..+1.0). nav va layout migratsiyasi bilan bir xil o'lcham. */
+export function seatFootprint(s: Seat): Rect {
+  const c = Math.cos(s.ry), sn = Math.sin(s.ry);
+  const xs: number[] = [], zs: number[] = [];
+  for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) {
+    xs.push(s.x + lx * c + lz * sn);
+    zs.push(s.z - lx * sn + lz * c);
+  }
+  return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+}
+
+// ── 60 dan ortiq agent: hamkorlik zonasida tik turish joylari (S8-6) ──
+// (Foydalanuvchi tanlovi: stol berilmaydi, markaziy zonada tik turadi.)
+// Hamkorlik stoli atrofidagi to'r (1 m qadam); devor, mebel va barcha 60 stoldan
+// kamida 0.45 m uzoq nuqtalar. Har biri hamkorlik stoliga qaraydi.
+const STAND_CENTER = { x: 0, z: 1.5 };
+const STAND_CLEAR = 0.45;
+let standCache: Seat[] | null = null;
+export function standingSpots(): Seat[] {
+  if (standCache) return standCache;
+  const obstacles = [...wallRects(), ...furnitureRects(), ...DESK_SEATS.map(seatFootprint)];
+  const free = (x: number, z: number) =>
+    !obstacles.some((o) => x > o.x0 - STAND_CLEAR && x < o.x1 + STAND_CLEAR && z > o.z0 - STAND_CLEAR && z < o.z1 + STAND_CLEAR);
+  const out: Seat[] = [];
+  for (let z = -3.5; z <= 4.5 + 1e-9; z += 1) {
+    for (let x = -5; x <= 5 + 1e-9; x += 1) {
+      if (!free(x, z)) continue;
+      const dx = STAND_CENTER.x - x, dz = STAND_CENTER.z - z;
+      out.push({ x, z, ry: Math.atan2(-dx, -dz) });
+    }
+  }
+  // Markazga yaqinlari birinchi (tartib barqaror)
+  out.sort((a, b) => Math.hypot(a.x - STAND_CENTER.x, a.z - STAND_CENTER.z) - Math.hypot(b.x - STAND_CENTER.x, b.z - STAND_CENTER.z) || a.x - b.x || a.z - b.z);
+  standCache = out;
+  return out;
+}
