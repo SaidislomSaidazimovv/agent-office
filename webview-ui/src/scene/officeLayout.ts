@@ -125,7 +125,9 @@ export type FurnitureType =
   // S8-5: ochiq maydon jihozlari
   | "collabTable" | "standBoard" | "coffeePoint" | "printer" | "lockers" | "phoneBooth" | "planter" | "plantGroup"
   // S8-5: xona jihozlari (yuqori qator)
-  | "fridge" | "kitchenAppliances" | "kitchenIsland" | "bistroTable" | "credenza" | "handDryer" | "cableTray" | "ups";
+  | "fridge" | "kitchenAppliances" | "kitchenIsland" | "bistroTable" | "credenza" | "handDryer" | "cableTray" | "ups"
+  // S8-5: xona jihozlari (pastki qator) + resepshn
+  | "armchair" | "sideTable" | "floorLamp" | "beanBag" | "tvConsole" | "wallTV" | "logoWall";
 
 export interface FurnitureItem {
   type: FurnitureType;
@@ -159,6 +161,13 @@ export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null>
   handDryer: null, // devorda
   cableTray: null, // javonlar ustida
   ups: { hx: 0.3, hz: 0.35 },
+  armchair: { hx: 0.45, hz: 0.45 },
+  sideTable: { hx: 0.28, hz: 0.28 },
+  floorLamp: { hx: 0.22, hz: 0.22 },
+  beanBag: { hx: 0.4, hz: 0.4 },
+  tvConsole: { hx: 0.8, hz: 0.22 },
+  wallTV: null, // devorda
+  logoWall: null, // devorda
 };
 
 export const OPEN_FURNITURE: FurnitureItem[] = [
@@ -193,6 +202,12 @@ export const OPEN_FURNITURE: FurnitureItem[] = [
   { type: "plantGroup", x: -21.9, z: 8.4 },
   { type: "plantGroup", x: 21.9, z: -8.4 },
   { type: "plantGroup", x: 21.9, z: 8.4 },
+  // Resepshn: kutish joyi (ikki kreslo + past stol) va ortidagi devorda logotip
+  // paneli (yo'lak tomonga qaragan — iso'da ko'rinmaydi, FPV'da ko'rinadi)
+  { type: "armchair", x: -5.4, z: 7.0, ry: Math.PI / 2 },
+  { type: "sideTable", x: -4.4, z: 7.0 },
+  { type: "armchair", x: -3.4, z: 7.0, ry: -Math.PI / 2 },
+  { type: "logoWall", x: -1.0, z: 9.36, ry: Math.PI },
 ];
 
 // ── Xona jihozlari — MA'LUMOT (S8-5) ──
@@ -215,6 +230,17 @@ export const ROOM_FURNITURE: FurnitureItem[] = [
   { type: "cableTray", x: -16, z: -11, room: "server" },
   { type: "ups", x: -9.6, z: -15.45, room: "server" },
   { type: "ups", x: -9.6, z: -11.0, room: "server" },
+  // Kutubxona [-23,-11]: javon qatorlari orasida o'qish burchagi
+  { type: "armchair", x: -21.2, z: 13.5, ry: Math.PI / 2, room: "library" },
+  { type: "sideTable", x: -19.9, z: 13.5, room: "library" },
+  { type: "armchair", x: -18.6, z: 13.5, ry: -Math.PI / 2, room: "library" },
+  { type: "floorLamp", x: -22.2, z: 14.7, room: "library" },
+  // Dam olish [-3,7]: TV chap devorga (ilgari orqa devorda — divan ORTIDA edi),
+  // tagida konsol; oldida 2 ta bean-bag (yon divan unga qaraydi)
+  { type: "wallTV", x: -2.84, z: 13.0, ry: Math.PI / 2, room: "lounge" },
+  { type: "tvConsole", x: -2.62, z: 13.0, ry: Math.PI / 2, room: "lounge" },
+  { type: "beanBag", x: -1.2, z: 12.3, room: "lounge" },
+  { type: "beanBag", x: -1.2, z: 13.7, room: "lounge" },
 ];
 
 /** Buyum oyoq izi (aylanishni hisobga olgan AABB); to'siq bo'lmasa null. */

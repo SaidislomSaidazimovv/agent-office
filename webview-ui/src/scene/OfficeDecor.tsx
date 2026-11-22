@@ -809,6 +809,56 @@ function Ups({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
+// ── S8-5: xona jihozlari (pastki qator) + resepshn ──
+function Armchair({ p, ry = 0, c = "#7a5a44" }: { p: V3; ry?: number; c?: string }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.22, 0]} s={[0.8, 0.26, 0.75]} c={c} rough={0.85} />
+      <Box p={[0, 0.4, 0.05]} s={[0.58, 0.12, 0.6]} c={c} rough={0.75} />
+      <Box p={[0, 0.62, -0.31]} s={[0.8, 0.56, 0.14]} c={c} rough={0.85} />
+      {[-0.34, 0.34].map((x) => <Box key={x} p={[x, 0.46, 0]} s={[0.12, 0.22, 0.72]} c={c} rough={0.85} />)}
+      {[-0.32, 0.32].flatMap((x) => [-0.28, 0.28].map((z) => <Box key={`${x},${z}`} p={[x, 0.04, z]} s={[0.05, 0.08, 0.05]} c="#3a2e22" rough={0.6} />))}
+    </group>
+  );
+}
+function SideTable({ p }: { p: V3 }) {
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.5, 0]} castShadow geometry={cyl(0.26, 0.26, 0.04, 18)} material={stdMat(OAK, { roughness: 0.6 })} />
+      <mesh position={[0, 0.25, 0]} geometry={cyl(0.03, 0.03, 0.48, 8)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      <mesh position={[0, 0.015, 0]} geometry={cyl(0.18, 0.18, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+    </group>
+  );
+}
+function BeanBag({ p, c = "#c46a4a" }: { p: V3; c?: string }) {
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.22, 0]} scale={[1, 0.62, 1]} castShadow geometry={sphere(0.4, 12, 9)} material={stdMat(c, { roughness: 0.95 })} />
+      <mesh position={[0, 0.42, -0.12]} scale={[1, 0.6, 0.7]} geometry={sphere(0.26, 10, 8)} material={stdMat(c, { roughness: 0.95 })} />
+    </group>
+  );
+}
+function TvConsole({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.26, 0]} s={[1.6, 0.44, 0.42]} c="#3a3f47" rough={0.5} />
+      <Box p={[0, 0.49, 0]} s={[1.62, 0.03, 0.44]} c={OAK} rough={0.6} />
+      {[-0.4, 0.4].map((x) => <Box key={x} p={[x, 0.26, 0.212]} s={[0.006, 0.36, 0.004]} c="#22262c" rough={0.6} />)}
+      {[-0.7, 0.7].map((x) => <Box key={`l${x}`} p={[x, 0.02, 0]} s={[0.05, 0.04, 0.38]} c="#22262c" rough={0.6} />)}
+    </group>
+  );
+}
+// Logotip paneli — mahsulotning abstrakt belgisi (resepshn stolidagi oq
+// bloklar bilan bir xil uslub; yozuv yo'q).
+function LogoWall({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.7, 0]} s={[2.4, 0.9, 0.03]} c={ACCENT} rough={0.6} />
+      {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 1.7, 0.025]} s={[0.24, 0.24, 0.02]} c="#ffffff" rough={0.4} />)}
+    </group>
+  );
+}
+
 /** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
 function FurniturePiece({ it }: { it: FurnitureItem }) {
   const p: V3 = [it.x, 0, it.z];
@@ -831,6 +881,13 @@ function FurniturePiece({ it }: { it: FurnitureItem }) {
     case "handDryer": return <HandDryer p={p} ry={it.ry} />;
     case "cableTray": return <CableTray p={p} ry={it.ry} />;
     case "ups": return <Ups p={p} ry={it.ry} />;
+    case "armchair": return <Armchair p={p} ry={it.ry} />;
+    case "sideTable": return <SideTable p={p} />;
+    case "floorLamp": return <StandingLamp p={p} />;
+    case "beanBag": return <BeanBag p={p} />;
+    case "tvConsole": return <TvConsole p={p} ry={it.ry} />;
+    case "wallTV": return <TV p={[it.x, 1.55, it.z]} ry={it.ry} />;
+    case "logoWall": return <LogoWall p={p} ry={it.ry} />;
   }
 }
 
@@ -1023,8 +1080,7 @@ export default function OfficeDecor() {
       <Sofa p={[2, 0, 15]} c="#4a5568" />
       <Sofa p={[5.5, 0, 13]} ry={-Math.PI / 2} c="#556070" />
       <CoffeeTable p={[2, 0, 13]} />
-      {/* ekran xona ichiga (divanlar tomonga, -z) qarasin — devorga emas */}
-      <TV p={[2, 1.7, 15.8]} ry={Math.PI} />
+      {/* TV — chap devorda (ROOM_FURNITURE "wallTV"; ilgari bu yerda, divan ortida edi) */}
 
       {/* SHISHA XONA B [7,15] — ofis */}
       <RoomFloor k="glassB" />
