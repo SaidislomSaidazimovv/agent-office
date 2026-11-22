@@ -76,6 +76,11 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           next.push({ key: s.key, slot, leaving: false, label: s.label, kind: s.kind });
         }
       }
+      // Hech narsa o'zgarmagan bo'lsa — ESKI massivning o'zi (React qayta render
+      // qilmaydi). Ilgari har avatar paydo bo'lganda (yordamchisi bo'lmasa ham)
+      // yangi [] qaytarib ortiqcha render chaqirardi; ~20+ agent holati to'da
+      // bo'lib kelganda bu "Maximum update depth exceeded" zanjirining bir qismi edi.
+      if (next.length === prev.length && next.every((h, i) => h === prev[i])) return prev;
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
