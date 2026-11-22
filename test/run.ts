@@ -37,6 +37,7 @@ import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
 import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
 import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
+import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1875,6 +1876,31 @@ test("xona jihozlari: o'z xonasi ichida; eski mebelga, bir-biriga va eshik oldig
   }
   const rs = items.filter((x) => x.r) as { it: (typeof ROOM_FURNITURE)[number]; r: { x0: number; x1: number; z0: number; z1: number } }[];
   for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) assert.ok(!hit(rs[i].r, rs[j].r), `${rs[i].it.type} ↔ ${rs[j].it.type}`);
+});
+
+test("layout migratsiyasi: to'qnashgan buyum yaqin bo'sh joyga suriladi, qolganlari joyida; deterministik", () => {
+  const foot = () => ({ hx: 0.35, hz: 0.35 });
+  const obs = staticObstacles();
+  const s0 = LAYOUT_SEATS[0];
+  const items = [
+    { id: "free", type: "plant", x: 0, z: -2, ry: 0 }, // markaziy yo'lak — bo'sh
+    { id: "onDesk", type: "plant", x: s0.x, z: s0.z, ry: 0 }, // stol ustida
+    { id: "inWall", type: "plant", x: -9, z: -12.5, ry: 0 }, // oshxona/majlis bo'luvchisi ichida
+    { id: "noRy", type: "plant", x: 0, z: -2.5 } as unknown as { id: string; type: string; x: number; z: number; ry: number },
+  ];
+  const r1 = resolvePlacements(items, foot, obs);
+  assert.equal(r1.items[0], items[0], "bo'sh joydagi buyum o'sha obyektning o'zi (o'zgarmagan)");
+  assert.equal(r1.items[3], items[3], "ry'siz, to'qnashmagan buyum ham joyida");
+  assert.equal(r1.moved, 2);
+  const hits = (x: number, z: number) => obs.some((o) => Math.min(x + 0.35, o.x1) - Math.max(x - 0.35, o.x0) > 0.05 && Math.min(z + 0.35, o.z1) - Math.max(z - 0.35, o.z0) > 0.05);
+  for (const k of [1, 2]) {
+    const a = r1.items[k], b = items[k];
+    assert.ok(!hits(a.x, a.z), `${a.id} yangi joyi to'siqsiz (${a.x},${a.z})`);
+    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) < 2.5, `${a.id} yaqin joyga surildi (${a.x},${a.z})`);
+    assert.equal(a.id, b.id, "id saqlanadi");
+  }
+  const r2 = resolvePlacements(items, foot, obs);
+  assert.deepEqual(r2.items, r1.items, "har gal bir xil natija");
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
