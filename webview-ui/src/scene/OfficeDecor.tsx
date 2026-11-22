@@ -9,7 +9,8 @@ import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
-import { baseboardBoxes, thresholdBoxes } from "./architecture";
+import { type Key, translate, useLang } from "../i18n";
+import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "./architecture";
 import { BUILDING, CLUSTERS, DESK_W, type DeskCluster, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
@@ -866,6 +867,95 @@ function LogoWall({ p, ry = 0 }: { p: V3; ry?: number }) {
   );
 }
 
+// ── Xona belgilari (S8-5) — eshik yonidagi osma, ikki tomonlama ──
+// Nomlar joriy tilda (i18n "room.<key>"), hammasi BITTA kanvas atlasida va
+// BITTA mesh'da (1 draw call); til almashsa atlas qayta chiziladi. Korpus va
+// kronshteyn — statik qutilar (birlashmaga tushadi). Matn yorug'likdan
+// mustaqil (MeshBasic) — kechasi ham o'qiladi, kunduzi ham bir xil.
+const SIGNS = signPlacements();
+const SIGN_TEXT_W = 0.96;
+const SIGN_TEXT_H = 0.24;
+const ATLAS_W = 512;
+const ATLAS_ROW = 128; // 4:1 — matn maydoni nisbati bilan bir xil (cho'zilmaydi)
+function RoomSigns() {
+  const lang = useLang((s) => s.lang);
+  const tex = useMemo(() => {
+    const cv = document.createElement("canvas");
+    cv.width = ATLAS_W;
+    cv.height = ATLAS_ROW * SIGNS.length;
+    const ctx = cv.getContext("2d")!;
+    SIGNS.forEach((sg, i) => {
+      const y = i * ATLAS_ROW;
+      ctx.fillStyle = "#2a2e35";
+      ctx.fillRect(0, y, ATLAS_W, ATLAS_ROW);
+      // Xona (district) rangidagi chiziq — pol rangi bilan bog'lanadi
+      const room = ROOMS.find((r) => r.key === sg.key)!;
+      ctx.fillStyle = DISTRICT[room.floor];
+      ctx.fillRect(18, y + 22, 14, ATLAS_ROW - 44);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const label = translate(lang, `room.${sg.key}` as Key);
+      // Uzun nomlar sig'sin — shrift o'lchami matn eniga qarab kichrayadi
+      let size = 54;
+      ctx.font = `600 ${size}px system-ui, "Segoe UI", sans-serif`;
+      while (ctx.measureText(label).width > ATLAS_W - 90 && size > 24) {
+        size -= 2;
+        ctx.font = `600 ${size}px system-ui, "Segoe UI", sans-serif`;
+      }
+      ctx.fillText(label, ATLAS_W / 2 + 14, y + ATLAS_ROW / 2 + 2);
+    });
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, [lang]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  const geo = useMemo(() => {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    let n = 0;
+    SIGNS.forEach((sg, i) => {
+      const zc = sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03);
+      const v0 = 1 - (i + 1) / SIGNS.length, v1 = 1 - i / SIGNS.length;
+      const y0 = SIGN.y - SIGN_TEXT_H / 2, y1 = SIGN.y + SIGN_TEXT_H / 2;
+      // +x yuzi: o'quvchining o'ng tomoni −z; −x yuzi: o'ng tomoni +z.
+      for (const side of [1, -1]) {
+        const x = sg.x + side * 0.022;
+        const zL = zc + side * (SIGN_TEXT_W / 2), zR = zc - side * (SIGN_TEXT_W / 2);
+        pos.push(x, y0, zL, x, y0, zR, x, y1, zR, x, y1, zL);
+        uv.push(0, v0, 1, v0, 1, v1, 0, v1);
+        const b = n * 4;
+        idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        n++;
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeBoundingSphere();
+    return g;
+  }, []);
+  useEffect(() => () => geo.dispose(), [geo]);
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), [tex]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  return (
+    <group>
+      {SIGNS.map((sg) => {
+        const zc = sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03);
+        return (
+          <group key={sg.key}>
+            <Box p={[sg.x, SIGN.y, zc]} s={[0.04, SIGN.h, SIGN.depth]} c="#2a2e35" rough={0.5} />
+            {/* devorga mahkamlovchi kronshteyn */}
+            <Box p={[sg.x, SIGN.y + SIGN.h / 2 + 0.03, sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03)]} s={[0.025, 0.025, SIGN.depth + 0.06]} c="#9aa0a8" rough={0.4} />
+          </group>
+        );
+      })}
+      <mesh geometry={geo} material={mat} raycast={() => {}} userData={{ noBatch: true }} />
+    </group>
+  );
+}
+
 /** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
 function FurniturePiece({ it }: { it: FurnitureItem }) {
   const p: V3 = [it.x, 0, it.z];
@@ -1103,6 +1193,8 @@ export default function OfficeDecor() {
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
       {/* Ochiq maydon mebeli — ofis rejasidan (OPEN_FURNITURE; to'siqlar ham shundan) */}
       {OPEN_FURNITURE.map((it, i) => <FurniturePiece key={`of${i}`} it={it} />)}
+      {/* Xona belgilari — eshik yonida, joriy tilda */}
+      <RoomSigns />
       {/* Xona jihozlari — ofis rejasidan (ROOM_FURNITURE) */}
       {ROOM_FURNITURE.map((it, i) => <FurniturePiece key={`rf${i}`} it={it} />)}
       {/* Agent stollari 4 ta klasterda (officeLayout CLUSTERS → SEATS) —

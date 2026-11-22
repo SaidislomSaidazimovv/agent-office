@@ -34,6 +34,30 @@ export function baseboardBoxes(rects: Rect[], clip: Rect, h = 0.09, d = 0.02): B
   return out;
 }
 
+/** Xona belgisi (osma, ikki tomonlama): eshikning o'ng chekkasidan 0.3 m narida
+ *  (chap tomonda eshik tavaqasi ochiladi), devordan yo'lakka perpendikulyar
+ *  chiqib turadi. Tekisligi x ga perpendikulyar (normal ±x) — iso kamera (+x)
+ *  tomonidan ham, FPV'da ikki tomondan ham o'qiladi; shuning uchun pastki qator
+ *  xonalarining belgisi ham (ularning yo'lak yuzi kameradan teskari) ko'rinadi. */
+export interface SignSpec {
+  key: string;
+  /** Belgi tekisligining x koordinatasi. */
+  x: number;
+  /** Devor yuzidagi z (belgi shu yerdan yo'lakka chiqadi). */
+  zWall: number;
+  /** Yo'lak tomoni: +1 (z o'sadi) yoki −1. */
+  dir: 1 | -1;
+}
+// 1.0 × 0.32 m — kichikroq (0.6 × 0.24) belgi iso masofasida ingichka chiziq bo'lib qolardi.
+export const SIGN = { y: 2.32, depth: 1.0, h: 0.32 } as const;
+export function signPlacements(): SignSpec[] {
+  return ROOMS.map((r) => {
+    const { front } = roomZ(r);
+    const dir = r.side === "top" ? 1 : -1; // yuqori xona → yo'lak +z tomonda
+    return { key: r.key, x: r.doorX + r.doorW / 2 + 0.3, zWall: front + dir * WALL_VIS_HALF, dir };
+  });
+}
+
 /** Eshik ostonasi: har xona eshigi teshigida pol ustida ingichka metall chiziq
  *  (xona poli bilan yo'lak poli tutashgan joy). */
 export function thresholdBoxes(h = 0.012): BoxSpec[] {

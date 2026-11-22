@@ -36,7 +36,8 @@ import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
 import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
-import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
+import { translate } from "../webview-ui/src/i18n.js";
+import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
@@ -1903,6 +1904,24 @@ test("layout migratsiyasi: to'qnashgan buyum yaqin bo'sh joyga suriladi, qolganl
   }
   const r2 = resolvePlacements(items, foot, obs);
   assert.deepEqual(r2.items, r1.items, "har gal bir xil natija");
+});
+
+test("xona belgilari: har xonada bitta, eshik teshigi ustida emas, yo'lak tomonda; nomi 8 tilda", () => {
+  const signs = signPlacements();
+  assert.equal(signs.length, LAYOUT_ROOMS.length);
+  for (const sg of signs) {
+    const r = LAYOUT_ROOMS.find((x) => x.key === sg.key)!;
+    assert.ok(sg.x > r.doorX + r.doorW / 2, `${sg.key}: eshik teshigidan tashqarida (tavaqa chap tomonda)`);
+    assert.ok(sg.x < r.x1 - 0.1, `${sg.key}: xona devori oralig'ida`);
+    // Yo'lak tomoni: belgi ochiq maydon ichiga chiqadi
+    const zEnd = sg.zWall + sg.dir * SIGN.depth;
+    assert.ok(Math.abs(zEnd) < ROOM_LINE && Math.abs(sg.zWall) <= ROOM_LINE, `${sg.key}: yo'lakda (${sg.zWall} → ${zEnd})`);
+    assert.ok(SIGN.y - SIGN.h / 2 > 2.0, "belgi ostidan odam o'tadi (≥2 m)");
+    for (const lang of ["uz", "ru", "en", "tr", "ja", "zh", "ko", "fr"] as const) {
+      const t = translate(lang, `room.${sg.key}` as never);
+      assert.ok(t && t !== `room.${sg.key}`, `${sg.key}: ${lang} tarjimasi bor`);
+    }
+  }
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
