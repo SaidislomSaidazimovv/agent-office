@@ -1678,8 +1678,8 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
 
 test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
   const rects = furnitureRects();
-  // Xonalardagi qo'lda yozilgan 17 ta + ochiq maydon jihozlari (ma'lumotdan).
-  assert.equal(rects.length, 17 + [...OPEN_FURNITURE, ...ROOM_FURNITURE].filter((it) => FOOTPRINT[it.type]).length);
+  // Xonalardagi qo'lda yozilgan 16 ta + ochiq maydon va xona jihozlari (ma'lumotdan).
+  assert.equal(rects.length, 16 + [...OPEN_FURNITURE, ...ROOM_FURNITURE].filter((it) => FOOTPRINT[it.type]).length);
   for (const r of rects) {
     const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
     assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
@@ -1866,7 +1866,9 @@ test("xona jihozlari: o'z xonasi ichida; eski mebelga, bir-biriga va eshik oldig
     const [z0, z1] = room!.side === "top" ? [-D2, -ROOM_LINE] : [ROOM_LINE, D2];
     assert.ok(it.x > room!.x0 && it.x < room!.x1 && it.z > z0 && it.z < z1, `${it.type}@${it.x},${it.z} ${it.room} ichida`);
     if (!r) continue;
-    const inner = { x0: room!.x0 + WALL_VIS_HALF, x1: room!.x1 - WALL_VIS_HALF, z0: z0 + (room!.side === "top" ? PERIM_VIS_HALF : WALL_VIS_HALF), z1: z1 - (room!.side === "top" ? WALL_VIS_HALF : PERIM_VIS_HALF) };
+    // Bino chetidagi yon devor — perimetr (qalinroq), qolganlari ichki bo'luvchi.
+    const xEdge = (x: number) => (Math.abs(Math.abs(x) - BUILDING.W / 2) < 1e-6 ? PERIM_VIS_HALF : WALL_VIS_HALF);
+    const inner = { x0: room!.x0 + xEdge(room!.x0), x1: room!.x1 - xEdge(room!.x1), z0: z0 + (room!.side === "top" ? PERIM_VIS_HALF : WALL_VIS_HALF), z1: z1 - (room!.side === "top" ? WALL_VIS_HALF : PERIM_VIS_HALF) };
     assert.ok(r.x0 >= inner.x0 - 1e-6 && r.x1 <= inner.x1 + 1e-6 && r.z0 >= inner.z0 - 1e-6 && r.z1 <= inner.z1 + 1e-6, `${it.type}@${it.x},${it.z} oyoq izi devorlar ichida`);
     for (const l of legacy) assert.ok(!hit(r, l), `${it.type}@${it.x},${it.z} eski mebelga (${JSON.stringify(l)}) tegadi`);
     // Eshik oldi (xona ichki tomoni) bo'sh

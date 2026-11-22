@@ -299,8 +299,15 @@ export function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   }, []);
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 1.3, 0]} s={[1.2, 2.6, 0.35]} c="#dfdcd4" rough={0.6} />
-      <Box p={[0, 1.3, 0.02]} s={[1.1, 2.5, 0.3]} c="#33373e" />
+      {/* Korpus — panellardan, OLD TOMONI OCHIQ. Ilgari yaxlit quti edi: uning
+          oq old yuzi (z +0.175) kitoblar va taxtalarni to'liq yopib qo'yardi —
+          javonlar oq taxta bo'lib ko'rinardi. */}
+      <Box p={[0, 1.3, -0.16]} s={[1.2, 2.6, 0.03]} c="#dfdcd4" rough={0.6} />
+      {[-0.585, 0.585].map((x) => <Box key={x} p={[x, 1.3, 0]} s={[0.03, 2.6, 0.35]} c="#dfdcd4" rough={0.6} />)}
+      <Box p={[0, 2.585, 0]} s={[1.2, 0.03, 0.35]} c="#dfdcd4" rough={0.6} />
+      <Box p={[0, 0.06, 0]} s={[1.2, 0.12, 0.35]} c="#dfdcd4" rough={0.6} />
+      {/* to'q ichki orqa fon */}
+      <Box p={[0, 1.3, -0.135]} s={[1.14, 2.5, 0.02]} c="#33373e" />
       {/* javon taxtalari */}
       {[0.4, 0.95, 1.5, 2.05].map((y) => <Box key={y} p={[0, y, 0.03]} s={[1.1, 0.03, 0.28]} c="#c8c5bd" />)}
       {books}
@@ -888,6 +895,7 @@ function FurniturePiece({ it }: { it: FurnitureItem }) {
     case "tvConsole": return <TvConsole p={p} ry={it.ry} />;
     case "wallTV": return <TV p={[it.x, 1.55, it.z]} ry={it.ry} />;
     case "logoWall": return <LogoWall p={p} ry={it.ry} />;
+    case "bookshelf": return <Bookshelf p={p} ry={it.ry} />;
   }
 }
 
@@ -1063,7 +1071,6 @@ export default function OfficeDecor() {
       {/* KUTUBXONA [-23,-11] */}
       <RoomFloor k="library" />
       <WallX x0={-23} x1={-11} z={9.5} door={2.4} />
-      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
 

@@ -127,7 +127,7 @@ export type FurnitureType =
   // S8-5: xona jihozlari (yuqori qator)
   | "fridge" | "kitchenAppliances" | "kitchenIsland" | "bistroTable" | "credenza" | "handDryer" | "cableTray" | "ups"
   // S8-5: xona jihozlari (pastki qator) + resepshn
-  | "armchair" | "sideTable" | "floorLamp" | "beanBag" | "tvConsole" | "wallTV" | "logoWall";
+  | "armchair" | "sideTable" | "floorLamp" | "beanBag" | "tvConsole" | "wallTV" | "logoWall" | "bookshelf";
 
 export interface FurnitureItem {
   type: FurnitureType;
@@ -168,6 +168,7 @@ export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null>
   tvConsole: { hx: 0.8, hz: 0.22 },
   wallTV: null, // devorda
   logoWall: null, // devorda
+  bookshelf: { hx: 0.6, hz: 0.175 }, // 1.2 × 0.35 m javon (aylanishda AABB)
 };
 
 export const OPEN_FURNITURE: FurnitureItem[] = [
@@ -230,11 +231,17 @@ export const ROOM_FURNITURE: FurnitureItem[] = [
   { type: "cableTray", x: -16, z: -11, room: "server" },
   { type: "ups", x: -9.6, z: -15.45, room: "server" },
   { type: "ups", x: -9.6, z: -11.0, room: "server" },
-  // Kutubxona [-23,-11]: javon qatorlari orasida o'qish burchagi
-  { type: "armchair", x: -21.2, z: 13.5, ry: Math.PI / 2, room: "library" },
-  { type: "sideTable", x: -19.9, z: 13.5, room: "library" },
-  { type: "armchair", x: -18.6, z: 13.5, ry: -Math.PI / 2, room: "library" },
-  { type: "floorLamp", x: -22.2, z: 14.7, room: "library" },
+  // Kutubxona [-23,-11]: yaqin (perimetr) devordagi javonlar qatori iso kameraga
+  // faqat oq orqasini ko'rsatib xonani to'sardi — chap devorga ko'chdi (old tomoni
+  // +x, kameraga); bo'shagan yaqin devor yonida past o'qish burchagi.
+  // x: perimetr devor yuzi (−22.85) + javon chuqurligining yarmi (0.175) + 5 mm
+  { type: "bookshelf", x: -22.67, z: 12.4, ry: Math.PI / 2, room: "library" },
+  { type: "bookshelf", x: -22.67, z: 13.65, ry: Math.PI / 2, room: "library" },
+  { type: "bookshelf", x: -22.67, z: 14.9, ry: Math.PI / 2, room: "library" },
+  { type: "armchair", x: -20.4, z: 14.9, ry: Math.PI / 2, room: "library" },
+  { type: "sideTable", x: -19.1, z: 14.9, room: "library" },
+  { type: "armchair", x: -17.8, z: 14.9, ry: -Math.PI / 2, room: "library" },
+  { type: "floorLamp", x: -21.4, z: 15.35, room: "library" },
   // Dam olish [-3,7]: TV chap devorga (ilgari orqa devorda — divan ORTIDA edi),
   // tagida konsol; oldida 2 ta bean-bag (yon divan unga qaraydi)
   { type: "wallTV", x: -2.84, z: 13.0, ry: Math.PI / 2, room: "lounge" },
@@ -274,8 +281,8 @@ export function furnitureRects(): Rect[] {
   r(13.2, 15, -16, -14.6);
   // glassA stol
   r(18, 20, -13.8, -11.8);
-  // Kutubxona (javonlar + stol) — old qator devorga taqaldi (z=15.68)
-  r(-22.6, -14.4, 15.4, 15.9);
+  // Kutubxona (javonlar qatori + stol). Yaqin devordagi qator S8-5 da chap
+  // devorga ko'chdi — u endi ROOM_FURNITURE'da (bookshelf).
   r(-22.6, -14.4, 10.4, 11.6);
   r(-14.8, -12.2, 12, 14);
   // Fokus stoli
