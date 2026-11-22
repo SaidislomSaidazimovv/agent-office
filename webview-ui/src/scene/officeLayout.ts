@@ -115,6 +115,152 @@ export function wallRects(T = WALL_HALF, P = PERIM_HALF, glassFronts = true): Re
   return out;
 }
 
+// ── Ochiq maydon mebeli — MA'LUMOT (S8-5) ──
+// Chizish (OfficeDecor) ham, to'qnashuv/navigatsiya ham shu ro'yxatdan: mebel
+// qo'shilsa yoki ko'chirilsa to'siq o'zi moslashadi. (Ilgari to'siqlar qo'lda
+// alohida yozilgan edi va ikki "torsher" to'sig'i (−7,5)/(7,−5) hech qanday
+// chizilgan narsasiz qolib ketgan — agentlar ko'rinmas to'siqni aylanardi.)
+export type FurnitureType =
+  | "reception" | "plant"
+  // S8-5: ochiq maydon jihozlari
+  | "collabTable" | "standBoard" | "coffeePoint" | "printer" | "lockers" | "phoneBooth" | "planter" | "plantGroup"
+  // S8-5: xona jihozlari (yuqori qator)
+  | "fridge" | "kitchenAppliances" | "kitchenIsland" | "bistroTable" | "credenza" | "handDryer" | "cableTray" | "ups"
+  // S8-5: xona jihozlari (pastki qator) + resepshn
+  | "armchair" | "sideTable" | "floorLamp" | "beanBag" | "tvConsole" | "wallTV" | "logoWall" | "bookshelf";
+
+export interface FurnitureItem {
+  type: FurnitureType;
+  x: number;
+  z: number;
+  /** Aylanish (radian, y o'qi). */
+  ry?: number;
+  /** Faqat ko'rinish masshtabi (oyoq izi o'zgarmaydi). */
+  scale?: number;
+  /** Xona jihozi bo'lsa — qaysi xonada (test: xona ichida turadimi). */
+  room?: string;
+}
+
+/** Oyoq izi yarim o'lchamlari (aylanmagan holatda). null — to'siq emas. */
+export const FOOTPRINT: Record<FurnitureType, { hx: number; hz: number } | null> = {
+  reception: { hx: 1.7, hz: 0.5 },
+  plant: { hx: 0.28, hz: 0.28 },
+  collabTable: { hx: 1.45, hz: 1.0 }, // stol 2.4×0.9 + bar stullari
+  standBoard: { hx: 0.85, hz: 0.25 },
+  coffeePoint: { hx: 1.0, hz: 0.33 },
+  printer: { hx: 0.8, hz: 0.33 },
+  lockers: { hx: 1.5, hz: 0.25 },
+  phoneBooth: { hx: 0.6, hz: 0.6 },
+  planter: { hx: 1.3, hz: 0.22 },
+  plantGroup: { hx: 0.7, hz: 0.7 },
+  fridge: { hx: 0.4, hz: 0.35 },
+  kitchenAppliances: null, // peshtaxta ustida
+  kitchenIsland: { hx: 1.2, hz: 0.95 }, // orol 2.2×0.9 + bar stullari (+z)
+  bistroTable: { hx: 0.85, hz: 0.85 }, // dumaloq stol + 2 stul
+  credenza: { hx: 0.8, hz: 0.23 },
+  handDryer: null, // devorda
+  cableTray: null, // javonlar ustida
+  ups: { hx: 0.3, hz: 0.35 },
+  armchair: { hx: 0.45, hz: 0.45 },
+  sideTable: { hx: 0.28, hz: 0.28 },
+  floorLamp: { hx: 0.22, hz: 0.22 },
+  beanBag: { hx: 0.4, hz: 0.4 },
+  tvConsole: { hx: 0.8, hz: 0.22 },
+  wallTV: null, // devorda
+  logoWall: null, // devorda
+  bookshelf: { hx: 0.6, hz: 0.175 }, // 1.2 × 0.35 m javon (aylanishda AABB)
+};
+
+export const OPEN_FURNITURE: FurnitureItem[] = [
+  { type: "reception", x: 0, z: 7.5 },
+  { type: "plant", x: -16, z: 6, scale: 1.1 },
+  { type: "plant", x: 16, z: 6, scale: 1.1 },
+  { type: "plant", x: -16, z: -6, scale: 1.1 },
+  { type: "plant", x: 16, z: -6, scale: 1.1 },
+  { type: "plant", x: -1.5, z: 5, scale: 0.9 },
+  { type: "plant", x: 1.5, z: 5, scale: 0.9 },
+  // ── S8-5: ochiq maydon jihozlari ──
+  // (Markaz x ±5.4, z −4.5..−8.4 — S8-6 gacha overflow qatorlari uchun bo'sh.)
+  // Hamkorlik zonasi — markazda
+  { type: "collabTable", x: 0, z: 1.5 },
+  { type: "standBoard", x: 3.4, z: 1.5, ry: -Math.PI / 2 },
+  // Kofe nuqtasi va printer burchagi — yuqori xonalar devori yonida (eshiklardan chetda)
+  { type: "coffeePoint", x: 6.5, z: -9.05 },
+  { type: "printer", x: -7.5, z: -9.05 },
+  // Lokerlar va telefon kabinalari — chap devor (iso kameraga qaragan uzoq devor;
+  // o'ng devor yaqin tomonda — u yerda faqat orqasi ko'rinardi). Lokerlar devor
+  // soati (z −6, 2.35 m) ostida, rasmlar (z 0 va 6) bilan to'qnashmaydi.
+  { type: "lockers", x: -22.6, z: -4.4, ry: Math.PI / 2 },
+  { type: "phoneBooth", x: -22.2, z: -1.3, ry: Math.PI / 2 },
+  { type: "phoneBooth", x: -22.2, z: 1.3, ry: Math.PI / 2 },
+  // Ajratkich gultuvaklar — klasterlar bilan markaz orasida
+  { type: "planter", x: -8.6, z: -3.5, ry: Math.PI / 2 },
+  { type: "planter", x: -8.6, z: 3.5, ry: Math.PI / 2 },
+  { type: "planter", x: 8.6, z: -3.5, ry: Math.PI / 2 },
+  { type: "planter", x: 8.6, z: 3.5, ry: Math.PI / 2 },
+  // O'simlik guruhlari — ochiq maydon burchaklarida
+  { type: "plantGroup", x: -21.9, z: -8.4 },
+  { type: "plantGroup", x: -21.9, z: 8.4 },
+  { type: "plantGroup", x: 21.9, z: -8.4 },
+  { type: "plantGroup", x: 21.9, z: 8.4 },
+  // Resepshn: kutish joyi (ikki kreslo + past stol) va ortidagi devorda logotip
+  // paneli (yo'lak tomonga qaragan — iso'da ko'rinmaydi, FPV'da ko'rinadi)
+  { type: "armchair", x: -5.4, z: 7.0, ry: Math.PI / 2 },
+  { type: "sideTable", x: -4.4, z: 7.0 },
+  { type: "armchair", x: -3.4, z: 7.0, ry: -Math.PI / 2 },
+  { type: "logoWall", x: -1.0, z: 9.36, ry: Math.PI },
+];
+
+// ── Xona jihozlari — MA'LUMOT (S8-5) ──
+// (Xonalardagi eski mebel hali furnitureRects()'dagi qo'lda yozilgan
+// to'rtburchaklarda; yangi qo'shilganlari shu ro'yxatda.)
+export const ROOM_FURNITURE: FurnitureItem[] = [
+  // Oshxona [-9,-1]: muzlatkich, peshtaxta ustidagi jihozlar, orol + bar stullari, 2 ta ovqat stoli
+  { type: "fridge", x: -8.45, z: -15.5, room: "kitchen" },
+  { type: "kitchenAppliances", x: -5, z: -15.5, room: "kitchen" },
+  { type: "kitchenIsland", x: -5, z: -12.5, room: "kitchen" },
+  // (z −13.3 — orqaroqda: old devor iso kameraga yaqin va xonaning old ~2 m'ini to'sadi)
+  { type: "bistroTable", x: -7.9, z: -13.3, room: "kitchen" },
+  { type: "bistroTable", x: -2.1, z: -13.3, room: "kitchen" },
+  // Majlis [-1,8]: kredensa + devor ekrani (o'chiq)
+  { type: "credenza", x: 6.6, z: -15.6, room: "meeting" },
+  // Hojatxona [8,15]: qo'l quritgich
+  { type: "handDryer", x: 12.95, z: -15.8, room: "bathroom" },
+  // Server [-23,-9]: javonlar ustida kabel lotoklari, qator oxirida UPS
+  { type: "cableTray", x: -16, z: -15.4, room: "server" },
+  { type: "cableTray", x: -16, z: -11, room: "server" },
+  { type: "ups", x: -9.6, z: -15.45, room: "server" },
+  { type: "ups", x: -9.6, z: -11.0, room: "server" },
+  // Kutubxona [-23,-11]: yaqin (perimetr) devordagi javonlar qatori iso kameraga
+  // faqat oq orqasini ko'rsatib xonani to'sardi — chap devorga ko'chdi (old tomoni
+  // +x, kameraga); bo'shagan yaqin devor yonida past o'qish burchagi.
+  // x: perimetr devor yuzi (−22.85) + javon chuqurligining yarmi (0.175) + 5 mm
+  { type: "bookshelf", x: -22.67, z: 12.4, ry: Math.PI / 2, room: "library" },
+  { type: "bookshelf", x: -22.67, z: 13.65, ry: Math.PI / 2, room: "library" },
+  { type: "bookshelf", x: -22.67, z: 14.9, ry: Math.PI / 2, room: "library" },
+  { type: "armchair", x: -20.4, z: 14.9, ry: Math.PI / 2, room: "library" },
+  { type: "sideTable", x: -19.1, z: 14.9, room: "library" },
+  { type: "armchair", x: -17.8, z: 14.9, ry: -Math.PI / 2, room: "library" },
+  { type: "floorLamp", x: -21.4, z: 15.35, room: "library" },
+  // Dam olish [-3,7]: TV chap devorga (ilgari orqa devorda — divan ORTIDA edi),
+  // tagida konsol; oldida 2 ta bean-bag (yon divan unga qaraydi)
+  { type: "wallTV", x: -2.84, z: 13.0, ry: Math.PI / 2, room: "lounge" },
+  { type: "tvConsole", x: -2.62, z: 13.0, ry: Math.PI / 2, room: "lounge" },
+  { type: "beanBag", x: -1.2, z: 12.3, room: "lounge" },
+  { type: "beanBag", x: -1.2, z: 13.7, room: "lounge" },
+];
+
+/** Buyum oyoq izi (aylanishni hisobga olgan AABB); to'siq bo'lmasa null. */
+export function itemRect(it: FurnitureItem): Rect | null {
+  const fp = FOOTPRINT[it.type];
+  if (!fp) return null;
+  const ry = it.ry ?? 0;
+  const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry));
+  const hx = fp.hx * c + fp.hz * sn;
+  const hz = fp.hx * sn + fp.hz * c;
+  return { x0: it.x - hx, x1: it.x + hx, z0: it.z - hz, z1: it.z + hz };
+}
+
 /** Doimiy mebel to'siqlari (OfficeDecor'dagi joylashuvga mos — mebel u yerda
  *  chiziladi; S8-5 da xonalar qayta jihozlanganda chizish ham shu ma'lumotga
  *  o'tadi). Agent va FPV kamera ular orqali o'tmaydi. */
@@ -123,8 +269,6 @@ export function furnitureRects(): Rect[] {
   const r = (x0: number, x1: number, z0: number, z1: number): void => {
     out.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1) });
   };
-  // Reception
-  r(-1.7, 1.7, 7.0, 8.0);
   // Server xonasi (rack qatorlari) — orqa qator devorga taqaldi (z=-15.4)
   r(-22, -10, -16.0, -14.8);
   r(-22, -10, -11.6, -10.4);
@@ -137,8 +281,8 @@ export function furnitureRects(): Rect[] {
   r(13.2, 15, -16, -14.6);
   // glassA stol
   r(18, 20, -13.8, -11.8);
-  // Kutubxona (javonlar + stol) — old qator devorga taqaldi (z=15.68)
-  r(-22.6, -14.4, 15.4, 15.9);
+  // Kutubxona (javonlar qatori + stol). Yaqin devordagi qator S8-5 da chap
+  // devorga ko'chdi — u endi ROOM_FURNITURE'da (bookshelf).
   r(-22.6, -14.4, 10.4, 11.6);
   r(-14.8, -12.2, 12, 14);
   // Fokus stoli
@@ -152,11 +296,11 @@ export function furnitureRects(): Rect[] {
   r(11.7, 13.3, 13.8, 15.2);
   // glassC stol
   r(18, 20, 12, 14);
-  // ── Turgan chiroqlar + pol o'simliklari (agent ular ustidan o'tmasin) ──
-  // Hammasi nav-qirralaridan chetda joylashtirilgan (OfficeDecor), shu bois bu
-  // kichik to'siqlar yo'l grafini uzmaydi — faqat "arvohdek o'tishni" to'xtatadi.
-  for (const [x, z] of [[-7, 5], [7, -5]] as [number, number][]) r(x - 0.22, x + 0.22, z - 0.22, z + 0.22); // chiroqlar
-  for (const [x, z] of [[-1.5, 5], [1.5, 5], [-16, 6], [16, 6], [-16, -6], [16, -6]] as [number, number][]) r(x - 0.28, x + 0.28, z - 0.28, z + 0.28); // o'simliklar
+  // Ochiq maydon va xona jihozlari — ma'lumotdan (oyoq izi FOOTPRINT).
+  for (const it of [...OPEN_FURNITURE, ...ROOM_FURNITURE]) {
+    const rect = itemRect(it);
+    if (rect) out.push(rect);
+  }
   return out;
 }
 
@@ -169,18 +313,36 @@ export interface Seat {
   ry: number;
 }
 
-// Ish joylari — hamma markazga qaraydi.
-//  • 1-6: asosiy ikki ustun (chap/o'ng, x=±5.5).
-//  • 7-10: markazdagi qo'shimcha stollar (x=±13).
-export const SEATS: Seat[] = [
-  { x: -5.5, z: -3.2, ry: -Math.PI / 2 },
-  { x: -5.5, z: 0, ry: -Math.PI / 2 },
-  { x: -5.5, z: 3.2, ry: -Math.PI / 2 },
-  { x: 5.5, z: -3.2, ry: Math.PI / 2 },
-  { x: 5.5, z: 0, ry: Math.PI / 2 },
-  { x: 5.5, z: 3.2, ry: Math.PI / 2 },
-  { x: -13, z: -3, ry: -Math.PI / 2 },
-  { x: -13, z: 3, ry: -Math.PI / 2 },
-  { x: 13, z: -3, ry: Math.PI / 2 },
-  { x: 13, z: 3, ry: Math.PI / 2 },
+// ── Ish joylari: stol klasterlari (S8-5) ──
+// Har klaster — 3 ustun × 2 qator stol, qatorlar bir-biriga qaragan, o'rtada
+// ajratkich ekran (monitorlar orqama-orqa). Stol 1.5 m (x), chuqurligi 0.8 m.
+//  • A qator (ry = π): stol cz − 0.4 da, odam cz − 1.02 da, +z ga (kameraga) qaraydi;
+//  • B qator (ry = 0): stol cz + 0.4 da, odam cz + 1.02 da, −z ga qaraydi.
+// Klaster egallagan joy: x cx ± 2.25, z cz ± ~1.4. Markaz (x ±9.7) — hamkorlik
+// zonasi va (S8-6 gacha) overflow o'rindiqlari uchun bo'sh qoldirilgan.
+export interface DeskCluster {
+  cx: number;
+  cz: number;
+  cols: number;
+}
+export const DESK_W = 1.5;
+export const CLUSTERS: DeskCluster[] = [
+  { cx: -12.5, cz: -3.5, cols: 3 },
+  { cx: -12.5, cz: 3.5, cols: 3 },
+  { cx: 12.5, cz: -3.5, cols: 3 },
+  { cx: 12.5, cz: 3.5, cols: 3 },
 ];
+/** Klasterlardan o'rindiqlar: indeks = klaster × 6 + qator × 3 + ustun — birinchi
+ *  agentlar bir klasterda yonma-yon o'tiradi. */
+function clusterSeats(cl: DeskCluster[]): Seat[] {
+  const out: Seat[] = [];
+  for (const c of cl) {
+    for (const [dz, ry] of [[-0.4, Math.PI], [0.4, 0]] as const) {
+      for (let i = 0; i < c.cols; i++) {
+        out.push({ x: c.cx + (i - (c.cols - 1) / 2) * DESK_W, z: c.cz + dz, ry });
+      }
+    }
+  }
+  return out;
+}
+export const SEATS: Seat[] = clusterSeats(CLUSTERS);

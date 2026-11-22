@@ -113,6 +113,13 @@ async function measure(browser, base, sc) {
   // VS Code API stub — transport WebSocket'ga urinmasin (standalone rejim emas).
   await page.evaluateOnNewDocument(() => {
     window.acquireVsCodeApi = () => ({ postMessage() {} });
+    // Bo'sh agentlar sayr QILMASIN (stolida qolsin): sayr qilgan agent xonaga kirib
+    // yoki ekrandan chiqib chizilmay qoladi (frustum culling) va "barqaror" (eng
+    // kichik) kadr qiymati yugurishdan yugurishga ~20% tebranardi (24 agent:
+    // 779–994). Regressiya o'lchovi uchun sahna har gal bir xil bo'lishi kerak.
+    try {
+      localStorage.setItem("agent-office.settings", JSON.stringify({ state: { wander: false }, version: 0 }));
+    } catch {}
   });
   await page.setViewport({ width: 1600, height: 1000 });
   await page.goto(`${base}/?perf&hour=${sc.hour}`, { waitUntil: "networkidle0" });

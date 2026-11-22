@@ -244,9 +244,10 @@ export default function App() {
   const textMode = useSettings((s) => s.textMode);
   const focusEl = useRef<HTMLDivElement>(null);
 
-  // Collision: 10 ta ASOSIY stol endi DOIM turadi (band bo'lmasa ham) — shuning
-  // uchun ular doim to'siq. Overflow (10+) agentlarning stollari esa faqat band
-  // bo'lganda qo'shiladi. (Nav grafi barcha 10 o'rindiq band holatda tekshirilgan.)
+  // Collision: asosiy (SEAT_COUNT = 24, klasterlarda) stollar DOIM turadi (band
+  // bo'lmasa ham) — shuning uchun ular doim to'siq. Overflow agentlarning
+  // stollari esa faqat band bo'lganda qo'shiladi. (Nav grafi barcha asosiy
+  // o'rindiqlar band holatda tekshirilgan.)
   const seatKey = order.map((id) => agents[id]?.seatIndex).join(",");
   // Stollarning statik ko'rinishi imzosi (StaticBatch qayta qurilishi uchun) —
   // soya imzosi bilan aynan bir xil holat (o'rindiq + rol + tartibsizlik).
@@ -320,7 +321,7 @@ export default function App() {
         <OfficeDecor />
         <PlacedFurniture />
         <SeatMarkers />
-        {/* 10 ta ASOSIY stol DOIM turadi (band bo'lsa yonadi, bo'sh bo'lsa
+        {/* Asosiy stollar (SEAT_COUNT) DOIM turadi (band bo'lsa yonadi, bo'sh bo'lsa
             o'chiq) — ofis haqiqiy ofisdek to'la ko'rinadi, agent mebel emas,
             ODAM bo'lib "ishga keladi". */}
         {/* Stollar statik qismi birlashtiriladi (draw call). Stol ko'rinishi faqat
@@ -332,7 +333,7 @@ export default function App() {
             const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
             return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
           })}
-          {/* Overflow (10+) agentlar — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
+          {/* Overflow agentlar (SEAT_COUNT dan keyin) — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
           {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
             <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
           ))}

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { type PackItem, parsePack, registerPacks } from "./scene/furniture";
+import { footprint, type PackItem, parsePack, registerPacks } from "./scene/furniture";
+import { resolvePlacements } from "./scene/layoutMigrate";
 import { send } from "./transport";
 
 // ── Layout editor holati ─────────────────────────────────────
@@ -180,8 +181,11 @@ export const useLayout = create<LayoutState>((set, get) => {
     loadLayout(sn) {
       const packs = Array.isArray(sn.packs) ? sn.packs : [];
       if (packs.length) registerPacks(packs); // saqlangan paketlarni renderer'ga tiklaymiz
+      // S8-5: yangi ofis rejasi bilan to'qnashgan buyumlar eng yaqin bo'sh joyga
+      // suriladi (faqat xotirada — faylga avtomatik yozilmaydi; layoutMigrate.ts).
+      const raw = Array.isArray(sn.items) ? sn.items : [];
       set({
-        items: Array.isArray(sn.items) ? sn.items : [],
+        items: resolvePlacements(raw, footprint).items,
         floorColor: typeof sn.floorColor === "string" ? sn.floorColor : null,
         wallColor: typeof sn.wallColor === "string" ? sn.wallColor : null,
         packs,
@@ -201,7 +205,7 @@ export const useLayout = create<LayoutState>((set, get) => {
         const clean: PlacedItem[] = items
           .filter((it: PlacedItem) => it && typeof it.type === "string" && typeof it.x === "number" && typeof it.z === "number")
           .map((it: PlacedItem) => ({ id: it.id || newId(), type: it.type, x: it.x, z: it.z, ry: Number(it.ry) || 0 }));
-        commit(clean);
+        commit(resolvePlacements(clean, footprint).items);
         if (typeof o?.floorColor === "string") set({ floorColor: o.floorColor });
         if (typeof o?.wallColor === "string") set({ wallColor: o.wallColor });
         get().setFloorColor(get().floorColor); // saqlash (wallColor bilan birga)

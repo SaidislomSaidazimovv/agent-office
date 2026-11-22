@@ -364,6 +364,17 @@ const dict = {
   "settings.groupStyle": { uz: "Ofis uslubi", ru: "Стиль офиса", en: "Office style", tr: "Ofis stili", ja: "オフィスのスタイル", zh: "办公室风格", ko: "사무실 스타일", fr: "Style du bureau" },
   "settings.styleHint": { uz: "Tayyor uslub tanlang — Tahrirдa yana moslashtirsangiz bo'ladi.", ru: "Выберите готовый стиль — детали настраиваются в режиме правки.", en: "Pick a ready-made style — fine-tune it further in Edit mode.", tr: "Hazır bir stil seçin — Düzenle modunda ince ayar yapabilirsiniz.", ja: "既製のスタイルを選択 — 編集モードでさらに微調整できます。", zh: "选择一个现成风格 — 可在编辑模式中进一步微调。", ko: "미리 만들어진 스타일 선택 — 편집 모드에서 더 세부 조정 가능.", fr: "Choisissez un style prêt à l'emploi — affinez-le en mode Édition." },
   "settings.styleCustom": { uz: "Maxsus (qo'lda o'zgartirilgan)", ru: "Свой (изменён вручную)", en: "Custom (hand-tweaked)", tr: "Özel (elle ayarlanmış)", ja: "カスタム（手動調整）", zh: "自定义（手动调整）", ko: "사용자 지정 (수동 조정)", fr: "Personnalisé (ajusté à la main)" },
+  // Xona belgilari (3D sahnadagi eshik yonidagi osma belgilar) — kalit = officeLayout ROOMS[].key
+  "room.server": { uz: "Server xonasi", ru: "Серверная", en: "Server room", tr: "Sunucu odası", ja: "サーバールーム", zh: "服务器机房", ko: "서버실", fr: "Salle serveurs" },
+  "room.kitchen": { uz: "Oshxona", ru: "Кухня", en: "Kitchen", tr: "Mutfak", ja: "キッチン", zh: "厨房", ko: "주방", fr: "Cuisine" },
+  "room.meeting": { uz: "Majlis xonasi", ru: "Переговорная", en: "Meeting room", tr: "Toplantı odası", ja: "会議室", zh: "会议室", ko: "회의실", fr: "Salle de réunion" },
+  "room.bathroom": { uz: "Hojatxona", ru: "Туалет", en: "Restroom", tr: "Tuvalet", ja: "トイレ", zh: "洗手间", ko: "화장실", fr: "Toilettes" },
+  "room.glassA": { uz: "Majlis A", ru: "Переговорная A", en: "Meeting A", tr: "Toplantı A", ja: "会議室 A", zh: "会议室 A", ko: "회의실 A", fr: "Réunion A" },
+  "room.library": { uz: "Kutubxona", ru: "Библиотека", en: "Library", tr: "Kütüphane", ja: "ライブラリー", zh: "图书室", ko: "도서실", fr: "Bibliothèque" },
+  "room.focus": { uz: "Fokus xonasi", ru: "Фокус-зона", en: "Focus room", tr: "Odak odası", ja: "集中ルーム", zh: "专注室", ko: "집중실", fr: "Salle focus" },
+  "room.lounge": { uz: "Dam olish", ru: "Лаунж", en: "Lounge", tr: "Dinlenme alanı", ja: "ラウンジ", zh: "休息室", ko: "라운지", fr: "Espace détente" },
+  "room.glassB": { uz: "Ofis B", ru: "Офис B", en: "Office B", tr: "Ofis B", ja: "オフィス B", zh: "办公室 B", ko: "사무실 B", fr: "Bureau B" },
+  "room.glassC": { uz: "Majlis C", ru: "Переговорная C", en: "Meeting C", tr: "Toplantı C", ja: "会議室 C", zh: "会议室 C", ko: "회의실 C", fr: "Réunion C" },
 } satisfies Record<string, Record<Lang, string>>;
 
 export type Key = keyof typeof dict;

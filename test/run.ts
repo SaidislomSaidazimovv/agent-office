@@ -35,8 +35,10 @@ import { batchStatic, unbatch } from "../webview-ui/src/scene/batching.js";
 import { buildPoolGeometry } from "../webview-ui/src/scene/lightPools.js";
 import { buildShadeGeometry } from "../webview-ui/src/scene/contactShade.js";
 import { floorGeometry } from "../webview-ui/src/scene/textures.js";
-import { BUILDING, FPV_BOUNDS, PERIM_VIS_HALF, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
-import { baseboardBoxes, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
+import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS as LAYOUT_ROOMS, SEATS as LAYOUT_SEATS, furnitureRects, WALL_VIS_HALF, wallRects } from "../webview-ui/src/scene/officeLayout.js";
+import { translate } from "../webview-ui/src/i18n.js";
+import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
+import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1677,7 +1679,8 @@ test("ofis rejasi: xonalar qatorni bo'shliqsiz to'ldiradi, eshiklar xona ichida,
 
 test("ofis rejasi: doimiy mebel to'siqlari bino ichida va xona old devorini kesib o'tmaydi", () => {
   const rects = furnitureRects();
-  assert.equal(rects.length, 26);
+  // Xonalardagi qo'lda yozilgan 16 ta + ochiq maydon va xona jihozlari (ma'lumotdan).
+  assert.equal(rects.length, 16 + [...OPEN_FURNITURE, ...ROOM_FURNITURE].filter((it) => FOOTPRINT[it.type]).length);
   for (const r of rects) {
     const tag = `${r.x0},${r.x1},${r.z0},${r.z1}`;
     assert.ok(r.x0 >= -BUILDING.W / 2 && r.x1 <= BUILDING.W / 2 && r.z0 >= -BUILDING.D / 2 && r.z1 <= BUILDING.D / 2, `${tag}: bino ichida`);
@@ -1799,6 +1802,128 @@ test("arxitektura: plintus devor yuziga yopishgan, faqat bino ichida; shisha old
   for (const [i, r] of LAYOUT_ROOMS.entries()) assert.ok(Math.abs(th[i].p[0] - r.doorX) < 1e-9 && Math.abs(th[i].s[0] - r.doorW) < 1e-9);
 });
 
+test("o'rindiqlar: 24 ta klaster o'rindig'i; stol+stul devor/mebelga tegmaydi; birinchi 10 overflow ham bo'sh joyda", () => {
+  assert.equal(LAYOUT_SEATS.length, 24);
+  // Stol + stul egallagan joy (lokal x ±0.8, z −0.45..+1.0) — aylantirilgan AABB
+  const foot = (s: { x: number; z: number; ry: number }) => {
+    const c = Math.cos(s.ry), sn = Math.sin(s.ry);
+    const xs: number[] = [], zs: number[] = [];
+    for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) { xs.push(s.x + lx * c + lz * sn); zs.push(s.z - lx * sn + lz * c); }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+  };
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const obstacles = [...wallRects(), ...furnitureRects()];
+  for (const [i, s] of LAYOUT_SEATS.entries()) {
+    const f = foot(s);
+    const o = obstacles.find((r) => hit(f, r));
+    assert.ok(!o, `o'rindiq ${i} (${s.x},${s.z}) to'siqqa tegadi: ${JSON.stringify(o)}`);
+  }
+  // Overflow (S8-6 gacha eski qatorlar) klaster va mebelga tegmasin. Faqat 2 qator
+  // (10 ta): 3-qator (z = −9.2) xona devoriga tegadi — mavjud muammo, S8-6 da
+  // overflow uchun maxsus zona bilan hal qilinadi.
+  const seatFeet = LAYOUT_SEATS.map(foot);
+  for (let k = 0; k < 10; k++) {
+    const s = seatFor(LAYOUT_SEATS.length + k);
+    const f = foot(s);
+    assert.ok(!obstacles.some((r) => hit(f, r)), `overflow ${k} to'siqqa tegadi`);
+    assert.ok(!seatFeet.some((r) => hit(f, r)), `overflow ${k} klasterga tegadi`);
+  }
+});
+
+test("ochiq maydon jihozlari: bir-biriga, o'rindiqlarga va overflow zonasiga tegmaydi; eshik oldi bo'sh", () => {
+  const rects = OPEN_FURNITURE.map((it) => ({ it, r: itemRect(it) })).filter((x) => x.r) as { it: (typeof OPEN_FURNITURE)[number]; r: { x0: number; x1: number; z0: number; z1: number } }[];
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+    assert.ok(!hit(rects[i].r, rects[j].r), `${rects[i].it.type}@${rects[i].it.x},${rects[i].it.z} ↔ ${rects[j].it.type}@${rects[j].it.x},${rects[j].it.z}`);
+  }
+  // O'rindiq (stol + stul) va overflow qatorlari (S8-6 gacha, 2 qator) bilan to'qnashmaydi
+  const foot = (s: { x: number; z: number; ry: number }) => {
+    const c = Math.cos(s.ry), sn = Math.sin(s.ry);
+    const xs: number[] = [], zs: number[] = [];
+    for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) { xs.push(s.x + lx * c + lz * sn); zs.push(s.z - lx * sn + lz * c); }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+  };
+  const seats = [...LAYOUT_SEATS, ...Array.from({ length: 10 }, (_, k) => seatFor(LAYOUT_SEATS.length + k))];
+  for (const { it, r } of rects) for (const s of seats) assert.ok(!hit(r, foot(s)), `${it.type}@${it.x},${it.z} o'rindiqqa (${s.x},${s.z}) tegadi`);
+  // Eshik oldi: har eshik markazidan 1.2 m ichida jihoz yo'q (o'tish erkin)
+  for (const room of LAYOUT_ROOMS) {
+    const zf = room.side === "top" ? -ROOM_LINE + 0.6 : ROOM_LINE - 0.6;
+    const door = { x0: room.doorX - room.doorW / 2, x1: room.doorX + room.doorW / 2, z0: zf - 0.6, z1: zf + 0.6 };
+    for (const { it, r } of rects) assert.ok(!hit(r, door), `${it.type}@${it.x},${it.z} ${room.key} eshigini to'sadi`);
+  }
+});
+
+test("xona jihozlari: o'z xonasi ichida; eski mebelga, bir-biriga va eshik oldiga tegmaydi", () => {
+  const hit = (a: { x0: number; x1: number; z0: number; z1: number }, b: typeof a) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const items = ROOM_FURNITURE.map((it) => ({ it, r: itemRect(it) }));
+  // Eski (qo'lda yozilgan) to'siqlar — barcha to'siqlardan ma'lumotdagilarni ayirib
+  const dataRects = new Set([...OPEN_FURNITURE, ...ROOM_FURNITURE].map((it) => JSON.stringify(itemRect(it))));
+  const legacy = furnitureRects().filter((r) => !dataRects.has(JSON.stringify(r)));
+  for (const { it, r } of items) {
+    const room = LAYOUT_ROOMS.find((x) => x.key === it.room);
+    assert.ok(room, `${it.type}: xona kaliti (${it.room}) bor`);
+    // Markaz (to'siqsizlar uchun ham) xona ichida
+    const D2 = BUILDING.D / 2;
+    const [z0, z1] = room!.side === "top" ? [-D2, -ROOM_LINE] : [ROOM_LINE, D2];
+    assert.ok(it.x > room!.x0 && it.x < room!.x1 && it.z > z0 && it.z < z1, `${it.type}@${it.x},${it.z} ${it.room} ichida`);
+    if (!r) continue;
+    // Bino chetidagi yon devor — perimetr (qalinroq), qolganlari ichki bo'luvchi.
+    const xEdge = (x: number) => (Math.abs(Math.abs(x) - BUILDING.W / 2) < 1e-6 ? PERIM_VIS_HALF : WALL_VIS_HALF);
+    const inner = { x0: room!.x0 + xEdge(room!.x0), x1: room!.x1 - xEdge(room!.x1), z0: z0 + (room!.side === "top" ? PERIM_VIS_HALF : WALL_VIS_HALF), z1: z1 - (room!.side === "top" ? WALL_VIS_HALF : PERIM_VIS_HALF) };
+    assert.ok(r.x0 >= inner.x0 - 1e-6 && r.x1 <= inner.x1 + 1e-6 && r.z0 >= inner.z0 - 1e-6 && r.z1 <= inner.z1 + 1e-6, `${it.type}@${it.x},${it.z} oyoq izi devorlar ichida`);
+    for (const l of legacy) assert.ok(!hit(r, l), `${it.type}@${it.x},${it.z} eski mebelga (${JSON.stringify(l)}) tegadi`);
+    // Eshik oldi (xona ichki tomoni) bo'sh
+    const zf = room!.side === "top" ? -ROOM_LINE - 0.7 : ROOM_LINE + 0.7;
+    const door = { x0: room!.doorX - room!.doorW / 2, x1: room!.doorX + room!.doorW / 2, z0: zf - 0.6, z1: zf + 0.6 };
+    assert.ok(!hit(r, door), `${it.type}@${it.x},${it.z} ${it.room} eshigini ichkaridan to'sadi`);
+  }
+  const rs = items.filter((x) => x.r) as { it: (typeof ROOM_FURNITURE)[number]; r: { x0: number; x1: number; z0: number; z1: number } }[];
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) assert.ok(!hit(rs[i].r, rs[j].r), `${rs[i].it.type} ↔ ${rs[j].it.type}`);
+});
+
+test("layout migratsiyasi: to'qnashgan buyum yaqin bo'sh joyga suriladi, qolganlari joyida; deterministik", () => {
+  const foot = () => ({ hx: 0.35, hz: 0.35 });
+  const obs = staticObstacles();
+  const s0 = LAYOUT_SEATS[0];
+  const items = [
+    { id: "free", type: "plant", x: 0, z: -2, ry: 0 }, // markaziy yo'lak — bo'sh
+    { id: "onDesk", type: "plant", x: s0.x, z: s0.z, ry: 0 }, // stol ustida
+    { id: "inWall", type: "plant", x: -9, z: -12.5, ry: 0 }, // oshxona/majlis bo'luvchisi ichida
+    { id: "noRy", type: "plant", x: 0, z: -2.5 } as unknown as { id: string; type: string; x: number; z: number; ry: number },
+  ];
+  const r1 = resolvePlacements(items, foot, obs);
+  assert.equal(r1.items[0], items[0], "bo'sh joydagi buyum o'sha obyektning o'zi (o'zgarmagan)");
+  assert.equal(r1.items[3], items[3], "ry'siz, to'qnashmagan buyum ham joyida");
+  assert.equal(r1.moved, 2);
+  const hits = (x: number, z: number) => obs.some((o) => Math.min(x + 0.35, o.x1) - Math.max(x - 0.35, o.x0) > 0.05 && Math.min(z + 0.35, o.z1) - Math.max(z - 0.35, o.z0) > 0.05);
+  for (const k of [1, 2]) {
+    const a = r1.items[k], b = items[k];
+    assert.ok(!hits(a.x, a.z), `${a.id} yangi joyi to'siqsiz (${a.x},${a.z})`);
+    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) < 2.5, `${a.id} yaqin joyga surildi (${a.x},${a.z})`);
+    assert.equal(a.id, b.id, "id saqlanadi");
+  }
+  const r2 = resolvePlacements(items, foot, obs);
+  assert.deepEqual(r2.items, r1.items, "har gal bir xil natija");
+});
+
+test("xona belgilari: har xonada bitta, eshik teshigi ustida emas, yo'lak tomonda; nomi 8 tilda", () => {
+  const signs = signPlacements();
+  assert.equal(signs.length, LAYOUT_ROOMS.length);
+  for (const sg of signs) {
+    const r = LAYOUT_ROOMS.find((x) => x.key === sg.key)!;
+    assert.ok(sg.x > r.doorX + r.doorW / 2, `${sg.key}: eshik teshigidan tashqarida (tavaqa chap tomonda)`);
+    assert.ok(sg.x < r.x1 - 0.1, `${sg.key}: xona devori oralig'ida`);
+    // Yo'lak tomoni: belgi ochiq maydon ichiga chiqadi
+    const zEnd = sg.zWall + sg.dir * SIGN.depth;
+    assert.ok(Math.abs(zEnd) < ROOM_LINE && Math.abs(sg.zWall) <= ROOM_LINE, `${sg.key}: yo'lakda (${sg.zWall} → ${zEnd})`);
+    assert.ok(SIGN.y - SIGN.h / 2 > 2.0, "belgi ostidan odam o'tadi (≥2 m)");
+    for (const lang of ["uz", "ru", "en", "tr", "ja", "zh", "ko", "fr"] as const) {
+      const t = translate(lang, `room.${sg.key}` as never);
+      assert.ok(t && t !== `room.${sg.key}`, `${sg.key}: ${lang} tarjimasi bor`);
+    }
+  }
+});
+
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
   const root = new THREE.Group();
   root.position.set(10, 0, 0); // ildiz o'zi siljigan — geometriya ildiz koordinatasida bo'lishi kerak
@@ -1872,12 +1997,13 @@ test("toggle/reset/budjet: yaroqsiz budjet → 0 (o'chiq), reset standartga qayt
 
 console.log("Collision: faqat BAND o'rindiqlar to'siqlangan:");
 test("band overflow stol bloklangan; BO'SH o'rindiq fantom devor yasamaydi", () => {
-  setActiveSeats([0, 5, 13]); // faqat shu o'rindiqlar band
-  const occupied = seatFor(13);
+  const OV = SEATS.length; // overflow — asosiy o'rindiqlardan keyingilar
+  setActiveSeats([0, 5, OV + 3]); // faqat shu o'rindiqlar band
+  const occupied = seatFor(OV + 3);
   assert.ok(blocked(occupied.x, occupied.z, 0.16), "band overflow stol bloklangan bo'lishi kerak");
   assert.ok(!blocked(sitPoint(occupied).x, sitPoint(occupied).z, 0.16), "sit nuqtasi ochiq");
-  // Band bo'lmagan overflow o'rindiq (masalan 15) — fantom devor bo'lmasin
-  const empty = seatFor(15);
+  // Band bo'lmagan overflow o'rindiq — fantom devor bo'lmasin
+  const empty = seatFor(OV + 5);
   assert.ok(!blocked(empty.x, empty.z, 0.16), "BO'SH o'rindiq bloklamasligi kerak (fantom devor yo'q)");
 });
 test("asosiy band o'rindiq: stol bloklangan, sit ochiq", () => {

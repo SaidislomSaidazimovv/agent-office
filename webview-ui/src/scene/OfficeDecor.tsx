@@ -9,8 +9,9 @@ import { useSettings } from "../settings";
 import { type AgentView, useOffice } from "../store";
 import { useDaylight } from "./daylight";
 import { ContactShade, type ShadeSet } from "./contactShade";
-import { baseboardBoxes, thresholdBoxes } from "./architecture";
-import { BUILDING, DISTRICT, PERIM_VIS_HALF, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
+import { type Key, translate, useLang } from "../i18n";
+import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "./architecture";
+import { BUILDING, CLUSTERS, DESK_W, type DeskCluster, DISTRICT, type FurnitureItem, OPEN_FURNITURE, PERIM_VIS_HALF, ROOM_FURNITURE, ROOM_LINE, ROOMS, roomZ, WALL_VIS_HALF, wallRects } from "./officeLayout";
 import { LightPools, type Pool } from "./lightPools";
 import { StaticBatch } from "./StaticBatch";
 import { FLOOR_TEX_SIZE, type FloorKind, floorGeometry, floorTexture } from "./textures";
@@ -194,13 +195,15 @@ function AcousticPanels({ x, zc, felt, wood }: { x: number; zc: number; felt: st
 }
 
 // ── Jihozlar ──
-export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
+// `still` — tebranmaydi: barglar statik birlashmaga tushadi (o'simlik guruhlarida —
+// har tebranadigan o'simlik 6 ta alohida draw call).
+export function Plant({ p, scale = 1, still = false }: { p: V3; scale?: number; still?: boolean }) {
   const leaves = useRef<THREE.Group>(null);
   const ph = useMemo(() => Math.random() * Math.PI * 2, []); // har o'simlik boshqa fazada
   // Yumshoq shamol tebranishi — barglar tuvak ustidan (y=0.4) chayqaladi.
   useFrame((state) => {
     const g = leaves.current;
-    if (!g) return;
+    if (!g || still) return;
     // Kamaytirilgan harakat — barglar tik turadi (bir marta nolga qaytariladi).
     if (useSettings.getState().reducedMotion) {
       if (g.rotation.z !== 0 || g.rotation.x !== 0) { g.rotation.z = 0; g.rotation.x = 0; }
@@ -214,7 +217,7 @@ export function Plant({ p, scale = 1 }: { p: V3; scale?: number }) {
   return (
     <group position={p} scale={scale}>
       <mesh position={[0, 0.2, 0]} castShadow><cylinderGeometry args={[0.22, 0.17, 0.4, 10]} />{M("#b5643c")}</mesh>
-      <group ref={leaves} position={[0, 0.4, 0]} userData={{ noBatch: true }}>
+      <group ref={leaves} position={[0, 0.4, 0]} userData={still ? undefined : { noBatch: true }}>
         {[0, 1, 2, 3, 4].map((i) => {
           const a = (i / 5) * Math.PI * 2;
           return <mesh key={i} position={[Math.cos(a) * 0.12, 0.35, Math.sin(a) * 0.12]} rotation={[Math.sin(a) * 0.5, 0, Math.cos(a) * -0.5]} castShadow><coneGeometry args={[0.16, 0.8, 5]} />{M(i % 2 ? "#4a8a52" : "#3c7444")}</mesh>;
@@ -297,8 +300,15 @@ export function Bookshelf({ p, ry = 0 }: { p: V3; ry?: number }) {
   }, []);
   return (
     <group position={p} rotation={[0, ry, 0]}>
-      <Box p={[0, 1.3, 0]} s={[1.2, 2.6, 0.35]} c="#dfdcd4" rough={0.6} />
-      <Box p={[0, 1.3, 0.02]} s={[1.1, 2.5, 0.3]} c="#33373e" />
+      {/* Korpus — panellardan, OLD TOMONI OCHIQ. Ilgari yaxlit quti edi: uning
+          oq old yuzi (z +0.175) kitoblar va taxtalarni to'liq yopib qo'yardi —
+          javonlar oq taxta bo'lib ko'rinardi. */}
+      <Box p={[0, 1.3, -0.16]} s={[1.2, 2.6, 0.03]} c="#dfdcd4" rough={0.6} />
+      {[-0.585, 0.585].map((x) => <Box key={x} p={[x, 1.3, 0]} s={[0.03, 2.6, 0.35]} c="#dfdcd4" rough={0.6} />)}
+      <Box p={[0, 2.585, 0]} s={[1.2, 0.03, 0.35]} c="#dfdcd4" rough={0.6} />
+      <Box p={[0, 0.06, 0]} s={[1.2, 0.12, 0.35]} c="#dfdcd4" rough={0.6} />
+      {/* to'q ichki orqa fon */}
+      <Box p={[0, 1.3, -0.135]} s={[1.14, 2.5, 0.02]} c="#33373e" />
       {/* javon taxtalari */}
       {[0.4, 0.95, 1.5, 2.05].map((y) => <Box key={y} p={[0, y, 0.03]} s={[1.1, 0.03, 0.28]} c="#c8c5bd" />)}
       {books}
@@ -495,11 +505,11 @@ export function StandingLamp({ p }: { p: V3 }) {
 // "suzib" turgan cho'p, FPV'da ko'z oldida bo'lardi.
 const LAMP_Y = 2.7; // korpus balandligi (stol ustidan ~1.9 m)
 const LAMP_L = 1.6; // uzunligi
-export function PendantLight({ p }: { p: V3 }) {
+export function PendantLight({ p, ry = 0 }: { p: V3; ry?: number }) {
   const lampsOn = useDaylight((s) => s.params.lamps);
   const cable = BUILDING.WH - LAMP_Y - 0.03;
   return (
-    <group position={p}>
+    <group position={p} rotation={[0, ry, 0]}>
       {/* Korpus va troslar — statik (birlashmaga tushadi). Soya TASHLAMAYDI:
           derazasiz binoda shift chirog'idan ~3 m uzoqqa tushgan "quyosh" soyasi
           polda yolg'iz suzib yurgan chiziq bo'lib ko'rinardi. */}
@@ -531,8 +541,10 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
     <group position={p} userData={{ noBatch: true }}>
       {fpv && (
         <>
-          {/* Ramka */}
-          <Box p={[0, 3.3, 0]} s={[w + 0.14, 0.05, d + 0.14]} c="#2a2e35" rough={0.4} />
+          {/* Ramka — panel USTIDA (pastdan faqat chekkasi ko'rinadi). Ilgari
+              panel ostida edi va porlovchi yuzani pastdan to'liq yopib, FPV'da
+              qora plita bo'lib ko'rinardi. Soya tashlamaydi (shift chirog'i). */}
+          <mesh position={[0, 3.37, 0]} scale={[w + 0.14, 0.04, d + 0.14]} geometry={UNIT_BOX} material={stdMat("#2a2e35", { roughness: 0.4 })} />
           {/* Porlab turgan panel */}
           <mesh position={[0, 3.34, 0]}>
             <boxGeometry args={[w, 0.05, d]} />
@@ -542,6 +554,439 @@ export function CeilingPanel({ p, w = 2.6, d = 1.3 }: { p: V3; w?: number; d?: n
       )}
     </group>
   );
+}
+
+// Stol klasteri ajratkichi (S8-5) — qatorlar orasida, stol ustidan 0.43 m baland
+// matoli ekran + alyumin qirra. Monitorlar orqama-orqa uning ikki tomonida.
+function ClusterDivider({ c }: { c: DeskCluster }) {
+  const len = c.cols * DESK_W - 0.06;
+  const y0 = 0.72; // stol usti (Workstation DESK_TOP)
+  const h = 0.43;
+  return (
+    <group position={[c.cx, 0, c.cz]}>
+      <Box p={[0, y0 + h / 2, 0]} s={[len, h, 0.02]} c="#5f6b73" rough={1} />
+      <Box p={[0, y0 + h + 0.01, 0]} s={[len + 0.02, 0.02, 0.03]} c="#b8bcc2" rough={0.35} />
+    </group>
+  );
+}
+
+// ── Ochiq maydon mebeli (ma'lumotdan) ──
+function Reception({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.5, 0]} s={[3.2, 1.0, 0.8]} c="#eceae4" rough={0.5} />
+      <Box p={[0, 0.5, 0.42]} s={[2.9, 0.7, 0.02]} c={ACCENT} rough={0.6} />
+      <Box p={[0, 1.06, 0]} s={[3.5, 0.07, 1.05]} c="#20242b" rough={0.3} />
+      {/* logo bloklari */}
+      {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
+    </group>
+  );
+}
+// ── S8-5: ochiq maydon jihozlari (lokal old tomoni +z; aylanish rejadan) ──
+const METAL = "#8b929c";
+const DARK = "#2a2e35";
+const CAB = "#d9d6cf"; // shkaf korpusi (stol shkafchalari bilan bir xil)
+const OAK = "#a0784e";
+function CollabTable({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.05, 0]} s={[2.4, 0.05, 0.9]} c="#e8e4dc" rough={0.4} />
+      <Box p={[0, 1.02, 0]} s={[2.42, 0.02, 0.92]} c={DARK} rough={0.4} />
+      {[-0.85, 0.85].map((x) => <Box key={x} p={[x, 0.51, 0]} s={[0.08, 1.0, 0.6]} c="#4a4f57" rough={0.45} />)}
+      <Box p={[0, 0.25, 0]} s={[1.7, 0.04, 0.04]} c="#4a4f57" rough={0.45} />
+      {/* Bar stullari — har tomonda 3 ta */}
+      {[-0.78, 0.78].flatMap((z) => [-0.75, 0, 0.75].map((x) => (
+        <group key={`${x},${z}`} position={[x, 0, z]}>
+          <mesh position={[0, 0.76, 0]} castShadow geometry={cyl(0.18, 0.18, 0.05, 14)} material={stdMat("#3a3f47", { roughness: 0.6 })} />
+          <mesh position={[0, 0.38, 0]} geometry={cyl(0.025, 0.025, 0.72, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+          <mesh position={[0, 0.015, 0]} geometry={cyl(0.2, 0.2, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+        </group>
+      )))}
+    </group>
+  );
+}
+// Mobil stend-up doska — toza (ofisda "soxta faoliyat" ko'rsatilmaydi).
+function StandBoard({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.35, -0.006]} s={[1.66, 1.06, 0.02]} c="#b8bcc2" rough={0.35} />
+      <Box p={[0, 1.35, 0.006]} s={[1.6, 1.0, 0.012]} c="#f4f4f2" rough={0.3} />
+      {[-0.85, 0.85].map((x) => (
+        <group key={x}>
+          <Box p={[x, 0.9, 0]} s={[0.04, 1.8, 0.04]} c={METAL} rough={0.35} />
+          <Box p={[x, 0.025, 0]} s={[0.06, 0.04, 0.46]} c="#4a4f57" rough={0.45} />
+        </group>
+      ))}
+      <Box p={[0, 0.83, 0.05]} s={[1.2, 0.03, 0.08]} c="#b8bcc2" rough={0.35} />
+    </group>
+  );
+}
+function CoffeePoint({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.45, 0]} s={[2.0, 0.9, 0.6]} c={CAB} rough={0.5} />
+      {[-0.33, 0.33].map((x) => <Box key={x} p={[x, 0.45, 0.302]} s={[0.006, 0.8, 0.004]} c="#8a8f96" rough={0.6} />)}
+      <Box p={[0, 0.92, 0]} s={[2.04, 0.04, 0.64]} c="#3a3f47" rough={0.3} />
+      {/* Kofe mashinasi */}
+      <Box p={[-0.55, 1.15, -0.05]} s={[0.32, 0.42, 0.36]} c="#1f2329" rough={0.35} />
+      <Box p={[-0.55, 1.24, 0.135]} s={[0.22, 0.1, 0.01]} c="#4a4f57" rough={0.4} />
+      <Box p={[-0.55, 0.96, 0.08]} s={[0.2, 0.02, 0.14]} c="#4a4f57" rough={0.4} />
+      {/* Krujkalar */}
+      {[0.05, 0.22, 0.39].map((x) => <mesh key={x} position={[x, 0.99, 0.08]} castShadow geometry={cyl(0.045, 0.04, 0.1, 12)} material={stdMat("#f2efe9", { roughness: 0.5 })} />)}
+      {/* Devordagi tokcha */}
+      <Box p={[0, 1.75, -0.17]} s={[1.6, 0.04, 0.26]} c={OAK} rough={0.6} />
+      {[-0.5, -0.3, 0.45].map((x, i) => <mesh key={x} position={[x, 1.85, -0.17]} geometry={cyl(0.06, 0.06, 0.16, 12)} material={stdMat(["#c8a47a", "#e8e4dc", "#5a7a8c"][i], { roughness: 0.5 })} />)}
+    </group>
+  );
+}
+function PrinterCorner({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[-0.3, 0.33, 0]} s={[0.7, 0.66, 0.6]} c={CAB} rough={0.5} />
+      <Box p={[-0.3, 0.88, 0]} s={[0.62, 0.44, 0.52]} c="#e8e8e6" rough={0.5} />
+      <Box p={[-0.3, 1.105, -0.05]} s={[0.62, 0.01, 0.4]} c="#3a3f47" rough={0.4} />
+      <Box p={[-0.3, 0.8, 0.28]} s={[0.4, 0.02, 0.1]} c="#c8ccd2" rough={0.4} />
+      <Box p={[-0.05, 1.0, 0.262]} s={[0.12, 0.08, 0.01]} c="#1b1f27" rough={0.3} />
+      {/* Yonidagi baland shkaf */}
+      <Box p={[0.45, 0.7, 0]} s={[0.6, 1.4, 0.6]} c="#cfccc4" rough={0.5} />
+      <Box p={[0.45, 0.7, 0.302]} s={[0.006, 1.3, 0.004]} c="#8a8f96" rough={0.6} />
+    </group>
+  );
+}
+function Lockers({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const cols = 6, rows = 3, W = 3.0, H = 1.8;
+  const out: JSX.Element[] = [];
+  for (let c = 1; c < cols; c++) out.push(<Box key={`v${c}`} p={[-W / 2 + (W / cols) * c, 0.9, 0.226]} s={[0.006, H - 0.02, 0.004]} c="#8a8f96" rough={0.6} />);
+  for (let r = 1; r < rows; r++) out.push(<Box key={`h${r}`} p={[0, 0.08 + ((H - 0.08) / rows) * r, 0.226]} s={[W - 0.02, 0.006, 0.004]} c="#8a8f96" rough={0.6} />);
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    out.push(<Box key={`k${c},${r}`} p={[-W / 2 + (W / cols) * (c + 0.8), 0.08 + ((H - 0.08) / rows) * (r + 0.5), 0.236]} s={[0.02, 0.08, 0.015]} c="#5a5f66" rough={0.4} />);
+  }
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.94, 0]} s={[W, H - 0.08, 0.45]} c="#c9ccd0" rough={0.5} />
+      <Box p={[0, 0.04, 0.01]} s={[W, 0.08, 0.44]} c="#3a3f47" rough={0.5} />
+      <Box p={[0, 1.81, 0]} s={[W + 0.02, 0.02, 0.47]} c="#9aa0a8" rough={0.4} />
+      {out}
+    </group>
+  );
+}
+function PhoneBooth({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const felt = "#4c5f70";
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.1, -0.525]} s={[1.1, 2.2, 0.05]} c={felt} rough={1} />
+      {[-0.525, 0.525].map((x) => <Box key={x} p={[x, 1.1, 0]} s={[0.05, 2.2, 1.1]} c={felt} rough={1} />)}
+      <Box p={[0, 2.225, 0]} s={[1.12, 0.05, 1.12]} c={DARK} rough={0.4} />
+      <Box p={[0, 0.03, 0]} s={[1.1, 0.06, 1.1]} c="#3a3f47" rough={0.5} />
+      {/* Ichki yorug'lik chizig'i (doimiy) */}
+      <mesh position={[0, 2.19, 0]} scale={[0.6, 0.01, 0.1]} geometry={UNIT_BOX} material={stdMat("#fff8ec", { emissive: "#fff0d0", emissiveIntensity: 0.9 })} />
+      {/* Ichkarida: tokcha-stol va stul */}
+      <Box p={[0, 0.95, -0.36]} s={[0.9, 0.04, 0.32]} c={OAK} rough={0.6} />
+      <mesh position={[0, 0.6, 0.05]} castShadow geometry={cyl(0.17, 0.17, 0.05, 14)} material={stdMat("#3a3f47", { roughness: 0.6 })} />
+      <mesh position={[0, 0.3, 0.05]} geometry={cyl(0.025, 0.025, 0.58, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+      {/* Old tomoni — oynali eshik */}
+      {[-0.53, 0.53].map((x) => <Box key={`f${x}`} p={[x, 1.1, 0.53]} s={[0.04, 2.2, 0.04]} c={DARK} rough={0.4} />)}
+      <mesh position={[0, 1.12, 0.53]}>
+        <boxGeometry args={[1.02, 2.1, 0.02]} />
+        <meshStandardMaterial color="#bfe0ff" transparent opacity={0.2} roughness={0.08} metalness={0.1} />
+      </mesh>
+      <Box p={[0.4, 1.05, 0.56]} s={[0.03, 0.35, 0.03]} c="#c8ccd2" rough={0.35} />
+    </group>
+  );
+}
+// Uzun past gultuvak — klaster bilan markaz orasida ajratkich (lokal x bo'ylab).
+function Planter({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.25, 0]} s={[2.6, 0.5, 0.4]} c="#3a3f47" rough={0.6} />
+      <Box p={[0, 0.5, 0]} s={[2.5, 0.02, 0.32]} c="#4a3a2a" rough={1} />
+      {[-0.95, -0.32, 0.32, 0.95].map((x, i) => (
+        <mesh key={x} position={[x, 0.68, 0]} castShadow geometry={sphere(0.26 + (i % 2) * 0.04, 8, 6)} material={stdMat(i % 2 ? "#5c8a52" : "#4f7d4a", { roughness: 0.9 })} />
+      ))}
+    </group>
+  );
+}
+function PlantGroup({ p }: { p: V3 }) {
+  return (
+    <group>
+      <Plant p={[p[0] - 0.3, 0, p[2] - 0.25]} scale={1.2} still />
+      <Plant p={[p[0] + 0.35, 0, p[2] - 0.1]} scale={0.9} still />
+      <Plant p={[p[0], 0, p[2] + 0.35]} scale={0.75} still />
+    </group>
+  );
+}
+
+// ── S8-5: xona jihozlari (yuqori qator) ──
+const STEEL_C = "#c8ccd2";
+function Fridge({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.95, 0]} s={[0.8, 1.9, 0.7]} c="#e4e6e8" rough={0.35} />
+      <Box p={[0, 1.25, 0.352]} s={[0.78, 0.006, 0.004]} c="#9aa0a8" rough={0.5} />
+      <Box p={[0, 0.95, 0.352]} s={[0.006, 1.86, 0.004]} c="#9aa0a8" rough={0.5} />
+      {[-0.06, 0.06].map((x) => <Box key={x} p={[x, 1.1, 0.37]} s={[0.025, 0.5, 0.03]} c={STEEL_C} rough={0.3} />)}
+    </group>
+  );
+}
+// Peshtaxta ustidagi jihozlar (Kitchen komponenti bilan bir xil markaz, lokal x bo'yicha)
+function KitchenAppliances({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const top = 0.955;
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      {/* Mikroto'lqinli pech */}
+      <Box p={[1.3, top + 0.16, -0.1]} s={[0.5, 0.32, 0.38]} c="#2a2e35" rough={0.4} />
+      <Box p={[1.22, top + 0.16, 0.092]} s={[0.3, 0.2, 0.006]} c="#11151a" rough={0.2} />
+      <Box p={[1.48, top + 0.16, 0.092]} s={[0.08, 0.2, 0.006]} c="#4a4f57" rough={0.4} />
+      {/* Kofe mashinasi */}
+      <Box p={[0.4, top + 0.2, -0.12]} s={[0.3, 0.4, 0.34]} c="#1f2329" rough={0.35} />
+      <Box p={[0.4, top + 0.03, 0.05]} s={[0.18, 0.02, 0.12]} c="#4a4f57" rough={0.4} />
+      {/* Choynak */}
+      <mesh position={[-0.3, top + 0.1, -0.1]} castShadow geometry={cyl(0.08, 0.1, 0.2, 12)} material={stdMat(STEEL_C, { roughness: 0.3, metalness: 0.5 })} />
+    </group>
+  );
+}
+function KitchenIsland({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.45, 0]} s={[2.2, 0.9, 0.9]} c="#e8e6e0" rough={0.5} />
+      <Box p={[0, 0.93, 0.05]} s={[2.3, 0.06, 1.05]} c="#20242b" rough={0.3} />
+      {/* Bar stullari — +z tomonda (oyoq uchun peshtaxta 15 sm chiqib turadi) */}
+      {[-0.7, 0, 0.7].map((x) => (
+        <group key={x} position={[x, 0, 0.8]}>
+          <mesh position={[0, 0.7, 0]} castShadow geometry={cyl(0.17, 0.17, 0.05, 14)} material={stdMat("#b87a52", { roughness: 0.6 })} />
+          <mesh position={[0, 0.35, 0]} geometry={cyl(0.025, 0.025, 0.68, 8)} material={stdMat(METAL, { roughness: 0.35, metalness: 0.5 })} />
+          <mesh position={[0, 0.015, 0]} geometry={cyl(0.19, 0.19, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+        </group>
+      ))}
+    </group>
+  );
+}
+function BistroTable({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <mesh position={[0, 0.74, 0]} castShadow geometry={cyl(0.42, 0.42, 0.04, 20)} material={stdMat("#f2efe9", { roughness: 0.4 })} />
+      <mesh position={[0, 0.37, 0]} geometry={cyl(0.04, 0.04, 0.72, 8)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      <mesh position={[0, 0.015, 0]} geometry={cyl(0.26, 0.26, 0.03, 16)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      {[-0.6, 0.6].map((x) => <group key={x} position={[x, 0, 0]} rotation={[0, x < 0 ? Math.PI / 2 : -Math.PI / 2, 0]}><ModChair /></group>)}
+    </group>
+  );
+}
+// Kredensa + devorga o'rnatilgan ekran (o'chiq — soxta tasvir yo'q)
+function Credenza({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.36, 0]} s={[1.6, 0.72, 0.45]} c="#3a3f47" rough={0.5} />
+      {[-0.4, 0.4].map((x) => <Box key={x} p={[x, 0.38, 0.227]} s={[0.006, 0.62, 0.004]} c="#22262c" rough={0.6} />)}
+      <Box p={[0, 0.735, 0]} s={[1.62, 0.03, 0.47]} c={OAK} rough={0.6} />
+      {/* Ekran: ochroq hoshiya — usiz o'chiq ekran devorda qora teshik/eshikdek ko'rinardi */}
+      <Box p={[0, 1.55, -0.205]} s={[1.56, 0.96, 0.04]} c="#7a7f87" rough={0.4} />
+      <Box p={[0, 1.55, -0.18]} s={[1.4, 0.8, 0.02]} c="#262c35" rough={0.2} />
+    </group>
+  );
+}
+function HandDryer({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.25, 0.06]} s={[0.28, 0.32, 0.12]} c="#eef2f4" rough={0.3} />
+      <Box p={[0, 1.12, 0.1]} s={[0.18, 0.03, 0.05]} c="#9aa0a8" rough={0.4} />
+      {/* axlat qutisi */}
+      <mesh position={[0.45, 0.25, 0.2]} castShadow geometry={cyl(0.16, 0.14, 0.5, 14)} material={stdMat("#9aa0a8", { roughness: 0.4, metalness: 0.3 })} />
+    </group>
+  );
+}
+// Kabel lotogi — javon qatori ustida (havoda suzmaydi: javonlarga tayangan)
+function CableTray({ p, ry = 0 }: { p: V3; ry?: number }) {
+  const L = 11;
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 2.08, 0]} s={[L, 0.03, 0.3]} c="#9aa0a8" rough={0.4} />
+      {[-0.15, 0.15].map((z) => <Box key={z} p={[0, 2.13, z]} s={[L, 0.08, 0.015]} c="#9aa0a8" rough={0.4} />)}
+      {/* kabel to'plami */}
+      <Box p={[0, 2.12, -0.04]} s={[L - 0.1, 0.05, 0.08]} c="#2f5d8a" rough={0.7} />
+      <Box p={[0, 2.12, 0.06]} s={[L - 0.1, 0.04, 0.06]} c="#c9a227" rough={0.7} />
+    </group>
+  );
+}
+function Ups({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.55, 0]} s={[0.55, 1.1, 0.65]} c="#1f2329" rough={0.4} />
+      <Box p={[0, 0.85, 0.327]} s={[0.22, 0.12, 0.006]} c="#0d1a12" rough={0.2} />
+      {[-0.1, 0, 0.1].map((y) => <Box key={y} p={[0, 0.4 + y, 0.327]} s={[0.4, 0.02, 0.006]} c="#3a3f47" rough={0.5} />)}
+    </group>
+  );
+}
+
+// ── S8-5: xona jihozlari (pastki qator) + resepshn ──
+function Armchair({ p, ry = 0, c = "#7a5a44" }: { p: V3; ry?: number; c?: string }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.22, 0]} s={[0.8, 0.26, 0.75]} c={c} rough={0.85} />
+      <Box p={[0, 0.4, 0.05]} s={[0.58, 0.12, 0.6]} c={c} rough={0.75} />
+      <Box p={[0, 0.62, -0.31]} s={[0.8, 0.56, 0.14]} c={c} rough={0.85} />
+      {[-0.34, 0.34].map((x) => <Box key={x} p={[x, 0.46, 0]} s={[0.12, 0.22, 0.72]} c={c} rough={0.85} />)}
+      {[-0.32, 0.32].flatMap((x) => [-0.28, 0.28].map((z) => <Box key={`${x},${z}`} p={[x, 0.04, z]} s={[0.05, 0.08, 0.05]} c="#3a2e22" rough={0.6} />))}
+    </group>
+  );
+}
+function SideTable({ p }: { p: V3 }) {
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.5, 0]} castShadow geometry={cyl(0.26, 0.26, 0.04, 18)} material={stdMat(OAK, { roughness: 0.6 })} />
+      <mesh position={[0, 0.25, 0]} geometry={cyl(0.03, 0.03, 0.48, 8)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+      <mesh position={[0, 0.015, 0]} geometry={cyl(0.18, 0.18, 0.03, 14)} material={stdMat("#4a4f57", { roughness: 0.45 })} />
+    </group>
+  );
+}
+function BeanBag({ p, c = "#c46a4a" }: { p: V3; c?: string }) {
+  return (
+    <group position={p}>
+      <mesh position={[0, 0.22, 0]} scale={[1, 0.62, 1]} castShadow geometry={sphere(0.4, 12, 9)} material={stdMat(c, { roughness: 0.95 })} />
+      <mesh position={[0, 0.42, -0.12]} scale={[1, 0.6, 0.7]} geometry={sphere(0.26, 10, 8)} material={stdMat(c, { roughness: 0.95 })} />
+    </group>
+  );
+}
+function TvConsole({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 0.26, 0]} s={[1.6, 0.44, 0.42]} c="#3a3f47" rough={0.5} />
+      <Box p={[0, 0.49, 0]} s={[1.62, 0.03, 0.44]} c={OAK} rough={0.6} />
+      {[-0.4, 0.4].map((x) => <Box key={x} p={[x, 0.26, 0.212]} s={[0.006, 0.36, 0.004]} c="#22262c" rough={0.6} />)}
+      {[-0.7, 0.7].map((x) => <Box key={`l${x}`} p={[x, 0.02, 0]} s={[0.05, 0.04, 0.38]} c="#22262c" rough={0.6} />)}
+    </group>
+  );
+}
+// Logotip paneli — mahsulotning abstrakt belgisi (resepshn stolidagi oq
+// bloklar bilan bir xil uslub; yozuv yo'q).
+function LogoWall({ p, ry = 0 }: { p: V3; ry?: number }) {
+  return (
+    <group position={p} rotation={[0, ry, 0]}>
+      <Box p={[0, 1.7, 0]} s={[2.4, 0.9, 0.03]} c={ACCENT} rough={0.6} />
+      {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 1.7, 0.025]} s={[0.24, 0.24, 0.02]} c="#ffffff" rough={0.4} />)}
+    </group>
+  );
+}
+
+// ── Xona belgilari (S8-5) — eshik yonidagi osma, ikki tomonlama ──
+// Nomlar joriy tilda (i18n "room.<key>"), hammasi BITTA kanvas atlasida va
+// BITTA mesh'da (1 draw call); til almashsa atlas qayta chiziladi. Korpus va
+// kronshteyn — statik qutilar (birlashmaga tushadi). Matn yorug'likdan
+// mustaqil (MeshBasic) — kechasi ham o'qiladi, kunduzi ham bir xil.
+const SIGNS = signPlacements();
+const SIGN_TEXT_W = 0.96;
+const SIGN_TEXT_H = 0.24;
+const ATLAS_W = 512;
+const ATLAS_ROW = 128; // 4:1 — matn maydoni nisbati bilan bir xil (cho'zilmaydi)
+function RoomSigns() {
+  const lang = useLang((s) => s.lang);
+  const tex = useMemo(() => {
+    const cv = document.createElement("canvas");
+    cv.width = ATLAS_W;
+    cv.height = ATLAS_ROW * SIGNS.length;
+    const ctx = cv.getContext("2d")!;
+    SIGNS.forEach((sg, i) => {
+      const y = i * ATLAS_ROW;
+      ctx.fillStyle = "#2a2e35";
+      ctx.fillRect(0, y, ATLAS_W, ATLAS_ROW);
+      // Xona (district) rangidagi chiziq — pol rangi bilan bog'lanadi
+      const room = ROOMS.find((r) => r.key === sg.key)!;
+      ctx.fillStyle = DISTRICT[room.floor];
+      ctx.fillRect(18, y + 22, 14, ATLAS_ROW - 44);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const label = translate(lang, `room.${sg.key}` as Key);
+      // Uzun nomlar sig'sin — shrift o'lchami matn eniga qarab kichrayadi
+      let size = 54;
+      ctx.font = `600 ${size}px system-ui, "Segoe UI", sans-serif`;
+      while (ctx.measureText(label).width > ATLAS_W - 90 && size > 24) {
+        size -= 2;
+        ctx.font = `600 ${size}px system-ui, "Segoe UI", sans-serif`;
+      }
+      ctx.fillText(label, ATLAS_W / 2 + 14, y + ATLAS_ROW / 2 + 2);
+    });
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, [lang]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  const geo = useMemo(() => {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    let n = 0;
+    SIGNS.forEach((sg, i) => {
+      const zc = sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03);
+      const v0 = 1 - (i + 1) / SIGNS.length, v1 = 1 - i / SIGNS.length;
+      const y0 = SIGN.y - SIGN_TEXT_H / 2, y1 = SIGN.y + SIGN_TEXT_H / 2;
+      // +x yuzi: o'quvchining o'ng tomoni −z; −x yuzi: o'ng tomoni +z.
+      for (const side of [1, -1]) {
+        const x = sg.x + side * 0.022;
+        const zL = zc + side * (SIGN_TEXT_W / 2), zR = zc - side * (SIGN_TEXT_W / 2);
+        pos.push(x, y0, zL, x, y0, zR, x, y1, zR, x, y1, zL);
+        uv.push(0, v0, 1, v0, 1, v1, 0, v1);
+        const b = n * 4;
+        idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        n++;
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeBoundingSphere();
+    return g;
+  }, []);
+  useEffect(() => () => geo.dispose(), [geo]);
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), [tex]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  return (
+    <group>
+      {SIGNS.map((sg) => {
+        const zc = sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03);
+        return (
+          <group key={sg.key}>
+            <Box p={[sg.x, SIGN.y, zc]} s={[0.04, SIGN.h, SIGN.depth]} c="#2a2e35" rough={0.5} />
+            {/* devorga mahkamlovchi kronshteyn */}
+            <Box p={[sg.x, SIGN.y + SIGN.h / 2 + 0.03, sg.zWall + sg.dir * (SIGN.depth / 2 + 0.03)]} s={[0.025, 0.025, SIGN.depth + 0.06]} c="#9aa0a8" rough={0.4} />
+          </group>
+        );
+      })}
+      <mesh geometry={geo} material={mat} raycast={() => {}} userData={{ noBatch: true }} />
+    </group>
+  );
+}
+
+/** Ofis rejasidagi buyum → komponent. Yangi tur qo'shilsa shu yerga ham. */
+function FurniturePiece({ it }: { it: FurnitureItem }) {
+  const p: V3 = [it.x, 0, it.z];
+  switch (it.type) {
+    case "reception": return <Reception p={p} ry={it.ry} />;
+    case "plant": return <Plant p={p} scale={it.scale} />;
+    case "collabTable": return <CollabTable p={p} ry={it.ry} />;
+    case "standBoard": return <StandBoard p={p} ry={it.ry} />;
+    case "coffeePoint": return <CoffeePoint p={p} ry={it.ry} />;
+    case "printer": return <PrinterCorner p={p} ry={it.ry} />;
+    case "lockers": return <Lockers p={p} ry={it.ry} />;
+    case "phoneBooth": return <PhoneBooth p={p} ry={it.ry} />;
+    case "planter": return <Planter p={p} ry={it.ry} />;
+    case "plantGroup": return <PlantGroup p={p} />;
+    case "fridge": return <Fridge p={p} ry={it.ry} />;
+    case "kitchenAppliances": return <KitchenAppliances p={p} ry={it.ry} />;
+    case "kitchenIsland": return <KitchenIsland p={p} ry={it.ry} />;
+    case "bistroTable": return <BistroTable p={p} ry={it.ry} />;
+    case "credenza": return <Credenza p={p} ry={it.ry} />;
+    case "handDryer": return <HandDryer p={p} ry={it.ry} />;
+    case "cableTray": return <CableTray p={p} ry={it.ry} />;
+    case "ups": return <Ups p={p} ry={it.ry} />;
+    case "armchair": return <Armchair p={p} ry={it.ry} />;
+    case "sideTable": return <SideTable p={p} />;
+    case "floorLamp": return <StandingLamp p={p} />;
+    case "beanBag": return <BeanBag p={p} />;
+    case "tvConsole": return <TvConsole p={p} ry={it.ry} />;
+    case "wallTV": return <TV p={[it.x, 1.55, it.z]} ry={it.ry} />;
+    case "logoWall": return <LogoWall p={p} ry={it.ry} />;
+    case "bookshelf": return <Bookshelf p={p} ry={it.ry} />;
+  }
 }
 
 // ── YANGI: server rack ──
@@ -617,8 +1062,10 @@ function ReadingTable({ p }: { p: V3 }) {
 // ── Tungi yorug'lik (S8-3) ──
 // Lampalar joylashuvi — BIR ro'yxat: lampaning o'zi ham, poldagi nur dog'i ham
 // shundan chiziladi. Ilgari har lampa kechasi haqiqiy pointLight edi (11 ta).
-const CEILING_PANELS: V3[] = [[-12, 0, -3.2], [-12, 0, 3.2], [12, 0, -3.2], [12, 0, 3.2]];
-const PENDANTS: V3[] = [[-4, 0, -3.2], [4, 0, -3.2], [-4, 0, 3.2], [4, 0, 3.2]];
+// S8-5: osma chiziqli lampalar — har stol klasteri ustida 2 ta, qatorlar bo'ylab
+// (x); shift panellari — markaziy zona va yon tomonlar.
+const PENDANTS: V3[] = CLUSTERS.flatMap((c): V3[] => [[c.cx - 1.2, 0, c.cz], [c.cx + 1.2, 0, c.cz]]);
+const CEILING_PANELS: V3[] = [[-6, 0, 0], [6, 0, 0], [-19.5, 0, 0], [19.5, 0, 0]];
 const FLOOR_Y = 0.03; // xona pollari (0.02) dan yuqori
 // Dog' kesish chegaralari — ofis rejasidan (CHIZILGAN devor yuzigacha).
 const OPEN_AREA = { x0: -BUILDING.W / 2 + PERIM_VIS_HALF, x1: BUILDING.W / 2 - PERIM_VIS_HALF, z0: -ROOM_LINE + WALL_VIS_HALF, z1: ROOM_LINE - WALL_VIS_HALF };
@@ -629,7 +1076,7 @@ function roomClip(key: string): Pool["clip"] {
 }
 const NIGHT_POOLS: Pool[] = [
   ...CEILING_PANELS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 4.4, color: "#ffe9c0", k: 0.16, clip: OPEN_AREA })),
-  ...PENDANTS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 3.8, color: "#ffd98a", k: 0.18, clip: OPEN_AREA })),
+  ...PENDANTS.map(([x, , z]): Pool => ({ x, y: FLOOR_Y, z, r: 3.2, color: "#ffd98a", k: 0.14, clip: OPEN_AREA })),
   // Server: sovuq ko'k "ma'lumot g'ori" hovuzi
   { x: -16, y: FLOOR_Y, z: -12.8, r: 6.5, color: "#4fa8ff", k: 0.2, clip: roomClip("server") },
   // Oshxona: neon yozuvdan pushti porlash — polda va orqa devorda
@@ -714,7 +1161,6 @@ export default function OfficeDecor() {
       {/* KUTUBXONA [-23,-11] */}
       <RoomFloor k="library" />
       <WallX x0={-23} x1={-11} z={9.5} door={2.4} />
-      {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={x} p={[x, 0, 15.68]} ry={Math.PI} />)}
       {[-21.5, -18.5, -15.5].map((x) => <Bookshelf key={`c${x}`} p={[x, 0, 11]} />)}
       <ReadingTable p={[-13.5, 0, 13]} />
 
@@ -731,8 +1177,7 @@ export default function OfficeDecor() {
       <Sofa p={[2, 0, 15]} c="#4a5568" />
       <Sofa p={[5.5, 0, 13]} ry={-Math.PI / 2} c="#556070" />
       <CoffeeTable p={[2, 0, 13]} />
-      {/* ekran xona ichiga (divanlar tomonga, -z) qarasin — devorga emas */}
-      <TV p={[2, 1.7, 15.8]} ry={Math.PI} />
+      {/* TV — chap devorda (ROOM_FURNITURE "wallTV"; ilgari bu yerda, divan ortida edi) */}
 
       {/* SHISHA XONA B [7,15] — ofis */}
       <RoomFloor k="glassB" />
@@ -746,33 +1191,26 @@ export default function OfficeDecor() {
       <MeetingTable p={[19, 0, 13]} r={0.9} />
 
       {/* ══════ MARKAZ — ochiq ish maydoni ══════ */}
-      {/* Reception */}
-      <group position={[0, 0, 7.5]}>
-        <Box p={[0, 0.5, 0]} s={[3.2, 1.0, 0.8]} c="#eceae4" rough={0.5} />
-        <Box p={[0, 0.5, 0.42]} s={[2.9, 0.7, 0.02]} c={ACCENT} rough={0.6} />
-        <Box p={[0, 1.06, 0]} s={[3.5, 0.07, 1.05]} c="#20242b" rough={0.3} />
-        {/* logo bloklari */}
-        {[-0.5, 0, 0.5].map((x) => <Box key={x} p={[x, 0.55, 0.44]} s={[0.12, 0.12, 0.02]} c="#ffffff" rough={0.4} />)}
-      </group>
-      {/* Markazdagi x=±13 stollar endi AGENT o'rindiqlari (SEATS 7-10) —
-          Workstation ular ustiga stol chizadi (overflow agentlar shu yerda). */}
-      {/* Pol lampalari o'rniga SHIFT yoritgichlari — ofisdek tepadan yoritadi.
-          Markazdagi pendant'larga tegmaydi (x=±4); bular tashqi stollar (x=±13)
-          ustida — ilgari u yer yoritilmagan edi. */}
+      {/* Ochiq maydon mebeli — ofis rejasidan (OPEN_FURNITURE; to'siqlar ham shundan) */}
+      {OPEN_FURNITURE.map((it, i) => <FurniturePiece key={`of${i}`} it={it} />)}
+      {/* Xona belgilari — eshik yonida, joriy tilda */}
+      <RoomSigns />
+      {/* Xona jihozlari — ofis rejasidan (ROOM_FURNITURE) */}
+      {ROOM_FURNITURE.map((it, i) => <FurniturePiece key={`rf${i}`} it={it} />)}
+      {/* Agent stollari 4 ta klasterda (officeLayout CLUSTERS → SEATS) —
+          Workstation chizadi. Shift panellari markaziy zona va yon tomonlarda
+          (klasterlar ustida osma chiziqli lampalar bor). */}
       {CEILING_PANELS.map((p) => <CeilingPanel key={p.join()} p={p} />)}
-      {/* o'simliklar */}
-      <Plant p={[-16, 0, 6]} scale={1.1} />
-      <Plant p={[16, 0, 6]} scale={1.1} />
-      <Plant p={[-16, 0, -6]} scale={1.1} />
-      <Plant p={[16, 0, -6]} scale={1.1} />
-      <Plant p={[-1.5, 0, 5]} scale={0.9} />
-      <Plant p={[1.5, 0, 5]} scale={0.9} />
 
       {/* Devor rasmlari */}
-      <Painting p={[-22.85, 1.7, 0]} ry={Math.PI / 2} c="#c85a3c" />
+      {/* Telefon kabinalari chap devorda — bu rasm ular orqasidan chiqib turardi;
+          server xonasi old devoriga (yo'lak tomoni, kameraga qaragan) ko'chdi. */}
+      <Painting p={[-12, 1.6, -9.36]} ry={0} c="#c85a3c" />
       <Painting p={[22.85, 1.7, 0]} ry={-Math.PI / 2} c="#3a7bc8" />
       {/* Shift chiroqlari — ochiq ofis ustida (kechasi porlaydi) */}
-      {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} />)}
+      {PENDANTS.map((p) => <PendantLight key={p.join()} p={p} ry={Math.PI / 2} />)}
+      {/* Stol klasterlari o'rtasidagi ajratkich ekranlar (o'rindiqlar Workstation'da) */}
+      {CLUSTERS.map((c) => <ClusterDivider key={`${c.cx},${c.cz}`} c={c} />)}
       {/* Tungi nur dog'lari — barcha lampalar uchun BITTA mesh */}
       <LightPools pools={NIGHT_POOLS} />
       {/* Plintus + eshik ostonalari (statik — birlashmaga qo'shiladi) */}

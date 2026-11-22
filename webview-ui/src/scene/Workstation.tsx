@@ -4,7 +4,7 @@ import type { AgentView } from "../store";
 import { useOffice } from "../store";
 import { clutterLevel } from "./clutter";
 import { useDaylight } from "./daylight";
-import { basicMat, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
+import { basicMat, cone, cyl, sphere, stdMat, UNIT_BOX } from "./resources";
 import { roleKeyFor, seatFor, STATUS_COLOR } from "./roles";
 
 // ── Ish joyi — MEBEL (personaj AgentAvatar'da, alohida) ──────
@@ -37,6 +37,8 @@ const CHAIR_M = stdMat("#2c313a", { roughness: 0.6 });
 const ARM_M = stdMat("#1c2027");
 const POST_M = stdMat("#8b929c", { roughness: 0.35, metalness: 0.5 });
 const STAR_M = stdMat("#3a3f47", { roughness: 0.45, metalness: 0.25 });
+const PED_M = stdMat("#d9d6cf", { roughness: 0.5 }); // tortmali shkafcha (S8-5)
+const LAMP_M = stdMat("#2a2e35", { roughness: 0.4 }); // stol chirog'i qalpog'i
 const SCREEN_G = new THREE.PlaneGeometry(0.64, 0.36);
 const GLOW_G = new THREE.PlaneGeometry(0.98, 0.66);
 
@@ -193,10 +195,24 @@ function Workstation({ seatIndex, agent }: { seatIndex: number; agent?: AgentVie
           // Bo'sh stol — o'chiq (qorong'i) ekran, porlash yo'q
           <mesh position={[0, 0.26, -0.02]} geometry={SCREEN_G} material={SCREEN_OFF_M} />
         )}
-        {/* nozik stend */}
-        <B p={[0, 0.05, 0]} s={[0.05, 0.16, 0.05]} m={STAND_M} />
-        <B p={[0, -0.02, 0]} s={[0.26, 0.02, 0.14]} m={DESK_EDGE_M} cast={false} />
+        {/* Monitor kronshteyni (S8-5) — stolning orqa chetiga qisqich bilan
+            mahkamlangan ustun + monitor orqasiga gorizontal qo'l (ilgari stol
+            ustidagi oyoqcha va asos edi). */}
+        <B p={[0, -0.01, -0.14]} s={[0.07, 0.03, 0.07]} m={DESK_EDGE_M} cast={false} />
+        <B p={[0, 0.2, -0.14]} s={[0.035, 0.44, 0.035]} m={STAND_M} />
+        <B p={[0, 0.26, -0.08]} s={[0.03, 0.03, 0.12]} m={STAND_M} />
       </group>
+
+      {/* Tortmali shkafcha — stol ostida, o'ng oyoq yonida (odam tizzasiga tegmaydi) */}
+      <B p={[0.42, 0.3, -0.08]} s={[0.36, 0.56, 0.5]} m={PED_M} />
+      <B p={[0.42, 0.2, 0.172]} s={[0.32, 0.008, 0.004]} m={DESK_EDGE_M} cast={false} />
+      <B p={[0.42, 0.38, 0.172]} s={[0.32, 0.008, 0.004]} m={DESK_EDGE_M} cast={false} />
+
+      {/* Stol chirog'i — chap orqa burchakda (rol buyumi o'ng tomonda) */}
+      <mesh position={[-0.66, DESK_TOP + 0.01, -0.3]} geometry={cyl(0.07, 0.07, 0.02, 12)} material={LEG_M} />
+      <B p={[-0.62, DESK_TOP + 0.2, -0.3]} s={[0.02, 0.38, 0.02]} m={LEG_M} />
+      <B p={[-0.55, DESK_TOP + 0.39, -0.26]} s={[0.17, 0.02, 0.02]} m={LEG_M} />
+      <mesh position={[-0.47, DESK_TOP + 0.36, -0.24]} geometry={cone(0.07, 0.08, 12)} material={LAMP_M} />
 
       {/* Klaviatura — doim (stolning bir qismi) */}
       <B p={[0, DESK_TOP + 0.04, 0.14]} s={[0.5, 0.02, 0.16]} m={KEY_M} />
