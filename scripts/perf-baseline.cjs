@@ -136,6 +136,20 @@ async function measure(browser, base, sc) {
     });
   }
   await wait(4000); // sahna o'rnashsin (agentlar o'tirsin)
+  // Barqarorlashguncha kutamiz: ketma-ket 2 oynaning eng kichik draw call'i teng
+  // bo'lsin (ko'pi bilan ~11 s). Usiz 24 agentda dastlabki 1–2 oyna hali to'liq
+  // chizilmagan sahnani ushlardi (897 / 930 / 968, keyin hammasi 1004) va
+  // "barqaror" qiymat yugurishdan yugurishga ~10% tebranardi.
+  {
+    let prev = null;
+    for (let k = 0; k < 20; k++) {
+      await wait(550);
+      const s = await page.evaluate(() => window.__perf || null);
+      const v = s ? s.callsMin : null;
+      if (v != null && v === prev) break;
+      prev = v;
+    }
+  }
   const samples = [];
   for (let i = 0; i < SAMPLES; i++) {
     await wait(550); // probe ~500ms'da yangilanadi
