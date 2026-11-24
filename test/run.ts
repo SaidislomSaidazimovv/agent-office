@@ -39,7 +39,7 @@ import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HA
 import { translate } from "../webview-ui/src/i18n.js";
 import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
-import { LABEL_DIST, LABEL_ZOOM, labelVisible, needsAttention } from "../webview-ui/src/scene/labelVisibility.js";
+import { declutterLabels, LABEL_DIST, LABEL_ZOOM, labelVisible, needsAttention } from "../webview-ui/src/scene/labelVisibility.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1957,6 +1957,21 @@ test("yorliqlar: uzoqda yashirin; tanlangan / e'tibor talab qilgan doim ko'rinad
   assert.equal(needsAttention({ blocked: true }), true);
   assert.equal(needsAttention({ permission: { tool: "Bash" } }), true);
   assert.equal(needsAttention({ stuck: true }), true);
+});
+
+test("yorliq tartiblash: ustma-ust tushganda yaqini qoladi; ustuvor doim; tegmaydiganlar hammasi", () => {
+  const box = (id: number, x: number, y: number, depth: number, priority = false) => ({ id, x, y, w: 80, h: 20, depth, priority });
+  // 1 va 2 ustma-ust (markazlar 30 px): yaqinroq (2) qoladi
+  assert.deepEqual([...declutterLabels([box(1, 100, 100, 10), box(2, 130, 105, 5)])], [2]);
+  // Ustuvor (3) uzoqroq bo'lsa ham qoladi, oddiyni (4) siqib chiqaradi
+  assert.deepEqual([...declutterLabels([box(3, 100, 100, 20, true), box(4, 110, 100, 5)])], [3]);
+  // Ikki ustuvor bir-biriga tegsa ham — ikkovi ham ko'rinadi
+  assert.equal(declutterLabels([box(5, 100, 100, 5, true), box(6, 105, 100, 6, true)]).size, 2);
+  // Tegmaydiganlar (gorizontal 100 px, vertikal 30 px oraliq) — hammasi
+  assert.equal(declutterLabels([box(7, 0, 0, 1), box(8, 100, 0, 2), box(9, 0, 30, 3)]).size, 3);
+  // Barqaror tartib: bir xil kirish — bir xil natija
+  const inp = [box(10, 50, 50, 3), box(11, 60, 52, 3), box(12, 300, 50, 1)];
+  assert.deepEqual([...declutterLabels(inp)], [...declutterLabels([...inp].reverse())]);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

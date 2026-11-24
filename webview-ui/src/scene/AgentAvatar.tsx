@@ -10,7 +10,7 @@ import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } 
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
-import { labelVisible, needsAttention } from "./labelVisibility";
+import { labelRegistry, needsAttention } from "./labelVisibility";
 import { type CharSkin, characterFor, energyFor, isStandingSeat, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
@@ -374,21 +374,27 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   // pastdagisining ustidan chiqadi. Avval barchasi qat'iy balandlikda edi va
   // ular bir-birini yopib qo'yardi (ruxsat pufagi rol yorlig'ini, 🙋 esa ruxsat
   // pufagini). Tanlangan agentning yorlig'i balandroq — shuni ham hisobga olamiz.
-  // Yorliq ko'rinishi (S8-6): kamera uzoqda bo'lsa oddiy yorliq yashiriladi;
-  // tanlangan va e'tibor talab qilgan agentniki doim ko'rinadi. React qayta
-  // renderisiz — DOM display'i faqat o'zgarganda almashtiriladi.
+  // Yorliq va emotsiya ko'rinishi (S8-6): LabelDeclutter (sahnada bitta) har
+  // ~100 ms hisoblaydi — uzoqda faqat tanlangan / e'tibor talab qilganlar,
+  // yaqinda ham ekranda ustma-ust tushadigan yorliqlar yashiriladi.
   const labelEl = useRef<HTMLDivElement>(null);
+  const faceEl = useRef<HTMLDivElement>(null);
   const labelPriority = useRef(false);
   labelPriority.current = selected || needsAttention(agent);
-  useFrame(({ camera }) => {
-    const el = labelEl.current;
-    const g = group.current;
-    if (!el || !g) return;
-    const ortho = (camera as THREE.OrthographicCamera).isOrthographicCamera === true;
-    const show = labelVisible(labelPriority.current, { ortho, zoom: camera.zoom, dist: ortho ? 0 : camera.position.distanceTo(g.position) });
-    const d = show ? "" : "none";
-    if (el.style.display !== d) el.style.display = d;
-  });
+  useEffect(() => {
+    labelRegistry.set(agent.id, {
+      label: labelEl,
+      face: faceEl,
+      anchor: () => {
+        const g = group.current;
+        return g ? { x: g.position.x, y: 1.98, z: g.position.z } : null;
+      },
+      priority: () => labelPriority.current,
+    });
+    return () => {
+      labelRegistry.delete(agent.id);
+    };
+  }, [agent.id]);
 
   const labelTop = selected ? 2.55 : 2.28;
   const permY = labelTop + 0.3;
@@ -444,7 +450,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       {/* Balandligi yorliq/pufaklarga qarab (faceY) — hech qachon ustma-ust tushmaydi. */}
       {face && (
         <Html position={[0, faceY, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
-          <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
+          {/* Boshida yashirin — LabelDeclutter birinchi hisobda ko'rsatadi (uzoqda paydo bo'lgan emotsiya bir kadr "milt etmasin") */}
+          <div ref={faceEl} style={{ display: "none", fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
         </Html>
       )}
 
@@ -485,7 +492,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           (ruxsat/sub-agent pufaklari esa signal, ular baribir chiqadi). */}
       {showLabels && (
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
-        <div ref={labelEl}>
+        <div ref={labelEl} style={{ display: "none" }}>
         {selected ? (
           <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
             <div style={{ fontWeight: 600 }}>{roleLabel}</div>

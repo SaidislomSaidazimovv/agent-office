@@ -8,6 +8,7 @@ import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
 import { setActiveSeats, setPlacedRects } from "./scene/collision";
 import ConflictLinks from "./scene/ConflictLinks";
+import LabelDeclutter from "./scene/LabelDeclutter";
 import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
@@ -347,6 +348,8 @@ export default function App() {
         {/* Fayl to'qnashuvi — bir faylni bir nechta agent tahrirlasa, ularni
             poldan bog'lab ko'rsatamiz (izometrikda o'qiladi). */}
         {cameraMode === "iso" && <ConflictLinks />}
+        {/* Yorliq/emotsiya ko'rinishi — masofa + ustma-ust tushish (S8-6) */}
+        <LabelDeclutter />
         {PERF_ENABLED && <PerfProbe />}
       </Canvas>
       {/* Fokus qoplamasi — FocusSpot uni har freym yangilaydi (React render'siz).
