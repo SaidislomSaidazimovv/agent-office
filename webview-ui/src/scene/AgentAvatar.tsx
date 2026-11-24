@@ -10,7 +10,8 @@ import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } 
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
-import { type CharSkin, characterFor, energyFor, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
+import { labelRegistry, needsAttention } from "./labelVisibility";
+import { type CharSkin, characterFor, energyFor, isStandingSeat, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
 
@@ -76,6 +77,11 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           next.push({ key: s.key, slot, leaving: false, label: s.label, kind: s.kind });
         }
       }
+      // Hech narsa o'zgarmagan bo'lsa — ESKI massivning o'zi (React qayta render
+      // qilmaydi). Ilgari har avatar paydo bo'lganda (yordamchisi bo'lmasa ham)
+      // yangi [] qaytarib ortiqcha render chaqirardi; ~20+ agent holati to'da
+      // bo'lib kelganda bu "Maximum update depth exceeded" zanjirining bir qismi edi.
+      if (next.length === prev.length && next.every((h, i) => h === prev[i])) return prev;
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,8 +120,11 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     return () => clearTimeout(t);
   }, [hotNow]);
 
-  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda)
-  const sit = useRef<WP>({ ...sitPoint(seat) });
+  // O'tirish nuqtasi (stul markazi — har qanday yo'nalishga mos, collision chetda).
+  // 60 dan ortiq agent stolsiz — hamkorlik zonasida o'z joyida TIK turadi (S8-6).
+  const standing = isStandingSeat(agent.seatIndex);
+  const targetOf = (st: boolean, s: typeof seat): WP => (st ? { x: s.x, z: s.z } : { ...sitPoint(s) });
+  const sit = useRef<WP>(targetOf(standing, seat));
 
   const group = useRef<THREE.Group>(null);
   const pos = useRef<WP>({ ...sit.current });
@@ -123,11 +132,25 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   const curNode = useRef(nearestNode(sit.current.x, sit.current.z)); // joriy graf tuguni
   const pendingNode = useRef<string | null>(null);
   const pause = useRef(0);
-  const seated = useRef(true);
+  const seated = useRef(!standing);
+  const atSpot = useRef(standing); // tik turuvchi o'z joyida (yo'nalishini tutadi)
   const movingRef = useRef(false);
   const prevDesired = useRef(true);
   const stuck = useRef(0);
   const speedRef = useRef(0); // haqiqiy yurish tezligi (oyoq sirg'anmasin uchun)
+  // O'rindiq almashsa (ko'chirish / qayta taqsimlash) — yangi joyga boramiz. Ilgari
+  // sit faqat birinchi renderda hisoblanardi: stol yangi joyda chizilar, agent
+  // esa ESKI joyiga qaytib o'tirardi.
+  useEffect(() => {
+    const next = targetOf(standing, seat);
+    if (next.x === sit.current.x && next.z === sit.current.z) return;
+    sit.current = next;
+    seated.current = false;
+    atSpot.current = false;
+    if (path.current.length > 1) path.current = path.current.slice(0, 1); // joriy qadamni tugatib qayta rejalaydi
+    pendingNode.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.seatIndex]);
   const firstIdleTrip = useRef(false); // ishdan endi bo'shadi → tanaffusga
   const statusRef = useRef(agent.status);
   statusRef.current = agent.status;
@@ -190,9 +213,10 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     // olamiz → yo'llar faqat eshiklardan o'tadi, devor/mebeldan emas.
     if (path.current.length === 0) {
       const atSeat = Math.hypot(p.x - sit.current.x, p.z - sit.current.z) < 0.25;
+      atSpot.current = desiredSit && atSeat && standing;
       if (desiredSit) {
         if (atSeat) {
-          seated.current = true;
+          seated.current = !standing; // stolsiz agent o'tirmaydi — tik turadi
         } else {
           const target = nearestNode(sit.current.x, sit.current.z);
           const route = pathBetween(curNode.current, target);
@@ -307,7 +331,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     movingRef.current = moving;
     if (!moving) speedRef.current *= Math.max(0, 1 - dt * 6); // to'xtaganda so'nadi
 
-    if (seated.current) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
+    if (seated.current || (atSpot.current && !moving)) g.rotation.y = dampAngle(g.rotation.y, seat.ry, 8, dt);
     g.position.x = p.x;
     g.position.z = p.z;
 
@@ -350,6 +374,28 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   // pastdagisining ustidan chiqadi. Avval barchasi qat'iy balandlikda edi va
   // ular bir-birini yopib qo'yardi (ruxsat pufagi rol yorlig'ini, 🙋 esa ruxsat
   // pufagini). Tanlangan agentning yorlig'i balandroq — shuni ham hisobga olamiz.
+  // Yorliq va emotsiya ko'rinishi (S8-6): LabelDeclutter (sahnada bitta) har
+  // ~100 ms hisoblaydi — uzoqda faqat tanlangan / e'tibor talab qilganlar,
+  // yaqinda ham ekranda ustma-ust tushadigan yorliqlar yashiriladi.
+  const labelEl = useRef<HTMLDivElement>(null);
+  const faceEl = useRef<HTMLDivElement>(null);
+  const labelPriority = useRef(false);
+  labelPriority.current = selected || needsAttention(agent);
+  useEffect(() => {
+    labelRegistry.set(agent.id, {
+      label: labelEl,
+      face: faceEl,
+      anchor: () => {
+        const g = group.current;
+        return g ? { x: g.position.x, y: 1.98, z: g.position.z } : null;
+      },
+      priority: () => labelPriority.current,
+    });
+    return () => {
+      labelRegistry.delete(agent.id);
+    };
+  }, [agent.id]);
+
   const labelTop = selected ? 2.55 : 2.28;
   const permY = labelTop + 0.3;
   const hireY = (agent.permission ? permY : labelTop) + 0.34;
@@ -404,7 +450,8 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
       {/* Balandligi yorliq/pufaklarga qarab (faceY) — hech qachon ustma-ust tushmaydi. */}
       {face && (
         <Html position={[0, faceY, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
-          <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
+          {/* Boshida yashirin — LabelDeclutter birinchi hisobda ko'rsatadi (uzoqda paydo bo'lgan emotsiya bir kadr "milt etmasin") */}
+          <div ref={faceEl} style={{ display: "none", fontSize: 20, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }}>{face}</div>
         </Html>
       )}
 
@@ -445,6 +492,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           (ruxsat/sub-agent pufaklari esa signal, ular baribir chiqadi). */}
       {showLabels && (
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
+        <div ref={labelEl} style={{ display: "none" }}>
         {selected ? (
           <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
             <div style={{ fontWeight: 600 }}>{roleLabel}</div>
@@ -461,6 +509,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
             {roleLabel}
           </div>
         )}
+        </div>
       </Html>
       )}
     </group>

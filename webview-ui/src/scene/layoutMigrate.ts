@@ -9,7 +9,7 @@
 // (deterministik); fayl foydalanuvchi keyingi marta biror narsani o'zgartirganda
 // saqlanadi. Sof modul — test qilinadi.
 
-import { BUILDING, furnitureRects, PERIM_VIS_HALF, type Rect, type Seat, SEATS, WALL_VIS_HALF, wallRects } from "./officeLayout";
+import { BUILDING, DESK_SEATS, furnitureRects, PERIM_VIS_HALF, type Rect, seatFootprint, WALL_VIS_HALF, wallRects } from "./officeLayout";
 
 export interface MovableItem {
   id: string;
@@ -27,20 +27,12 @@ const STEP = 0.5;
 /** Eng uzoq qidiruv radiusi (m). */
 const MAX_R = 6;
 
-function seatRect(s: Seat): Rect {
-  // Stol + stul (nav.ts seatFootprint bilan bir xil o'lcham)
-  const c = Math.cos(s.ry), sn = Math.sin(s.ry);
-  const xs: number[] = [], zs: number[] = [];
-  for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) {
-    xs.push(s.x + lx * c + lz * sn);
-    zs.push(s.z - lx * sn + lz * c);
-  }
-  return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
-}
 
-/** Statik dunyo to'siqlari (chizilgan devor qalinligi bilan). */
+/** Statik dunyo to'siqlari (chizilgan devor qalinligi bilan) — barcha 60 stol
+ *  joyi ham (ortiqchalari band bo'lganda paydo bo'ladi; mebel u yerda qolsa
+ *  stol bilan ustma-ust tushardi). */
 export function staticObstacles(): Rect[] {
-  return [...wallRects(WALL_VIS_HALF, PERIM_VIS_HALF), ...furnitureRects(), ...SEATS.map(seatRect)];
+  return [...wallRects(WALL_VIS_HALF, PERIM_VIS_HALF), ...furnitureRects(), ...DESK_SEATS.map(seatFootprint)];
 }
 
 const INTERIOR: Rect = {

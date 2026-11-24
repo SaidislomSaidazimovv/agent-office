@@ -39,12 +39,13 @@ import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HA
 import { translate } from "../webview-ui/src/i18n.js";
 import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
+import { declutterLabels, LABEL_DIST, LABEL_ZOOM, labelVisible, needsAttention } from "../webview-ui/src/scene/labelVisibility.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
 import { contextHot, emoteFor } from "../webview-ui/src/scene/emotes.js";
 import { _reset as presenceReset, meetingOf, report, seekMeeting } from "../webview-ui/src/scene/presence.js";
-import { characterFor, SEATS, seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
+import { characterFor, DESK_COUNT, isStandingSeat, SEATS, seatFor, sitPoint } from "../webview-ui/src/scene/roles.js";
 import { displayName, useOffice } from "../webview-ui/src/store.js";
 import { _state, fireClose, makeTerminal, resetState } from "./vscodeMock.js";
 
@@ -1802,7 +1803,7 @@ test("arxitektura: plintus devor yuziga yopishgan, faqat bino ichida; shisha old
   for (const [i, r] of LAYOUT_ROOMS.entries()) assert.ok(Math.abs(th[i].p[0] - r.doorX) < 1e-9 && Math.abs(th[i].s[0] - r.doorW) < 1e-9);
 });
 
-test("o'rindiqlar: 24 ta klaster o'rindig'i; stol+stul devor/mebelga tegmaydi; birinchi 10 overflow ham bo'sh joyda", () => {
+test("o'rindiqlar: 24 asosiy + 36 ortiqcha stol — hech biri devor/mebelga va bir-biriga tegmaydi; 60+ tik turadi", () => {
   assert.equal(LAYOUT_SEATS.length, 24);
   // Stol + stul egallagan joy (lokal x ±0.8, z −0.45..+1.0) — aylantirilgan AABB
   const foot = (s: { x: number; z: number; ry: number }) => {
@@ -1818,15 +1819,29 @@ test("o'rindiqlar: 24 ta klaster o'rindig'i; stol+stul devor/mebelga tegmaydi; b
     const o = obstacles.find((r) => hit(f, r));
     assert.ok(!o, `o'rindiq ${i} (${s.x},${s.z}) to'siqqa tegadi: ${JSON.stringify(o)}`);
   }
-  // Overflow (S8-6 gacha eski qatorlar) klaster va mebelga tegmasin. Faqat 2 qator
-  // (10 ta): 3-qator (z = −9.2) xona devoriga tegadi — mavjud muammo, S8-6 da
-  // overflow uchun maxsus zona bilan hal qilinadi.
-  const seatFeet = LAYOUT_SEATS.map(foot);
-  for (let k = 0; k < 10; k++) {
-    const s = seatFor(LAYOUT_SEATS.length + k);
-    const f = foot(s);
-    assert.ok(!obstacles.some((r) => hit(f, r)), `overflow ${k} to'siqqa tegadi`);
-    assert.ok(!seatFeet.some((r) => hit(f, r)), `overflow ${k} klasterga tegadi`);
+  // Barcha 60 stol (seatFor orqali): to'siqqa ham, bir-biriga ham tegmaydi
+  assert.equal(DESK_COUNT, 60);
+  const feet = Array.from({ length: DESK_COUNT }, (_, i) => foot(seatFor(i)));
+  for (let i = 0; i < DESK_COUNT; i++) {
+    const o = obstacles.find((r) => hit(feet[i], r));
+    assert.ok(!o, `stol ${i} to'siqqa tegadi: ${JSON.stringify(o)}`);
+    for (let j = i + 1; j < DESK_COUNT; j++) {
+      // Bir klasterdagi qo'shni stollar faqat chetda tegadi (±1 sm)
+      const a = feet[i], b = feet[j];
+      const dx = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), dz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+      const same = Math.abs(seatFor(i).x - seatFor(j).x) < 3.2 && Math.abs(seatFor(i).z - seatFor(j).z) < 3.2;
+      if (!same) assert.ok(!(dx > 0 && dz > 0), `stol ${i} ↔ ${j} ustma-ust`);
+    }
+  }
+  // 60 dan keyin — stolsiz tik turish joylari: to'siq va stollardan ≥0.45 m, bir-biridan ≥0.9 m
+  assert.ok(!isStandingSeat(DESK_COUNT - 1) && isStandingSeat(DESK_COUNT), "60-indeksdan tik turish");
+  const spots = Array.from({ length: 40 }, (_, k) => seatFor(DESK_COUNT + k));
+  assert.ok(new Set(spots.map((p) => `${p.x},${p.z}`)).size >= 20, "kamida 20 ta alohida tik turish joyi");
+  const uniq = [...new Map(spots.map((p) => [`${p.x},${p.z}`, p])).values()];
+  for (const p of uniq) {
+    const near = (r: { x0: number; x1: number; z0: number; z1: number }) => p.x > r.x0 - 0.45 && p.x < r.x1 + 0.45 && p.z > r.z0 - 0.45 && p.z < r.z1 + 0.45;
+    assert.ok(!obstacles.some(near) && !feet.some(near), `tik turish joyi ${p.x},${p.z} to'siq/stolga yaqin`);
+    for (const q of uniq) if (q !== p) assert.ok(Math.hypot(p.x - q.x, p.z - q.z) >= 0.9 - 1e-9, "tik turuvchilar bir-biriga tegmaydi");
   }
 });
 
@@ -1843,7 +1858,7 @@ test("ochiq maydon jihozlari: bir-biriga, o'rindiqlarga va overflow zonasiga teg
     for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) { xs.push(s.x + lx * c + lz * sn); zs.push(s.z - lx * sn + lz * c); }
     return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
   };
-  const seats = [...LAYOUT_SEATS, ...Array.from({ length: 10 }, (_, k) => seatFor(LAYOUT_SEATS.length + k))];
+  const seats = Array.from({ length: DESK_COUNT }, (_, i) => seatFor(i));
   for (const { it, r } of rects) for (const s of seats) assert.ok(!hit(r, foot(s)), `${it.type}@${it.x},${it.z} o'rindiqqa (${s.x},${s.z}) tegadi`);
   // Eshik oldi: har eshik markazidan 1.2 m ichida jihoz yo'q (o'tish erkin)
   for (const room of LAYOUT_ROOMS) {
@@ -1922,6 +1937,41 @@ test("xona belgilari: har xonada bitta, eshik teshigi ustida emas, yo'lak tomond
       assert.ok(t && t !== `room.${sg.key}`, `${sg.key}: ${lang} tarjimasi bor`);
     }
   }
+});
+
+test("yorliqlar: uzoqda yashirin; tanlangan / e'tibor talab qilgan doim ko'rinadi; FPV masofa bo'yicha", () => {
+  // Iso: standart zoom (20) — oddiy yorliq yashirin, yaqinlashganda ko'rinadi
+  assert.equal(labelVisible(false, { ortho: true, zoom: 20, dist: 0 }), false);
+  assert.equal(labelVisible(false, { ortho: true, zoom: LABEL_ZOOM - 0.01, dist: 0 }), false);
+  assert.equal(labelVisible(false, { ortho: true, zoom: LABEL_ZOOM, dist: 0 }), true);
+  // Ustuvor (tanlangan yoki e'tibor) — eng uzoqda ham
+  assert.equal(labelVisible(true, { ortho: true, zoom: 12, dist: 0 }), true);
+  assert.equal(labelVisible(true, { ortho: false, zoom: 1, dist: 40 }), true);
+  // FPV: masofa bo'yicha
+  assert.equal(labelVisible(false, { ortho: false, zoom: 1, dist: LABEL_DIST }), true);
+  assert.equal(labelVisible(false, { ortho: false, zoom: 1, dist: LABEL_DIST + 0.1 }), false);
+  // Qo'shni klaster agentlari (1.5 m) yorliqlari chegarada ajraladi (~75 px yorliq)
+  assert.ok(1.5 * LABEL_ZOOM >= 70, "chegara zoom'da qo'shni yorliqlar ustma-ust tushmaydi");
+  // E'tibor ta'rifi — HUD filtri bilan bir xil
+  assert.equal(needsAttention({}), false);
+  assert.equal(needsAttention({ blocked: true }), true);
+  assert.equal(needsAttention({ permission: { tool: "Bash" } }), true);
+  assert.equal(needsAttention({ stuck: true }), true);
+});
+
+test("yorliq tartiblash: ustma-ust tushganda yaqini qoladi; ustuvor doim; tegmaydiganlar hammasi", () => {
+  const box = (id: number, x: number, y: number, depth: number, priority = false) => ({ id, x, y, w: 80, h: 20, depth, priority });
+  // 1 va 2 ustma-ust (markazlar 30 px): yaqinroq (2) qoladi
+  assert.deepEqual([...declutterLabels([box(1, 100, 100, 10), box(2, 130, 105, 5)])], [2]);
+  // Ustuvor (3) uzoqroq bo'lsa ham qoladi, oddiyni (4) siqib chiqaradi
+  assert.deepEqual([...declutterLabels([box(3, 100, 100, 20, true), box(4, 110, 100, 5)])], [3]);
+  // Ikki ustuvor bir-biriga tegsa ham — ikkovi ham ko'rinadi
+  assert.equal(declutterLabels([box(5, 100, 100, 5, true), box(6, 105, 100, 6, true)]).size, 2);
+  // Tegmaydiganlar (gorizontal 100 px, vertikal 30 px oraliq) — hammasi
+  assert.equal(declutterLabels([box(7, 0, 0, 1), box(8, 100, 0, 2), box(9, 0, 30, 3)]).size, 3);
+  // Barqaror tartib: bir xil kirish — bir xil natija
+  const inp = [box(10, 50, 50, 3), box(11, 60, 52, 3), box(12, 300, 50, 1)];
+  assert.deepEqual([...declutterLabels(inp)], [...declutterLabels([...inp].reverse())]);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
@@ -2105,6 +2155,24 @@ test("nav: har o'rindiqdan har xonaga va qaytib — tekislangan yo'lning har qad
       }
     }
   });
+  setActiveSeats([]);
+  assert.deepEqual(bad, []);
+});
+
+test("nav: ortiqcha stollar va tik turish joylaridan har xonaga yo'l bor (hamma stol band)", () => {
+  setActiveSeats(Array.from({ length: DESK_COUNT }, (_, i) => i));
+  const bad: string[] = [];
+  const starts: { name: string; x: number; z: number }[] = [];
+  for (let i = SEATS.length; i < DESK_COUNT; i++) { const sp = sitPoint(seatFor(i)); starts.push({ name: `stol ${i}`, ...sp }); }
+  for (let k = 0; k < 20; k++) { const sp = seatFor(DESK_COUNT + k); starts.push({ name: `tik ${k}`, x: sp.x, z: sp.z }); }
+  for (const st of starts) {
+    assert.ok(!blocked(st.x, st.z, 0.16), `${st.name}: turish nuqtasi to'siqda emas`);
+    const from = nearestNode(st.x, st.z);
+    for (const key of ROOM_KEYS) {
+      if (!pathBetween(from, `${key}_i`).length) bad.push(`${st.name} → ${key}`);
+      if (!pathBetween(`${key}_i`, from).length) bad.push(`${key} → ${st.name}`);
+    }
+  }
   setActiveSeats([]);
   assert.deepEqual(bad, []);
 });

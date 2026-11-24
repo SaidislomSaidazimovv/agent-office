@@ -5,7 +5,7 @@
 // o'zgarsa graf o'zi moslashadi (avval markaziy grid qo'lda tanlangan edi).
 // Agentlar bo'sh turganda shular orasida yuradi (eshiklardan xonalarga kiradi).
 
-import { BUILDING, furnitureRects, type Rect, ROOM_LINE, ROOMS, type Seat, SEATS, wallRects } from "./officeLayout";
+import { BUILDING, DESK_SEATS, furnitureRects, type Rect, ROOM_LINE, ROOMS, seatFootprint, wallRects } from "./officeLayout";
 
 export interface WP {
   x: number;
@@ -23,26 +23,15 @@ const NODE_CLEAR = 0.32;
 /** Qirra/tekislash tekshiruvi radiusi — agent radiusidan (0.16) kengroq zaxira. */
 const PATH_CLEAR = 0.22;
 
-/** O'rindiq (stol + stul) egallagan joy — stol 1.5×0.8, stul orqasida (lokal
- *  z ≤ 1.0). Aylantirilgan to'rtburchakning AABB'si. */
-function seatFootprint(s: Seat): Rect {
-  const c = Math.cos(s.ry), sn = Math.sin(s.ry);
-  const xs: number[] = [], zs: number[] = [];
-  for (const lx of [-0.8, 0.8]) for (const lz of [-0.45, 1.0]) {
-    xs.push(s.x + lx * c + lz * sn);
-    zs.push(s.z - lx * sn + lz * c);
-  }
-  return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
-}
-
-/** Graf qurishdagi statik to'siqlar: devorlar, doimiy mebel, doimiy stollar.
- *  (Overflow stollar va foydalanuvchi mebeli dinamik — ularni yurish paytidagi
- *  to'qnashuv (collision.slide) hal qiladi.) */
-const STATIC: Rect[] = [...wallRects(), ...furnitureRects(), ...SEATS.map(seatFootprint)];
+/** Graf qurishdagi statik to'siqlar: devorlar, doimiy mebel va BARCHA 60 stol
+ *  (stol + stul; ortiqchalari ham — ular band bo'lganda paydo bo'ladi, graf
+ *  ularning ustidan o'tsa agent stolga urilib qolardi). Foydalanuvchi mebeli
+ *  dinamik — uni yurish paytidagi to'qnashuv (collision.slide) hal qiladi. */
+const STATIC: Rect[] = [...wallRects(), ...furnitureRects(), ...DESK_SEATS.map(seatFootprint)];
 /** Stulsiz variant — o'tirgan agent (stulda) uchun "qaysi tugun ko'rinadi"
  *  tekshiruvi (aks holda o'tirish nuqtasining o'zi to'siq ichida bo'lardi).
  *  Stol o'lchami collision.ts dagi band stol to'sig'i bilan bir xil. */
-const STATIC_NO_CHAIRS: Rect[] = [...wallRects(), ...furnitureRects(), ...SEATS.map((s) => {
+const STATIC_NO_CHAIRS: Rect[] = [...wallRects(), ...furnitureRects(), ...DESK_SEATS.map((s) => {
   const hx = Math.abs(0.75 * Math.cos(s.ry)) + Math.abs(0.4 * Math.sin(s.ry)) + 0.05;
   const hz = Math.abs(0.75 * Math.sin(s.ry)) + Math.abs(0.4 * Math.cos(s.ry)) + 0.05;
   return { x0: s.x - hx, x1: s.x + hx, z0: s.z - hz, z1: s.z + hz };

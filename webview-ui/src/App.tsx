@@ -8,6 +8,7 @@ import { useLayout } from "./layoutStore";
 import AgentAvatar from "./scene/AgentAvatar";
 import { setActiveSeats, setPlacedRects } from "./scene/collision";
 import ConflictLinks from "./scene/ConflictLinks";
+import LabelDeclutter from "./scene/LabelDeclutter";
 import FirstPersonView from "./scene/FirstPersonView";
 import { footprint } from "./scene/furniture";
 import OfficeDecor from "./scene/OfficeDecor";
@@ -18,7 +19,7 @@ import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
 import PixelPerson from "./scene/PixelPerson";
 import Room from "./scene/Room";
-import { ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
+import { DESK_COUNT, ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
 import Workstation from "./scene/Workstation";
 import { StaticBatch } from "./scene/StaticBatch";
@@ -258,7 +259,8 @@ export default function App() {
     const base = Array.from({ length: SEAT_COUNT }, (_, i) => i);
     const overflow = order
       .map((id) => agents[id]?.seatIndex)
-      .filter((i): i is number => typeof i === "number" && i >= SEAT_COUNT);
+      // Stolsiz (tik turuvchi, DESK_COUNT dan keyingi) agentlarda stol to'sig'i yo'q
+      .filter((i): i is number => typeof i === "number" && i >= SEAT_COUNT && i < DESK_COUNT);
     setActiveSeats([...base, ...overflow]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seatKey]);
@@ -333,8 +335,9 @@ export default function App() {
             const occ = order.map((id) => agents[id]).find((a) => a && a.seatIndex === i);
             return <Workstation key={`seat-${i}`} seatIndex={i} agent={occ} />;
           })}
-          {/* Overflow agentlar (SEAT_COUNT dan keyin) — o'z stollari bilan (oldindan qo'yib bo'lmaydi). */}
-          {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT).map((a) => (
+          {/* Overflow agentlar (SEAT_COUNT … DESK_COUNT−1) — o'z stollari bilan (band bo'lganda).
+              Undan keyingilar stolsiz — hamkorlik zonasida tik turadi (S8-6). */}
+          {order.map((id) => agents[id]).filter((a) => a && a.seatIndex >= SEAT_COUNT && a.seatIndex < DESK_COUNT).map((a) => (
             <Workstation key={`ov-${a!.id}`} seatIndex={a!.seatIndex} agent={a!} />
           ))}
         </StaticBatch>
@@ -345,6 +348,8 @@ export default function App() {
         {/* Fayl to'qnashuvi — bir faylni bir nechta agent tahrirlasa, ularni
             poldan bog'lab ko'rsatamiz (izometrikda o'qiladi). */}
         {cameraMode === "iso" && <ConflictLinks />}
+        {/* Yorliq/emotsiya ko'rinishi — masofa + ustma-ust tushish (S8-6) */}
+        <LabelDeclutter />
         {PERF_ENABLED && <PerfProbe />}
       </Canvas>
       {/* Fokus qoplamasi — FocusSpot uni har freym yangilaydi (React render'siz).

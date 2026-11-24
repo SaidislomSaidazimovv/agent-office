@@ -2,7 +2,7 @@
 // Pixel Agents 6 personajini (JIK-A-4 Metro City) chuqur o'rganib,
 // har birini voxel/blokli chibi 3D personaj sifatida qayta yaratamiz.
 
-import { SEATS, type Seat } from "./officeLayout";
+import { DESK_SEATS, SEATS, type Seat, standingSpots } from "./officeLayout";
 
 export type HairStyle = "short" | "long" | "afro" | "curly" | "medium" | "spiky";
 export type Accessory = "glasses" | "headphones" | "cap" | "beanie" | null;
@@ -107,15 +107,24 @@ export { SEATS, type Seat } from "./officeLayout";
 /** O'rindiq soni — dinamik (SEATS uzunligidan). */
 export const SEAT_COUNT = SEATS.length;
 
-/** Indeks bo'yicha o'rindiq. SEATS'dan tashqari (juda ko'p agent) — ustma-ust
- *  bo'lmasin uchun markaziy ochiq maydonda neat qator generatsiya qilinadi. */
+/** Stolli o'rindiqlar soni (asosiy 24 + ortiqcha 36). */
+export const DESK_COUNT = DESK_SEATS.length;
+
+/** Indeks bo'yicha o'rindiq (S8-6):
+ *  • 0 … SEAT_COUNT−1 — asosiy klaster stollari (doim chiziladi);
+ *  • … DESK_COUNT−1 — ortiqcha stollar (markaz + yon tomonlar; band bo'lsa chiziladi);
+ *  • DESK_COUNT dan boshlab — stol yo'q: hamkorlik zonasida tik turish joyi
+ *    (joylar tugasa qaytadan boshlanadi — 60 + ~joylar sonidan ko'p agentda). */
 export function seatFor(index: number): Seat {
-  if (index >= 0 && index < SEATS.length) return SEATS[index];
-  const o = index - SEATS.length;
-  const cols = 5;
-  const col = o % cols;
-  const row = Math.floor(o / cols);
-  return { x: -4.4 + col * 2.2, z: -5.2 - row * 2.0, ry: Math.PI };
+  if (index >= 0 && index < DESK_COUNT) return DESK_SEATS[index];
+  const spots = standingSpots();
+  const k = Math.max(0, index - DESK_COUNT);
+  return spots[k % spots.length];
+}
+
+/** Bu indeksdagi agent stolsiz (tik turadi)mi? */
+export function isStandingSeat(index: number): boolean {
+  return index >= DESK_COUNT;
 }
 
 /** Personaj o'tirish nuqtasi (stul markazi, yo'nalishga mos) — Workstation
