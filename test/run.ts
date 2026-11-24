@@ -39,6 +39,7 @@ import { BUILDING, FOOTPRINT, FPV_BOUNDS, itemRect, OPEN_FURNITURE, PERIM_VIS_HA
 import { translate } from "../webview-ui/src/i18n.js";
 import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
+import { LABEL_DIST, LABEL_ZOOM, labelVisible, needsAttention } from "../webview-ui/src/scene/labelVisibility.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1936,6 +1937,26 @@ test("xona belgilari: har xonada bitta, eshik teshigi ustida emas, yo'lak tomond
       assert.ok(t && t !== `room.${sg.key}`, `${sg.key}: ${lang} tarjimasi bor`);
     }
   }
+});
+
+test("yorliqlar: uzoqda yashirin; tanlangan / e'tibor talab qilgan doim ko'rinadi; FPV masofa bo'yicha", () => {
+  // Iso: standart zoom (20) — oddiy yorliq yashirin, yaqinlashganda ko'rinadi
+  assert.equal(labelVisible(false, { ortho: true, zoom: 20, dist: 0 }), false);
+  assert.equal(labelVisible(false, { ortho: true, zoom: LABEL_ZOOM - 0.01, dist: 0 }), false);
+  assert.equal(labelVisible(false, { ortho: true, zoom: LABEL_ZOOM, dist: 0 }), true);
+  // Ustuvor (tanlangan yoki e'tibor) — eng uzoqda ham
+  assert.equal(labelVisible(true, { ortho: true, zoom: 12, dist: 0 }), true);
+  assert.equal(labelVisible(true, { ortho: false, zoom: 1, dist: 40 }), true);
+  // FPV: masofa bo'yicha
+  assert.equal(labelVisible(false, { ortho: false, zoom: 1, dist: LABEL_DIST }), true);
+  assert.equal(labelVisible(false, { ortho: false, zoom: 1, dist: LABEL_DIST + 0.1 }), false);
+  // Qo'shni klaster agentlari (1.5 m) yorliqlari chegarada ajraladi (~75 px yorliq)
+  assert.ok(1.5 * LABEL_ZOOM >= 70, "chegara zoom'da qo'shni yorliqlar ustma-ust tushmaydi");
+  // E'tibor ta'rifi — HUD filtri bilan bir xil
+  assert.equal(needsAttention({}), false);
+  assert.equal(needsAttention({ blocked: true }), true);
+  assert.equal(needsAttention({ permission: { tool: "Bash" } }), true);
+  assert.equal(needsAttention({ stuck: true }), true);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {

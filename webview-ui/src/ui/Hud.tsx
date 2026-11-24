@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { needsAttention } from "../scene/labelVisibility";
 import { type BudgetLevel, budgetState } from "../budget";
 import { shortModel } from "../format";
 import { THEMES, useLayout } from "../layoutStore";
@@ -23,7 +24,7 @@ import Tour, { useTour } from "./Tour";
 // tiqilgan), faol, yoki bo'sh. Ko'p agent bo'lganda keraklilarini topish uchun.
 type StatusFilter = "all" | "attn" | "active" | "idle";
 function bucketOf(a: AgentView): "attn" | "active" | "idle" {
-  if (a.blocked || a.permission || a.stuck) return "attn";
+  if (needsAttention(a)) return "attn"; // 3D yorliqlar bilan bir xil ta'rif
   return a.status === "idle" ? "idle" : "active";
 }
 

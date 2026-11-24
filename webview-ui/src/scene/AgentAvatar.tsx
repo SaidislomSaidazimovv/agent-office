@@ -10,6 +10,7 @@ import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } 
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
 import PixelPerson from "./PixelPerson";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
+import { labelVisible, needsAttention } from "./labelVisibility";
 import { type CharSkin, characterFor, energyFor, isStandingSeat, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
 import { type Key, useT } from "../i18n";
 import { useSettings } from "../settings";
@@ -373,6 +374,22 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
   // pastdagisining ustidan chiqadi. Avval barchasi qat'iy balandlikda edi va
   // ular bir-birini yopib qo'yardi (ruxsat pufagi rol yorlig'ini, 🙋 esa ruxsat
   // pufagini). Tanlangan agentning yorlig'i balandroq — shuni ham hisobga olamiz.
+  // Yorliq ko'rinishi (S8-6): kamera uzoqda bo'lsa oddiy yorliq yashiriladi;
+  // tanlangan va e'tibor talab qilgan agentniki doim ko'rinadi. React qayta
+  // renderisiz — DOM display'i faqat o'zgarganda almashtiriladi.
+  const labelEl = useRef<HTMLDivElement>(null);
+  const labelPriority = useRef(false);
+  labelPriority.current = selected || needsAttention(agent);
+  useFrame(({ camera }) => {
+    const el = labelEl.current;
+    const g = group.current;
+    if (!el || !g) return;
+    const ortho = (camera as THREE.OrthographicCamera).isOrthographicCamera === true;
+    const show = labelVisible(labelPriority.current, { ortho, zoom: camera.zoom, dist: ortho ? 0 : camera.position.distanceTo(g.position) });
+    const d = show ? "" : "none";
+    if (el.style.display !== d) el.style.display = d;
+  });
+
   const labelTop = selected ? 2.55 : 2.28;
   const permY = labelTop + 0.3;
   const hireY = (agent.permission ? permY : labelTop) + 0.34;
@@ -468,6 +485,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
           (ruxsat/sub-agent pufaklari esa signal, ular baribir chiqadi). */}
       {showLabels && (
       <Html position={[0, 1.98, 0]} center occlude={false} style={{ pointerEvents: "none" }} zIndexRange={selected ? [100, 0] : [10, 0]}>
+        <div ref={labelEl}>
         {selected ? (
           <div style={{ padding: "3px 9px 5px", borderRadius: 8, minWidth: 92, background: "rgba(94,155,255,0.92)", border: `1px solid ${color}`, color: "#fff", fontFamily: "system-ui", fontSize: 12, whiteSpace: "nowrap", textAlign: "center" }}>
             <div style={{ fontWeight: 600 }}>{roleLabel}</div>
@@ -484,6 +502,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
             {roleLabel}
           </div>
         )}
+        </div>
       </Html>
       )}
     </group>
