@@ -410,6 +410,7 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
         status={agent.status}
         energy={energyFor(agent.role, agent.seatIndex)}
         getState={() => ({ sit: seated.current, moving: movingRef.current, speed: speedRef.current })}
+        idleStyle="auto"
       />
 
       {/* Sub-agent daraxti: ota→yordamchi bog'lovchi chiziq (polda, past) —

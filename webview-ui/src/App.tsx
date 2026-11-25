@@ -208,7 +208,7 @@ const GALLERY_POSES: Record<string, GalleryPose> = {
   backend: { status: "review", caption: "ekranni o'qiyapti" },
   qa: { status: "idle", idleStyle: 1, caption: "suyanib dam olyapti" },
   docs: { status: "idle", idleStyle: 2, caption: "telefonga qarayapti" },
-  data: { status: "idle", idleStyle: 3, caption: "oyoq ustiga oyoq" },
+  data: { status: "idle", idleStyle: 3, caption: "oyoqlarini chalishtirgan" },
 };
 
 function Gallery() {

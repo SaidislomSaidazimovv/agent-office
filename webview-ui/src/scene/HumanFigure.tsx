@@ -25,9 +25,15 @@ interface Props {
   getState?: () => { sit: boolean; moving: boolean; speed?: number };
   energy?: number;
   /** Bo'sh (idle) o'tirgandagi poza: 0 — qo'llar tizzada (standart), 1 — suyanib,
-   *  qo'llar tayanchda, 2 — qo'lidagi telefonga qaraydi, 3 — oyoq ustiga oyoq. */
-  idleStyle?: number;
+   *  qo'llar tayanchda, 2 — qo'lidagi telefonga qaraydi, 3 — oyoqlar oldinga uzatilib,
+   *  to'piqda chalishtirilgan.
+   *  "auto" — tasodifiy pozadan boshlab, vaqti-vaqti bilan (40–120 s) holatini
+   *  almashtiradi (ofis; reducedMotion'da almashtirmaydi). */
+  idleStyle?: number | "auto";
 }
+
+/** Bo'sh o'tirish pozalari soni (idleStyle 0…3). */
+const IDLE_STYLES = 4;
 
 function damp(c: number, t: number, l: number, dt: number): number {
   return THREE.MathUtils.lerp(c, t, 1 - Math.exp(-l * dt));
@@ -64,6 +70,8 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
   const blinkCd = useRef(2 + Math.random() * 4);
   const glanceCd = useRef(3 + Math.random() * 5);
   const headYaw = useRef(0);
+  const autoStyle = useRef(Math.floor(Math.random() * IDLE_STYLES));
+  const autoCd = useRef(40 + Math.random() * 80);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -76,7 +84,16 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     const working = sit && (status === "working" || status === "collab");
     const thinking = sit && status === "thinking";
     const walk = !sit && st.moving;
-    const idleSit = sit && status === "idle" ? idleStyle : 0;
+    const idleNow = sit && status === "idle";
+    if (idleStyle === "auto" && idleNow && !rm) {
+      autoCd.current -= dt;
+      if (autoCd.current <= 0) {
+        // Boshqa pozaga o'tadi (o'sha pozada qolmaydi)
+        autoStyle.current = (autoStyle.current + 1 + Math.floor(Math.random() * (IDLE_STYLES - 1))) % IDLE_STYLES;
+        autoCd.current = 40 + Math.random() * 80;
+      }
+    }
+    const idleSit = idleNow ? (idleStyle === "auto" ? autoStyle.current : idleStyle) : 0;
 
     const standingIdle = !sit && !st.moving && status === "idle" && !rm;
     if (standingIdle) {
@@ -103,15 +120,18 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     const kneeSwingR = Math.max(0, -gait) * 0.55 * wb;
     // Ishora: rotation.x musbat → oyoq oldinga (−z).
     const hipL = bone("hipL"), hipR = bone("hipR"), kneeL = bone("kneeL"), kneeR = bone("kneeR");
-    // Oyoq ustiga oyoq (idleSit 3): o'ng son ko'tarilib, chap tizza ustidan o'tadi.
+    // To'piqda chalishtirish (idleSit 3): boldirlar oldinga uzatiladi, o'ng to'piq
+    // chap to'piq ustidan o'tadi. Tizza ko'tarilmaydi — ofis stoli taxtasi ostiga
+    // sig'adi (tizza ustiga tizza tashlansa, stol chetidan 0.32 m da tizza
+    // taxtani teshib chiqardi).
     const cross = idleSit === 3;
     hipL.rotation.x = damp(hipL.rotation.x, sit ? 1.5 : swing, 12, dt);
-    hipR.rotation.x = damp(hipR.rotation.x, sit ? (cross ? 1.95 : 1.5) : -swing, 12, dt);
-    hipR.rotation.z = damp(hipR.rotation.z, cross ? -0.32 : 0, 10, dt);
-    kneeL.rotation.x = damp(kneeL.rotation.x, sit ? -1.5 : kneeSwingL + 0.02, 12, dt);
-    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? (cross ? -1.55 : -1.5) : kneeSwingR + 0.02, 12, dt);
+    hipR.rotation.x = damp(hipR.rotation.x, sit ? 1.5 : -swing, 12, dt);
+    hipR.rotation.z = damp(hipR.rotation.z, cross ? -0.2 : 0, 10, dt);
+    kneeL.rotation.x = damp(kneeL.rotation.x, sit ? (cross ? -1.15 : -1.5) : kneeSwingL + 0.02, 12, dt);
+    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? (cross ? -1.0 : -1.5) : kneeSwingR + 0.02, 12, dt);
     bone("ankleL").rotation.x = damp(bone("ankleL").rotation.x, sit ? 0.5 : -kneeSwingL * 0.7, 10, dt);
-    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? (cross ? 0.2 : 0.5) : -kneeSwingR * 0.7, 10, dt);
+    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? (cross ? 0.3 : 0.5) : -kneeSwingR * 0.7, 10, dt);
 
     let lean = 0.03;
     if (stretching) lean = -0.22;
@@ -176,7 +196,7 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     } else { shTL = -armSwing; shTR = armSwing; elTL = 0.2 + Math.abs(armSwing) * 0.4; elTR = elTL; }
     if (idleSit === 1) { shTL = shTR = 0.25; elTL = elTR = 1.3; shZL = -0.14; shZR = 0.14; } // tayanchlarda
     else if (idleSit === 2) { shTL = shTR = 0.6; elTL = elTR = 1.55; shZL = 0.22; shZR = -0.22; } // telefon
-    else if (idleSit === 3) { shTL = 0.55; shTR = 0.5; elTL = 0.5; elTR = 0.6; shZL = 0.18; shZR = -0.05; } // tizzada
+    else if (idleSit === 3) { shTL = 0.45; shTR = 0.45; elTL = 0.55; elTR = 0.55; shZL = 0.16; shZR = -0.16; } // qo'llar sonda
     bone("shoulderL").rotation.z = damp(bone("shoulderL").rotation.z, shZL, 10, dt);
     bone("shoulderR").rotation.z = damp(bone("shoulderR").rotation.z, shZR, 10, dt);
     bone("shoulderL").rotation.y = damp(bone("shoulderL").rotation.y, shYL, 10, dt);
