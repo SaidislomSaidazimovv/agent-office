@@ -26,30 +26,30 @@
       "materials": 717
     },
     "agents8_day": {
-      "callsSteady": 431,
-      "callsMax": 431,
-      "meshes": 2629,
-      "materials": 782
+      "callsSteady": 209,
+      "callsMax": 209,
+      "meshes": 2407,
+      "materials": 748
     },
     "agents8_night": {
-      "callsSteady": 436,
-      "callsMax": 436,
-      "meshes": 2632,
-      "materials": 784
+      "callsSteady": 214,
+      "callsMax": 214,
+      "meshes": 2410,
+      "materials": 750
     },
     "agents24_day": {
-      "callsSteady": 1004,
-      "callsMax": 1004,
-      "meshes": 3231,
-      "materials": 825
+      "callsSteady": 320,
+      "callsMax": 320,
+      "meshes": 2547,
+      "materials": 762
     },
     "agents8_fpv": {
-      "callsSteady": 114,
-      "callsMax": 115,
-      "meshes": 2637,
-      "materials": 786
+      "callsSteady": 88,
+      "callsMax": 90,
+      "meshes": 2415,
+      "materials": 752
     }
   },
-  "baselineMeasuredAt": "2026-11-24",
+  "baselineMeasuredAt": "2026-11-25",
   "toleranceNote": "8%: first-person steady draw calls vary ~4% between runs (wandering agents enter/leave the view), measured 612-637."
 }

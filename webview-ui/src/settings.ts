@@ -42,7 +42,7 @@ function prefersReducedMotion(): boolean {
 export interface SettingsValues {
   /** Sessiya xarajat budjeti ($). 0 = o'chiq. FAQAT ogohlantirish (budget.ts). */
   budgetUsd: number;
-  /** Bo'sh turgandagi mayda animatsiyalar + o'simlik tebranishi (PixelPerson, OfficeDecor). */
+  /** Bo'sh turgandagi mayda animatsiyalar + o'simlik tebranishi (HumanFigure, OfficeDecor). */
   reducedMotion: boolean;
   /** Piksel zichligi + soya yangilanishi (App.tsx). */
   quality: Quality;

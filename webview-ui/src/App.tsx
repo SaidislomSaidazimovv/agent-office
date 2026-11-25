@@ -17,7 +17,7 @@ import { clutterLevel } from "./scene/clutter";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "./settings";
 import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
-import PixelPerson from "./scene/PixelPerson";
+import HumanFigure from "./scene/HumanFigure";
 import Room from "./scene/Room";
 import { DESK_COUNT, ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
@@ -221,7 +221,7 @@ function Gallery() {
               <meshStandardMaterial color="#22262d" roughness={0.8} />
             </mesh>
             <group rotation={[0, Math.PI, 0]}>
-              <PixelPerson skin={preset} status="idle" pose="stand" />
+              <HumanFigure skin={preset} status="idle" pose="stand" />
             </group>
             <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
               <div style={{ fontFamily: "system-ui", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{preset.label}</div>

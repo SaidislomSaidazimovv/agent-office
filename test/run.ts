@@ -40,6 +40,8 @@ import { translate } from "../webview-ui/src/i18n.js";
 import { baseboardBoxes, SIGN, signPlacements, thresholdBoxes } from "../webview-ui/src/scene/architecture.js";
 import { resolvePlacements, staticObstacles } from "../webview-ui/src/scene/layoutMigrate.js";
 import { declutterLabels, LABEL_DIST, LABEL_ZOOM, labelVisible, needsAttention } from "../webview-ui/src/scene/labelVisibility.js";
+import { bindPosition, BONES, buildBones, buildHumanGeometry, humanGeometry } from "../webview-ui/src/scene/humanRig.js";
+import { ROLE_PRESETS } from "../webview-ui/src/scene/roles.js";
 import { EDGES, NODES, nearestNode, pathBetween } from "../webview-ui/src/scene/nav.js";
 import { blocked, setActiveSeats } from "../webview-ui/src/scene/collision.js";
 import { CLUTTER_TIERS, clutterLevel, MAX_CLUTTER } from "../webview-ui/src/scene/clutter.js";
@@ -1972,6 +1974,62 @@ test("yorliq tartiblash: ustma-ust tushganda yaqini qoladi; ustuvor doim; tegmay
   // Barqaror tartib: bir xil kirish — bir xil natija
   const inp = [box(10, 50, 50, 3), box(11, 60, 52, 3), box(12, 300, 50, 1)];
   assert.deepEqual([...declutterLabels(inp)], [...declutterLabels([...inp].reverse())]);
+});
+
+test("humanRig: suyaklar o'tirish/yozish pozalari mo'ljallangan bo'g'imlarda", () => {
+  const near = (a: number, b: number, m: string) => assert.ok(Math.abs(a - b) < 1e-6, `${m}: ${a} ≠ ${b}`);
+  near(bindPosition("pelvis").y, 0.92, "tos");
+  near(bindPosition("hipL").x, -0.09, "chap son");
+  near(bindPosition("ankleR").y, 0.1, "to'piq");
+  near(bindPosition("shoulderR").x, 0.23, "yelka x");
+  near(bindPosition("shoulderR").y, 1.29, "yelka y");
+  near(bindPosition("head").y, 1.57, "bosh");
+  const bones = buildBones();
+  assert.equal(bones.length, BONES.length);
+  assert.equal(bones.filter((b) => !b.parent).length, 1, "bitta ildiz suyak");
+});
+
+test("humanRig: har rol/aksessuar/LOD — to'g'ri skin atributlari, oyoq polda, bo'y ~1.7 m", () => {
+  const accs = [undefined, "glasses", "headphones", "cap", "beanie"] as const;
+  for (const [key, preset] of Object.entries(ROLE_PRESETS)) {
+    for (const accessory of accs) {
+      for (const lod of ["high", "low"] as const) {
+        const g = buildHumanGeometry({ ...preset, accessory }, lod);
+        const pos = g.getAttribute("position"), si = g.getAttribute("skinIndex"), sw = g.getAttribute("skinWeight"), col = g.getAttribute("color");
+        assert.ok(pos && si && sw && col && g.getAttribute("normal"), `${key}: atributlar`);
+        assert.equal(si.count, pos.count);
+        for (let i = 0; i < pos.count; i++) {
+          assert.ok(si.getX(i) < BONES.length, "skinIndex chegarada");
+          assert.equal(sw.getX(i) + sw.getY(i) + sw.getZ(i) + sw.getW(i), 1, "og'irlik yig'indisi 1");
+        }
+        g.computeBoundingBox();
+        const bb = g.boundingBox!;
+        assert.ok(Math.abs(bb.min.y) < 0.01, `${key}/${lod}: oyoq polda (min y = ${bb.min.y.toFixed(3)})`);
+        assert.ok(bb.max.y > 1.6 && bb.max.y < 1.85, `${key}/${lod}: bo'y ${bb.max.y.toFixed(3)}`);
+      }
+    }
+  }
+});
+
+test("humanRig: soch yuzni yopmaydi (ko'z oldida soch yo'q; qoshlar — ko'zdan yuqorida)", () => {
+  const eyeY = bindPosition("eyes").y;
+  for (const [key, preset] of Object.entries(ROLE_PRESETS)) {
+    const g = buildHumanGeometry({ ...preset, accessory: null }, "high");
+    const pos = g.getAttribute("position"), col = g.getAttribute("color");
+    const hair = new THREE.Color(preset.hair);
+    let blocking = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const isHair = Math.abs(col.getX(i) - hair.r) < 1e-4 && Math.abs(col.getY(i) - hair.g) < 1e-4 && Math.abs(col.getZ(i) - hair.b) < 1e-4;
+      if (isHair && Math.abs(pos.getY(i) - eyeY) < 0.02 && Math.abs(pos.getX(i)) < 0.07 && pos.getZ(i) < -0.09) blocking++;
+    }
+    assert.equal(blocking, 0, `${key} (${preset.hairStyle}): yuz oldida ${blocking} soch nuqtasi`);
+  }
+});
+
+test("humanGeometry: bir xil ko'rinish — bitta umumiy geometriya; LOD low yengilroq", () => {
+  const s = ROLE_PRESETS.backend;
+  assert.equal(humanGeometry({ ...s }, "high"), humanGeometry({ ...s }, "high"), "kesh qiymat bo'yicha");
+  assert.ok(humanGeometry(s, "low").getAttribute("position").count < humanGeometry(s, "high").getAttribute("position").count);
 });
 
 test("statik birlashtirish: bir xil xususiyatli mesh'lar bitta bo'ladi, rang vertex'da; dinamik/shaffof/teksturali chetda; unbatch qaytaradi", () => {
