@@ -113,7 +113,10 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     else if (walk) lean = 0.11;
     const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.01 : 0.016) * (1 + 0.3 * Math.sin(tt * 0.29));
     const spine = bone("spine");
-    spine.rotation.x = damp(spine.rotation.x, lean, 7, dt);
+    // lean/nod: musbat = OLDINGA (−z). rotation.x musbat esa yuqori uchini +z ga
+    // (orqaga) og'diradi — shuning uchun ishora teskari (avvalgi voxel personajda
+    // ham shunday xato bo'lgan: "yozyapti" orqaga suyanar, "pastga qarash" tepaga edi).
+    spine.rotation.x = damp(spine.rotation.x, -lean, 7, dt);
     spine.scale.y = damp(spine.scale.y, breathe, 6, dt);
     spine.rotation.y = damp(spine.rotation.y, -gait * 0.18 * wb, 8, dt);
 
@@ -130,7 +133,7 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
       }
     } else headYaw.current = 0;
     const head = bone("head");
-    head.rotation.x = damp(head.rotation.x, nod + Math.sin(tt * 1.6) * 0.02 + Math.sin(tt * 0.37) * 0.015, 7, dt);
+    head.rotation.x = damp(head.rotation.x, -(nod + Math.sin(tt * 1.6) * 0.02 + Math.sin(tt * 0.37) * 0.015), 7, dt);
     head.rotation.z = damp(head.rotation.z, tilt, 6, dt);
     head.rotation.y = damp(head.rotation.y, headYaw.current + Math.sin(tt * 0.5) * 0.03, 5, dt);
 
@@ -144,14 +147,26 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
 
     const armSwing = gait * 0.5 * wb;
     let shTL: number, shTR: number, elTL: number, elTR: number;
+    // Yelkaning yon (z) va ichkariga (y) burilishi: z musbat — qo'l +x tomonga.
+    // 0 — oddiy pozalar (yozish, yurish...).
+    let shZL = 0, shZR = 0, shYL = 0, shYR = 0;
     if (stretching) { shTL = -2.6; shTR = -2.7; elTL = 0.15; elTR = 0.15; }
-    else if (sit && thinking) { shTL = 0.5; elTL = 0.25; shTR = 1.2 + Math.sin(tt * 1.4) * 0.04; elTR = 1.7; }
+    else if (sit && thinking) {
+      // O'ng kaft iyakda (burchaklar suyaklar ustida sonli qidiruv bilan topilgan),
+      // chap qo'l ko'krak oldidan o'tib, o'ng tirsakni tutib turadi.
+      shTR = 1.8 + Math.sin(tt * 1.4) * 0.03; shYR = 0.35; shZR = -0.7; elTR = 1.95;
+      shTL = 1.15; shYL = -0.9; shZL = 0.7; elTL = 1.6;
+    }
     else if (sit) {
       const tapL = working ? Math.max(0, Math.sin(tt * 11)) * 0.25 : 0;
       const tapR = working ? Math.max(0, Math.sin(tt * 11 + 1.6)) * 0.25 : 0;
       shTL = working ? 0.95 + tapL : 0.5; shTR = working ? 0.95 + tapR : 0.5;
       elTL = working ? 0.7 + tapL : 0.22; elTR = working ? 0.7 + tapR : 0.22;
     } else { shTL = -armSwing; shTR = armSwing; elTL = 0.2 + Math.abs(armSwing) * 0.4; elTR = elTL; }
+    bone("shoulderL").rotation.z = damp(bone("shoulderL").rotation.z, shZL, 10, dt);
+    bone("shoulderR").rotation.z = damp(bone("shoulderR").rotation.z, shZR, 10, dt);
+    bone("shoulderL").rotation.y = damp(bone("shoulderL").rotation.y, shYL, 10, dt);
+    bone("shoulderR").rotation.y = damp(bone("shoulderR").rotation.y, shYR, 10, dt);
     bone("shoulderL").rotation.x = damp(bone("shoulderL").rotation.x, shTL, 10, dt);
     bone("shoulderR").rotation.x = damp(bone("shoulderR").rotation.x, shTR, 10, dt);
     bone("elbowL").rotation.x = damp(bone("elbowL").rotation.x, elTL, 10, dt);
