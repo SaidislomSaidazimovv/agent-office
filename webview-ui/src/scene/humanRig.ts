@@ -157,8 +157,9 @@ export function buildHumanGeometry(s: CharSkin, lod: "high" | "low" = "high"): T
   // Tos (shim) va gavda (ko'ylak) — aylanma profil (lathe): son → bel → ko'krak →
   // yelka bitta silliq egri chiziq. Shim qismi tos suyagiga, ko'ylak gavdaga
   // bog'langan; ular bir-birini qoplaydi — engashganda bo'shliq ochilmaydi.
+  // Tos tagi son ostidan pastga tushmaydi — o'tirganda kursi ichiga botmaydi.
   const lathe = (pts: [number, number][]) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 18);
-  parts.push(part(lathe([[0.001, -0.14], [0.11, -0.135], [0.155, -0.08], [0.155, 0.02], [0.14, 0.1], [0.001, 0.11]]), s.bottom, "pelvis", [0, 0, 0], [1, 1, 0.7]));
+  parts.push(part(lathe([[0.001, -0.075], [0.1, -0.07], [0.15, -0.035], [0.155, 0.02], [0.14, 0.1], [0.001, 0.11]]), s.bottom, "pelvis", [0, 0, 0], [1, 1, 0.7]));
   legs("L");
   legs("R");
   parts.push(part(lathe([[0.001, -0.06], [0.135, -0.05], [0.13, 0.04], [0.15, 0.16], [0.165, 0.25], [0.15, 0.31], [0.1, 0.355], [0.05, 0.37], [0.001, 0.372]]), s.top, "spine", [0, 0, 0], [1, 1, 0.66]));
