@@ -24,13 +24,16 @@ interface Props {
   detail?: "high" | "low";
   getState?: () => { sit: boolean; moving: boolean; speed?: number };
   energy?: number;
+  /** Bo'sh (idle) o'tirgandagi poza: 0 — qo'llar tizzada (standart), 1 — suyanib,
+   *  qo'llar tayanchda, 2 — qo'lidagi telefonga qaraydi, 3 — oyoq ustiga oyoq. */
+  idleStyle?: number;
 }
 
 function damp(c: number, t: number, l: number, dt: number): number {
   return THREE.MathUtils.lerp(c, t, 1 - Math.exp(-l * dt));
 }
 
-export default function HumanFigure({ skin: s, status, pose = "sit", moving = false, detail = "high", getState, energy = 1 }: Props) {
+export default function HumanFigure({ skin: s, status, pose = "sit", moving = false, detail = "high", getState, energy = 1, idleStyle = 0 }: Props) {
   const en = Math.max(0.5, Math.min(1.6, energy));
   const rootRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
@@ -73,6 +76,7 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     const working = sit && (status === "working" || status === "collab");
     const thinking = sit && status === "thinking";
     const walk = !sit && st.moving;
+    const idleSit = sit && status === "idle" ? idleStyle : 0;
 
     const standingIdle = !sit && !st.moving && status === "idle" && !rm;
     if (standingIdle) {
@@ -99,18 +103,24 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     const kneeSwingR = Math.max(0, -gait) * 0.55 * wb;
     // Ishora: rotation.x musbat → oyoq oldinga (−z).
     const hipL = bone("hipL"), hipR = bone("hipR"), kneeL = bone("kneeL"), kneeR = bone("kneeR");
+    // Oyoq ustiga oyoq (idleSit 3): o'ng son ko'tarilib, chap tizza ustidan o'tadi.
+    const cross = idleSit === 3;
     hipL.rotation.x = damp(hipL.rotation.x, sit ? 1.5 : swing, 12, dt);
-    hipR.rotation.x = damp(hipR.rotation.x, sit ? 1.5 : -swing, 12, dt);
+    hipR.rotation.x = damp(hipR.rotation.x, sit ? (cross ? 1.95 : 1.5) : -swing, 12, dt);
+    hipR.rotation.z = damp(hipR.rotation.z, cross ? -0.32 : 0, 10, dt);
     kneeL.rotation.x = damp(kneeL.rotation.x, sit ? -1.5 : kneeSwingL + 0.02, 12, dt);
-    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? -1.5 : kneeSwingR + 0.02, 12, dt);
+    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? (cross ? -1.55 : -1.5) : kneeSwingR + 0.02, 12, dt);
     bone("ankleL").rotation.x = damp(bone("ankleL").rotation.x, sit ? 0.5 : -kneeSwingL * 0.7, 10, dt);
-    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? 0.5 : -kneeSwingR * 0.7, 10, dt);
+    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? (cross ? 0.2 : 0.5) : -kneeSwingR * 0.7, 10, dt);
 
     let lean = 0.03;
     if (stretching) lean = -0.22;
     else if (working) lean = 0.2 + Math.sin(tt * 9) * 0.012;
     else if (thinking) lean = -0.04;
     else if (walk) lean = 0.11;
+    else if (idleSit === 1) lean = -0.14;
+    else if (idleSit === 2) lean = 0.1;
+    else if (idleSit === 3) lean = -0.06;
     const breathe = 1 + Math.sin(tt * (walk ? 5 : working ? 3.5 : 1.9)) * (walk ? 0.01 : 0.016) * (1 + 0.3 * Math.sin(tt * 0.29));
     const spine = bone("spine");
     // lean/nod: musbat = OLDINGA (−z). rotation.x musbat esa yuqori uchini +z ga
@@ -125,7 +135,8 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     else if (thinking) { tilt = 0.2; nod = -0.06; }
     else if (working) nod = 0.2 + Math.sin(tt * 4.5) * 0.03;
     else if (status === "review") nod = 0.14;
-    if (!working && !rm) {
+    else if (idleSit === 2) nod = 0.42; // telefonga qaraydi
+    if (!working && idleSit !== 2 && !rm) {
       glanceCd.current -= dt;
       if (glanceCd.current <= 0) {
         headYaw.current = (Math.random() - 0.5) * 0.7 * (0.7 + 0.3 * en);
@@ -163,6 +174,9 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
       shTL = working ? 0.95 + tapL : 0.5; shTR = working ? 0.95 + tapR : 0.5;
       elTL = working ? 0.7 + tapL : 0.22; elTR = working ? 0.7 + tapR : 0.22;
     } else { shTL = -armSwing; shTR = armSwing; elTL = 0.2 + Math.abs(armSwing) * 0.4; elTR = elTL; }
+    if (idleSit === 1) { shTL = shTR = 0.25; elTL = elTR = 1.3; shZL = -0.14; shZR = 0.14; } // tayanchlarda
+    else if (idleSit === 2) { shTL = shTR = 0.6; elTL = elTR = 1.55; shZL = 0.22; shZR = -0.22; } // telefon
+    else if (idleSit === 3) { shTL = 0.55; shTR = 0.5; elTL = 0.5; elTR = 0.6; shZL = 0.18; shZR = -0.05; } // tizzada
     bone("shoulderL").rotation.z = damp(bone("shoulderL").rotation.z, shZL, 10, dt);
     bone("shoulderR").rotation.z = damp(bone("shoulderR").rotation.z, shZR, 10, dt);
     bone("shoulderL").rotation.y = damp(bone("shoulderL").rotation.y, shYL, 10, dt);
