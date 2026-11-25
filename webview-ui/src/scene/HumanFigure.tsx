@@ -128,10 +128,13 @@ export default function HumanFigure({ skin: s, status, pose = "sit", moving = fa
     hipL.rotation.x = damp(hipL.rotation.x, sit ? 1.5 : swing, 12, dt);
     hipR.rotation.x = damp(hipR.rotation.x, sit ? 1.5 : -swing, 12, dt);
     hipR.rotation.z = damp(hipR.rotation.z, cross ? -0.2 : 0, 10, dt);
-    kneeL.rotation.x = damp(kneeL.rotation.x, sit ? (cross ? -1.15 : -1.5) : kneeSwingL + 0.02, 12, dt);
-    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? (cross ? -1.0 : -1.5) : kneeSwingR + 0.02, 12, dt);
-    bone("ankleL").rotation.x = damp(bone("ankleL").rotation.x, sit ? 0.5 : -kneeSwingL * 0.7, 10, dt);
-    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? (cross ? 0.3 : 0.5) : -kneeSwingR * 0.7, 10, dt);
+    // Tizza faqat ORQAGA bukiladi (manfiy, o'tirgandagi −1.5 kabi). Yurishda ilgari
+    // musbat edi — boldir oldinga otilib, "g'oz qadami" chiqardi (voxel personajdan
+    // qolgan xato). Tovon bukilishga qarab tekislanadi.
+    kneeL.rotation.x = damp(kneeL.rotation.x, sit ? (cross ? -1.15 : -1.5) : -kneeSwingL - 0.02, 12, dt);
+    kneeR.rotation.x = damp(kneeR.rotation.x, sit ? (cross ? -1.0 : -1.5) : -kneeSwingR - 0.02, 12, dt);
+    bone("ankleL").rotation.x = damp(bone("ankleL").rotation.x, sit ? 0.5 : kneeSwingL * 0.5, 10, dt);
+    bone("ankleR").rotation.x = damp(bone("ankleR").rotation.x, sit ? (cross ? 0.3 : 0.5) : kneeSwingR * 0.5, 10, dt);
 
     let lean = 0.03;
     if (stretching) lean = -0.22;
