@@ -8,7 +8,7 @@ import { slide } from "./collision";
 import { contextHot, EMOTE_MS, emoteFor, LONG_THINK_MS } from "./emotes";
 import { breakRoom, idleDestination, nearestNode, NODES, pathBetween, type WP } from "./nav";
 import { blockedByAgent, clearMeeting, meetingOf, meetSpot, presenceOf, report, seekMeeting, unreport } from "./presence";
-import PixelPerson from "./PixelPerson";
+import HumanFigure from "./HumanFigure";
 import { basicMat, contactShadowMat, SHADOW_PLANE, UNIT_BOX } from "./resources";
 import { labelRegistry, needsAttention } from "./labelVisibility";
 import { type CharSkin, characterFor, energyFor, isStandingSeat, roleKeyFor, seatFor, sitPoint, STATUS_COLOR, tokenBar } from "./roles";
@@ -405,11 +405,12 @@ function AgentAvatar({ agent }: { agent: AgentView }) {
     <group ref={group} position={[sit.current.x, 0, sit.current.z]} onClick={(e) => { e.stopPropagation(); select(agent.id); }}>
       {/* Yumshoq contact-shadow — agentni yerga bog'laydi (yassi, radial) */}
       <mesh geometry={SHADOW_PLANE} material={contactShadowMat()} position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.92, 0.92, 1]} />
-      <PixelPerson
+      <HumanFigure
         skin={preset}
         status={agent.status}
         energy={energyFor(agent.role, agent.seatIndex)}
         getState={() => ({ sit: seated.current, moving: movingRef.current, speed: speedRef.current })}
+        idleStyle="auto"
       />
 
       {/* Sub-agent daraxti: ota→yordamchi bog'lovchi chiziq (polda, past) —
@@ -549,7 +550,7 @@ function SubAgent({ skin, slot, leaving, label, showLabel, onExited }: { skin: C
   });
   return (
     <group ref={g} position={[px, 0, pz]} scale={0.001}>
-      <PixelPerson skin={skin} status="working" pose="stand" detail="low" />
+      <HumanFigure skin={skin} status="working" pose="stand" detail="low" />
       {/* Yorliq — sub-agentning HAQIQIY turi/vazifasi (Task tool'idan). Bo'lmasa
           umumiy "Yordamchi" (o'ylab topilgan nom yozilmaydi).
           Guruh 0.5ga kichraytirilgan → lokal 6.4 ≈ 3.2m: otaning TANLANGAN (baland)

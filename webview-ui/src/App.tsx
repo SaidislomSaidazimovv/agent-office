@@ -17,7 +17,7 @@ import { clutterLevel } from "./scene/clutter";
 import { dprFor, shadowEvery, shadowSignature, useSettings } from "./settings";
 import PlacedFurniture from "./scene/PlacedFurniture";
 import SeatMarkers from "./scene/SeatMarkers";
-import PixelPerson from "./scene/PixelPerson";
+import GalleryStation, { type GalleryPose } from "./scene/GalleryStation";
 import Room from "./scene/Room";
 import { DESK_COUNT, ROLE_PRESETS, SEAT_COUNT } from "./scene/roles";
 import { updateFrustum } from "./scene/visibility";
@@ -201,35 +201,35 @@ function CostSampler() {
 const Q = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
 const GALLERY = Q.has("gallery");
 
+// Galereyada har rol ish joyida, turli tabiiy o'tirish pozasida (S8-7).
+const GALLERY_POSES: Record<string, GalleryPose> = {
+  research: { status: "thinking", caption: "o'ylayapti" },
+  frontend: { status: "working", caption: "yozyapti" },
+  backend: { status: "review", caption: "ekranni o'qiyapti" },
+  qa: { status: "idle", idleStyle: 1, caption: "suyanib dam olyapti" },
+  docs: { status: "idle", idleStyle: 2, caption: "telefonga qarayapti" },
+  data: { status: "idle", idleStyle: 3, caption: "oyoqlarini chalishtirgan" },
+};
+
 function Gallery() {
   const roles = Object.entries(ROLE_PRESETS);
   return (
-    <Canvas shadows="percentage" dpr={[1, 1.5]} camera={{ position: [0, 1.2, 6.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
+    <Canvas shadows="percentage" dpr={[1, 1.5]} camera={{ position: [0, 2.3, 7.4], fov: 44 }} gl={{ antialias: true, toneMapping: ACESFilmicToneMapping, outputColorSpace: SRGBColorSpace }}>
       <color attach="background" args={["#2a2f38"]} />
       <ambientLight intensity={0.85} />
-      <directionalLight position={[3, 6, 4]} intensity={1.1} castShadow />
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[20, 8]} />
-        <meshStandardMaterial color="#333a45" roughness={1} />
+      <directionalLight position={[3, 7, 5]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={4} shadow-camera-bottom={-4} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[24, 10]} />
+        <meshStandardMaterial color="#3a414d" roughness={1} />
       </mesh>
       {roles.map(([key, preset], i) => {
-        const x = (i - (roles.length - 1) / 2) * 1.5;
-        return (
-          <group key={key} position={[x, 0, 0]}>
-            <mesh position={[0, 0.45, 0.02]} castShadow>
-              <boxGeometry args={[0.5, 0.1, 0.5]} />
-              <meshStandardMaterial color="#22262d" roughness={0.8} />
-            </mesh>
-            <group rotation={[0, Math.PI, 0]}>
-              <PixelPerson skin={preset} status="idle" pose="stand" />
-            </group>
-            <Html position={[0, 1.75, 0]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
-              <div style={{ fontFamily: "system-ui", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{preset.label}</div>
-            </Html>
-          </group>
-        );
+        const x = (i - (roles.length - 1) / 2) * 2.05;
+        // Stol yonda, odam kameraga yarim yonboshlab o'tiradi — stol tanani to'smaydi,
+        // yuz ham, poza ham ko'rinadi.
+        const ry = Math.PI - 0.95;
+        return <GalleryStation key={key} skin={preset} pose={GALLERY_POSES[key] ?? { status: "idle", caption: "" }} position={[x, 0, -0.4]} ry={ry} />;
       })}
-      <OrbitControls target={[0, 0.9, 0]} enablePan={false} />
+      <OrbitControls target={[0, 0.75, 0]} enablePan={false} />
     </Canvas>
   );
 }

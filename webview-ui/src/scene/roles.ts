@@ -65,7 +65,7 @@ const ROLE_ACCESSORY: Record<string, Accessory[]> = {
 
 // Rol "energiyasi" — bo'sh vaqtdagi jonlilik (atrofga qarash chastotasi). Olimlar
 // (Tadqiqot/Hujjatlar) xotirjam, Frontend/QA faolroq. Faqat mavjud animatsiyani
-// shkalalaydi (PixelPerson).
+// shkalalaydi (HumanFigure).
 const ROLE_ENERGY: Record<string, number> = {
   research: 0.75, docs: 0.75,
   backend: 0.95, data: 0.95,
