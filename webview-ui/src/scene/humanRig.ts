@@ -58,8 +58,8 @@ function part(g: THREE.BufferGeometry, color: string, bone: BoneName, off: [numb
   return { g: c, color, bone };
 }
 
-const capsule = (r: number, len: number) => new THREE.CapsuleGeometry(r, len, 4, 10);
-const ball = (r: number, w = 14, h = 10) => new THREE.SphereGeometry(r, w, h);
+const capsule = (r: number, len: number) => new THREE.CapsuleGeometry(r, len, 3, 8);
+const ball = (r: number, w = 12, h = 8) => new THREE.SphereGeometry(r, w, h);
 const box = (x: number, y: number, z: number) => new THREE.BoxGeometry(x, y, z);
 
 /** Rangni to'qroq/ochroq qilish (k: −1…1). */
@@ -76,7 +76,7 @@ function hairParts(s: CharSkin): Part[] {
   const h = s.hair;
   // Bosh qopqog'i: yuqori yarim sfera, orqaga qiyalatilgan — old cheti peshana
   // tepasida (qosh va ko'z ochiq), orqasi ensani yopadi
-  const cap = (r: number, theta: number) => new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, 0, theta);
+  const cap = (r: number, theta: number) => new THREE.SphereGeometry(r, 14, 8, 0, Math.PI * 2, 0, theta);
   const out: Part[] = [part(cap(0.126, Math.PI * 0.56), h, "head", [0, 0.012, 0.008], [1, 1.04, 1.05], [0.7, 0, 0])];
   switch (s.hairStyle) {
     case "long":
@@ -85,7 +85,7 @@ function hairParts(s: CharSkin): Part[] {
     case "afro":
       // Hajmli soch boshning ORQA-yuqorisida: old cheti peshana ustida to'xtaydi
       // (markaz yuzga yaqin bo'lsa, shar yuzni butunlay yopib qo'yardi).
-      out.push(part(ball(0.15, 16, 12), h, "head", [0, 0.075, 0.07], [1.12, 1, 1]));
+      out.push(part(ball(0.15, 14, 10), h, "head", [0, 0.075, 0.07], [1.12, 1, 1]));
       break;
     case "curly":
       for (const [x, z] of [[-0.07, -0.02], [0.07, -0.02], [0, 0.05], [-0.05, 0.07], [0.05, 0.07], [0, -0.06]]) {
@@ -145,38 +145,38 @@ export function buildHumanGeometry(s: CharSkin, lod: "high" | "low" = "high"): T
     parts.push(part(capsule(0.068, 0.27), s.bottom, hip, [0, -0.2, 0]));
     parts.push(part(capsule(0.056, 0.3), s.bottom, knee, [0, -0.21, 0]));
     // Poyabzal tagi polda (y≈0) va boldir uchini qoplaydi (to'piqda tirqish yo'q).
-    parts.push(part(ball(0.06, 12, 8), s.shoes, ankle, [0, -0.045, -0.045], [1.05, 0.9, 1.9]));
+    parts.push(part(ball(0.06, 10, 6), s.shoes, ankle, [0, -0.045, -0.045], [1.05, 0.9, 1.9]));
   };
   const arms = (side: "L" | "R") => {
     const sh = `shoulder${side}` as BoneName, el = `elbow${side}` as BoneName;
-    parts.push(part(ball(0.056, 12, 8), s.top, sh, [side === "L" ? 0.012 : -0.012, -0.015, 0]));
+    parts.push(part(ball(0.056, 10, 6), s.top, sh, [side === "L" ? 0.012 : -0.012, -0.015, 0]));
     parts.push(part(capsule(0.052, 0.16), s.top, sh, [0, -0.13, 0]));
     parts.push(part(capsule(0.042, 0.15), s.top, el, [0, -0.1, 0.01]));
-    parts.push(part(ball(0.044, 10, 8), s.skin, el, [0, -0.225, 0.02], [0.85, 1.15, 0.75]));
+    parts.push(part(ball(0.044, 8, 6), s.skin, el, [0, -0.225, 0.02], [0.85, 1.15, 0.75]));
   };
   // Tos (shim) va gavda (ko'ylak) — aylanma profil (lathe): son → bel → ko'krak →
   // yelka bitta silliq egri chiziq. Shim qismi tos suyagiga, ko'ylak gavdaga
   // bog'langan; ular bir-birini qoplaydi — engashganda bo'shliq ochilmaydi.
   // Tos tagi son ostidan pastga tushmaydi — o'tirganda kursi ichiga botmaydi.
-  const lathe = (pts: [number, number][]) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 18);
+  const lathe = (pts: [number, number][]) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 14);
   parts.push(part(lathe([[0.001, -0.075], [0.1, -0.07], [0.15, -0.035], [0.155, 0.02], [0.14, 0.1], [0.001, 0.11]]), s.bottom, "pelvis", [0, 0, 0], [1, 1, 0.7]));
   legs("L");
   legs("R");
   parts.push(part(lathe([[0.001, -0.06], [0.135, -0.05], [0.13, 0.04], [0.15, 0.16], [0.165, 0.25], [0.15, 0.31], [0.1, 0.355], [0.05, 0.37], [0.001, 0.372]]), s.top, "spine", [0, 0, 0], [1, 1, 0.66]));
   // Bel chizig'i (kamar) — shim bilan ko'ylak chegarasi
-  parts.push(part(new THREE.CylinderGeometry(0.142, 0.142, 0.022, 18), shade(s.bottom, -0.35), "pelvis", [0, 0.085, 0], [1, 1, 0.7]));
+  parts.push(part(new THREE.CylinderGeometry(0.142, 0.142, 0.022, 14, 1, true), shade(s.bottom, -0.35), "pelvis", [0, 0.085, 0], [1, 1, 0.7]));
   parts.push(part(new THREE.CylinderGeometry(0.045, 0.05, 0.1, 10), s.skin, "spine", [0, 0.42, 0]));
   arms("L");
   arms("R");
   // Bosh
-  parts.push(part(ball(0.115, 18, 14), s.skin, "head", [0, 0, 0], [0.95, 1.08, 1]));
+  parts.push(part(ball(0.115, 16, 12), s.skin, "head", [0, 0, 0], [0.95, 1.08, 1]));
   parts.push(...hairParts(s));
   if (lod === "high") {
     for (const x of [-0.042, 0.042]) {
-      parts.push(part(ball(0.021, 10, 8), WHITE, "eyes", [x, 0, -0.098], [1, 1, 0.55]));
-      parts.push(part(ball(0.011, 8, 6), PUPIL, "eyes", [x, 0, -0.11]));
+      parts.push(part(ball(0.021, 8, 6), WHITE, "eyes", [x, 0, -0.098], [1, 1, 0.55]));
+      parts.push(part(ball(0.011, 6, 4), PUPIL, "eyes", [x, 0, -0.11]));
       parts.push(part(box(0.045, 0.009, 0.012), s.hair, "head", [x, 0.052, -0.103], [1, 1, 1], [0, 0, x < 0 ? 0.12 : -0.12]));
-      parts.push(part(ball(0.026, 8, 6), s.skin, "head", [x < 0 ? -0.112 : 0.112, -0.005, 0.01], [0.5, 1, 0.8]));
+      parts.push(part(ball(0.026, 6, 5), s.skin, "head", [x < 0 ? -0.112 : 0.112, -0.005, 0.01], [0.5, 1, 0.8]));
     }
     parts.push(part(ball(0.02, 8, 6), s.skin, "head", [0, -0.018, -0.116], [1, 1.15, 1.3]));
     parts.push(part(box(0.042, 0.007, 0.01), MOUTH, "head", [0, -0.058, -0.106]));
